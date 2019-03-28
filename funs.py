@@ -1,12 +1,13 @@
 import numpy as np
-from numpy import  where, triu, zeros, ones, eye, inf, kron, diag, asarray, minimum, diagonal, newaxis, divide, multiply, mod, isnan, log
-from numpy import concatenate as cat
-from numpy import transpose as tp
-from scipy.linalg import expm
-from numpy.linalg import norm
-from numpy.linalg import multi_dot as matprod
-from scipy.linalg import fractional_matrix_power as fracpow
-from scipy.optimize import linprog
+import scipy as sc
+#from numpy import  where, triu, zeros, ones, eye, inf, kron, diag, asarray, minimum, diagonal, newaxis, divide, multiply, mod, isnan, log
+#from numpy import concatenate as cat
+#from numpy import transpose as tp
+#from scipy.linalg import expm
+#from numpy.linalg import norm
+#from numpy.linalg import multi_dot as matprod
+#from scipy.linalg import fractional_matrix_power as fracpow
+#from scipy.optimize import linprog
 import sys
 from scipy.sparse import csc_matrix
 
@@ -33,20 +34,19 @@ def ORcurvAll_sparse_full(A,dist,Phi,cutoff=0,lamb=0):
 
     N = A.shape[1]
     # loop over every edge once
-    ind = where(triu(A) > 0)
+    ind = np.where(np.triu(A) > 0)
     x = ind[0]
     y = ind[1]
-    KappaU = zeros([N,N])
-    KappaL = zeros([N,N])
+    KappaU = np.zeros([N,N])
+    KappaL = np.zeros([N,N])
     for i in range(len(x)):
-
         # distribution at x and y supported by the neighbourhood Nx and Ny
         mx = Phi[x[i],:]
         my = Phi[y[i],:]
     
         # Prune small masses to reduce problem size
-        Nx = mx.argsort()[::-1]
-        Ny = my.argsort()[::-1]  
+        Nx = np.argsort(mx)[::-1]
+        Ny = np.argsort(my)[::-1]  
         cmx = np.cumsum(mx[Nx])
         ind = cmx[1:] < cutoff
         Nx = Nx[np.insert(ind,0,True)] #always include first element
@@ -62,9 +62,9 @@ def ORcurvAll_sparse_full(A,dist,Phi,cutoff=0,lamb=0):
         # curvature along x-y
         if lamb != 0: #entropy regularised OT
             K = np.exp(-lamb*dNxNy)
-            mx = np.array(mx,ndmin=2)
-            my = np.array(my,ndmin=2)
-            (U,L) = sinkhornTransport(tp(mx),tp(my),K,multiply(K, dNxNy),lamb)
+            mx = np.transpose(np.array(mx,ndmin=2))
+            my = np.transpose(np.array(my,ndmin=2))
+            (U,L) = sinkhornTransport(mx, my, K, np.multiply(K, dNxNy), lamb)
             KappaL[x[i],y[i]] = 1 - U/dist[x[i],y[i]] 
             KappaU[x[i],y[i]] = 1 - L/dist[x[i],y[i]]  
         else: #classical sparse OT
@@ -72,8 +72,8 @@ def ORcurvAll_sparse_full(A,dist,Phi,cutoff=0,lamb=0):
             KappaU[x[i],y[i]] = 1 - W/dist[x[i],y[i]]  
             KappaL = KappaU
 
-    KappaU = KappaU + tp(KappaU)
-    KappaL = KappaL + tp(KappaL)
+    KappaU = KappaU + np.transpose(KappaU)
+    KappaL = KappaL + np.transpose(KappaL)
     KappaU[np.abs(KappaU) < eps] = 0
     KappaL[np.abs(KappaL) < eps] = 0
     
@@ -95,39 +95,30 @@ def distGeo(adjacency_matrix):
     (mat, n) = check_and_convert_adjacency_matrix(adjacency_matrix)
 
     for k in range(n):
-        mat = minimum(mat, mat[newaxis,k,:] + mat[:,k,newaxis]) 
+        mat = np.minimum(mat, mat[np.newaxis,k,:] + mat[:,k,np.newaxis]) 
 
     return mat     
 
 def check_and_convert_adjacency_matrix(adjacency_matrix):
-    mat = asarray(adjacency_matrix)
+    mat = np.asarray(adjacency_matrix)
 
     (nrows, ncols) = mat.shape
     assert nrows == ncols
     n = nrows
     
     #change zero elements to inf and zero diagonals
-    adjacency_matrix[adjacency_matrix==0] = inf
+    adjacency_matrix[adjacency_matrix==0] = np.inf
     np.fill_diagonal(adjacency_matrix, 0)
     
-    assert (diagonal(mat) == 0.0).all()
+    assert (np.diagonal(mat) == 0.0).all()
 
     return (mat, n)
 
 #--------------------------Diffusion distance matrix
-def distDiff(A, t, l):
+def distDiff(L, t, l):
 
-    N = A.shape[0]
-    eps = np.finfo(float).eps
-    D = diag(np.sum(A, 1))#degree matrix
-
-    # L = D\A 
-    # L = D^(-1/2)*A*D^(-1/2) #random walk Laplacian
-    L = D - A #combinatorial Laplacian
-    L = matprod([fracpow(D, -1/2), L, fracpow(D, -1/2)])
-    
-    
     # compute diffusion by matrix exponential
+    eps = np.finfo(float).eps
     Phi = expm(-t*L)
     Phi[Phi < eps] = 0
     
@@ -143,28 +134,20 @@ def distDiff(A, t, l):
     d = zeros([N, N])
     for i in range(N):
         for j in range(i-1,N):
-            d[i,j] = norm( Phi[:,i] - Phi[:,j] )
+            d[i,j] = np.linalg.norm( Phi[:,i] - Phi[:,j] )
 
-    d = d + tp(d)
+    d = d + d.T
     d[d<eps] = 0
     
     return d
 
 #--------------------------Diffusion 
-def Diff(A, t, l):
+def Diff(L, t, l):
     #The distance is measured on the graph G=(V,E,w), which is a Matlab object.
 
-    eps = np.finfo(float).eps
-    D = diag(np.sum(A, 1))#degree matrix
-
-    # L = D\A 
-    # L = D^(-1/2)*A*D^(-1/2) #random walk Laplacian
-    L = D - A #combinatorial Laplacian
-    L = matprod([fracpow(D, -1/2), L, fracpow(D, -1/2)])
-    
-    
     # compute diffusion by matrix exponential
-    Phi = expm(-t*L)
+    Phi = sc.sparse.linalg.expm(-t*L).toarray()
+    eps = np.finfo(float).eps
     Phi[Phi < eps] = 0
     
     # compute diffusion by eigenvalue decomposition
@@ -189,15 +172,15 @@ def W1(mx,my,dist):
 
     nmx = len(mx) 
     nmy = len(my)
-    dist = np.reshape(tp(dist), nmx*nmy)
+    dist = np.reshape(np.transpose(dist), nmx*nmy)
 
-    A = cat( (kron(ones([1,nmy], dtype=int),eye(nmx, dtype=int)), kron(eye(nmy, dtype=int),ones([1,nmx], dtype=int))),axis=0 )
-    beq = cat((mx, my),axis=0)
+    A = np.concatenate( (np.kron(np.ones([1,nmy], dtype=int),np.eye(nmx, dtype=int)), np.kron(np.eye(nmy, dtype=int),np.ones([1,nmx], dtype=int))),axis=0 )
+    beq = np.concatenate((mx, my),axis=0)
 
     #options = optimoptions('linprog','Algorithm','dual-simplex','display','off')
     # maxIt = 1e5 
     #tol = 1e-9
-    fval = linprog(dist, A_eq=A, b_eq=beq, method='simplex')
+    fval = sc.optimize.linprog(dist, A_eq=A, b_eq=beq, method='simplex')
        
     return fval.fun          
 
@@ -264,7 +247,7 @@ def W1(mx,my,dist):
 
 '''
     
-def sinkhornTransport(mx,my,K,U,lamb,stoppingCriterion = 'marginalDifference',p_norm=inf,tolerance=0.005,maxIter=5000,VERBOSE=0):
+def sinkhornTransport(mx,my,K,U,lamb,stoppingCriterion = 'marginalDifference',p_norm=np.inf,tolerance=0.005,maxIter=5000,VERBOSE=0):
   
     # Checking the type of computation: 1-vs-N points or many pairs
     if mx.shape[1] == 1:
@@ -282,64 +265,64 @@ def sinkhornTransport(mx,my,K,U,lamb,stoppingCriterion = 'marginalDifference',p_
 
     # Small changes in the 1-vs-N case to go a bit faster.
     if ONE_VS_N: # if computing 1-vs-N make sure all components of mx are >0. Otherwise we can get rid of some lines of K to go faster.
-        I=(mx>0)
+        I= (mx>0)
         if np.all(I) == 0: # need to update some vectors and matrices if mx does not have full support
             K=K[I,:]
             U=U[I,:]
             mx=mx[I]
 
-        ainvK=divide(K,mx) # precomputation of this matrix saves a d1 x N Schur product at each iteration.
+        ainvK = np.divide(K,mx) # precomputation of this matrix saves a d1 x N Schur product at each iteration.
 
     # Fixed point counter
     compt=0
 
     # Initialization of Left scaling Factors, N column vectors.
-    uL=divide(ones([mx.shape[0],my.shape[1]]), mx.shape[0])
+    uL = np.divide(np.ones([mx.shape[0],my.shape[1]]), mx.shape[0])
 
     if stoppingCriterion == 'distanceRelativeDecrease':
-        Dold=ones([1,my.shape[1]]) #initialization of vector of distances.
+        Dold=np.ones([1,my.shape[1]]) #initialization of vector of distances.
 
     # Fixed Point Loop
     # The computation below is mostly captured by the repeated iteration of uL=mx./(K*(my./(K'*uL)))
     while compt<maxIter:
         if ONE_VS_N: # 1-vs-N mode
             if BIGN:
-                uL=divide(1, ainvK@divide(my, tp(K)@uL)) # main iteration of Sinkhorn's algorithm
+                uL = np.divide(1, ainvK @ np.divide(my, np.transpose(K)@uL)) # main iteration of Sinkhorn's algorithm
             else:
-                uL=divide(1, ainvK@divide(my, tp(tp(uL)@csc_matrix(K))))
+                uL = np.divide(1, ainvK @ np.divide(my, np.transpose(np.transpose(uL)@csc_matrix(K))))
         else: # N times 1-vs-1 mode
             if BIGN:
-                uL=divide(mx, K@divide(my, tp(tp(uL)@csc_matrix(K))))
+                uL = np.divide(mx, K @ np.divide(my, np.transpose(np.transpose(uL)@csc_matrix(K))))
             else:
-                uL=divide(mx, K@divide(my, tp(csc_matrix(K))@uL))
+                uL = np.divide(mx, K @ np.divide(my, np.transpose(csc_matrix(K))@uL))
 
         compt=compt+1
     
         # check the stopping criterion every 20 fixed point iterations
         # or, if that's the case, before the final iteration to store the most
         # recent value for the matrix of right scaling factors vR.
-        if mod(compt,20)==1 or compt==maxIter:   
+        if np.mod(compt,20)==1 or compt==maxIter:   
             # split computations to recover right and left scalings.        
             if BIGN:
-                vR=divide(my, tp(csc_matrix(K))@uL) # main iteration of Sinkhorn's algorithm
+                vR = np.divide(my, np.transpose(csc_matrix(K))@uL) # main iteration of Sinkhorn's algorithm
             else:
-                vR=divide(my, tp(tp(uL)@csc_matrix(K)))
+                vR = np.divide(my, np.transpose(np.transpose(uL)@csc_matrix(K)))
         
             if ONE_VS_N: # 1-vs-N mode
-                uL=divide(1, ainvK@vR)
+                uL= np.divide(1, ainvK@vR)
             else:
-                uL=divide(mx, csc_matrix(K)@vR)       
+                uL = np.divide(mx, csc_matrix(K)@vR)       
                         
             # check stopping criterion
             if stoppingCriterion == 'distanceRelativeDecrease':
-                D=np.sum(multiply(uL, U@vR))
-                Criterion=norm(divide(D, Dold-1,p_norm))
-                if Criterion<tolerance or isnan(Criterion):
+                D=np.sum(np.multiply(uL, U@vR))
+                Criterion = np.linalg.norm(np.divide(D, Dold-1,p_norm))
+                if Criterion<tolerance or np.isnan(Criterion):
                     break                
                 Dold=D               
             elif stoppingCriterion == 'marginalDifference':
-                Criterion=norm(np.array(np.sum(np.abs( multiply(vR, tp(csc_matrix(K))@uL) - my )),ndmin=2),p_norm)
-                if Criterion<tolerance or isnan(Criterion): # npl.norm of all or . or_1 differences between the marginal of the current solution with the actual marginals.
+                Criterion = np.linalg.norm(np.array(np.sum(np.abs( np.multiply(vR, np.transpose(csc_matrix(K))@uL) - my )),ndmin=2),p_norm)
+                if Criterion<tolerance or np.isnan(Criterion): # npl.norm of all or . or_1 differences between the marginal of the current solution with the actual marginals.
                     break
             else:
                 sys.exit('Stopping Criterion not recognized')        
@@ -348,20 +331,20 @@ def sinkhornTransport(mx,my,K,U,lamb,stoppingCriterion = 'marginalDifference',p_
             if VERBOSE>0:
                print('Iteration :',compt,' Criterion: ',Criterion)        
         
-            if np.any(isnan(Criterion)): # stop all computation if a computation of one of the pairs goes wrong.
+            if np.any(np.isnan(Criterion)): # stop all computation if a computation of one of the pairs goes wrong.
                 sys.exit('NaN values have appeared during the fixed point iteration. This problem appears because of insufficient machine precision when processing computations with a regularization value of lamb that is too high. Try again with a reduced regularization parameter lamb or with a thresholded metric matrix M.')
 
     if stoppingCriterion == 'marginalDifference': # if we have been watching marginal differences, we need to compute the vector of distances.
-        D=np.sum(multiply(uL, U@vR))
+        D=np.sum(np.multiply(uL, U@vR))
 
-    alpha = log(uL)
-    beta = log(vR)
-    beta[beta==-inf]=0 # zero values of vR (corresponding to zero values in my) generate inf numbers.
+    alpha = np.log(uL)
+    beta = np.log(vR)
+    beta[beta==-np.inf]=0 # zero values of vR (corresponding to zero values in my) generate inf numbers.
     if ONE_VS_N:
-        L = (tp(mx)@alpha + np.sum(multiply(my, beta)))/lamb
+        L = (np.transpose(mx)@alpha + np.sum(np.multiply(my, beta)))/lamb
     else:       
-        alpha[alpha==-inf]=0 # zero values of uL (corresponding to zero values in mx) generate inf numbers. in ONE-VS-ONE mode this never happens.
-        L = (np.sum(multiply(mx, alpha)) + np.sum(multiply(my, beta)))/lamb
+        alpha[alpha==-np.inf]=0 # zero values of uL (corresponding to zero values in mx) generate inf numbers. in ONE-VS-ONE mode this never happens.
+        L = (np.sum(np.multiply(mx, alpha)) + np.sum(np.multiply(my, beta)))/lamb
         
     return D, L
 
