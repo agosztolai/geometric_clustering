@@ -1,13 +1,6 @@
 import numpy as np
 import scipy as sc
-#from numpy import  where, triu, zeros, ones, eye, inf, kron, diag, asarray, minimum, diagonal, newaxis, divide, multiply, mod, isnan, log
-#from numpy import concatenate as cat
-#from numpy import transpose as tp
-#from scipy.linalg import expm
-#from numpy.linalg import norm
-#from numpy.linalg import multi_dot as matprod
-#from scipy.linalg import fractional_matrix_power as fracpow
-#from scipy.optimize import linprog
+from scipy import optimize
 import sys
 from scipy.sparse import csc_matrix
 
@@ -25,7 +18,7 @@ INPUT: A adjacency matrix
 OUTPUT: K NxN matrix with entries kij marking the curvature between
 nodes i and j
 '''
-def ORcurvAll_sparse_full(A,dist,Phi,cutoff=0,lamb=0):
+def ORcurvAll_sparse_full(A,dist,Phi,cutoff=1,lamb=0):
 
     #parse inputs
     eps = np.finfo(float).eps
@@ -34,41 +27,40 @@ def ORcurvAll_sparse_full(A,dist,Phi,cutoff=0,lamb=0):
 
     N = A.shape[1]
     # loop over every edge once
-    ind = np.where(np.triu(A) > 0)
-    x = ind[0]
-    y = ind[1]
+    (x,y,_) = sc.sparse.find(A)
     KappaU = np.zeros([N,N])
     KappaL = np.zeros([N,N])
     for i in range(len(x)):
         # distribution at x and y supported by the neighbourhood Nx and Ny
         mx = Phi[x[i],:]
         my = Phi[y[i],:]
-    
-        # Prune small masses to reduce problem size
-        Nx = np.argsort(mx)[::-1]
-        Ny = np.argsort(my)[::-1]  
-        cmx = np.cumsum(mx[Nx])
-        ind = cmx[1:] < cutoff
-        Nx = Nx[np.insert(ind,0,True)] #always include first element
-        mx = mx[Nx]/np.sum(mx[Nx])
-        cmy = np.cumsum(my[Ny]) 
-        ind = cmy[1:] < cutoff
-        Ny = Ny[np.insert(ind,0,True)] 
-        my = my[Ny]/np.sum(my[Ny])
-    
-        # Wasserstein distance between mx and my   
-        dNxNy = dist[Nx,:][:,Ny]
+        
+        if cutoff != 1:
+            # Prune small masses to reduce problem size
+            Nx = np.argsort(mx)[::-1]
+            Ny = np.argsort(my)[::-1]  
+            cmx = np.cumsum(mx[Nx])
+            ind = cmx[1:] < cutoff
+            Nx = Nx[np.insert(ind,0,True)] #always include first element
+            mx = mx[Nx]/np.sum(mx[Nx])
+            cmy = np.cumsum(my[Ny]) 
+            ind = cmy[1:] < cutoff
+            Ny = Ny[np.insert(ind,0,True)] 
+            my = my[Ny]/np.sum(my[Ny])
+            
+            # Wasserstein distance between mx and my   
+            dist = dist[Nx,:][:,Ny]
 
         # curvature along x-y
         if lamb != 0: #entropy regularised OT
-            K = np.exp(-lamb*dNxNy)
-            mx = np.transpose(np.array(mx,ndmin=2))
-            my = np.transpose(np.array(my,ndmin=2))
-            (U,L) = sinkhornTransport(mx, my, K, np.multiply(K, dNxNy), lamb)
+            K = np.exp(-lamb*dist)
+            mx = np.transpose(mx.todense())
+            my = np.transpose(my.todense())
+            (U,L) = sinkhornTransport(mx, my, K, K*dist, lamb)
             KappaL[x[i],y[i]] = 1 - U/dist[x[i],y[i]] 
             KappaU[x[i],y[i]] = 1 - L/dist[x[i],y[i]]  
         else: #classical sparse OT
-            W = W1(mx,my,dNxNy) #solve using simplex
+            W = W1(mx.toarray(),my.toarray(),dist) #solve using simplex
             KappaU[x[i],y[i]] = 1 - W/dist[x[i],y[i]]  
             KappaL = KappaU
 
@@ -81,84 +73,66 @@ def ORcurvAll_sparse_full(A,dist,Phi,cutoff=0,lamb=0):
 
 
 #--------------------------Geodesic distance matrix
-def distGeo(adjacency_matrix):
+def distGeo(A):
     '''All pair shortest path using Floyd-Warshall algorithm
     Input
         An NxN NumPy array describing the directed distances between N nodes.
-        adjacency_matrix[i,j] = distance to travel directly from node i to node j (without passing through other nodes)
-        Notes:
-        * If there is no edge connecting i->j then adjacency_matrix[i,j] should be equal to numpy.inf.
-        * The diagonal of adjacency_matrix should be zero.
+        A[i,j] = adjacency matrix
     Output
         An NxN NumPy array such that result[i,j] is the shortest distance to travel between node i and node j. If no such path exists then result[i,j] == numpy.inf
     '''
-    (mat, n) = check_and_convert_adjacency_matrix(adjacency_matrix)
+    (mat, n) = check_and_convert_A(A)
 
     for k in range(n):
         mat = np.minimum(mat, mat[np.newaxis,k,:] + mat[:,k,np.newaxis]) 
 
     return mat     
 
-def check_and_convert_adjacency_matrix(adjacency_matrix):
-    mat = np.asarray(adjacency_matrix)
+def check_and_convert_A(A):
+    mat = A.copy() #create copy
 
     (nrows, ncols) = mat.shape
     assert nrows == ncols
     n = nrows
     
     #change zero elements to inf and zero diagonals
-    adjacency_matrix[adjacency_matrix==0] = np.inf
-    np.fill_diagonal(adjacency_matrix, 0)
+    mat[mat==0] = np.inf
+    np.fill_diagonal(mat, 0)
     
     assert (np.diagonal(mat) == 0.0).all()
 
     return (mat, n)
 
-#--------------------------Diffusion distance matrix
-def distDiff(L, t, l):
-
-    # compute diffusion by matrix exponential
-    eps = np.finfo(float).eps
-    Phi = expm(-t*L)
-    Phi[Phi < eps] = 0
-    
-    # compute diffusion by eigenvalue decomposition
-    # [V,lamb] = eig(L) #s(L,l,'la')
-    # lamb = diag(lamb)
-    # I = eye(N) #initial condition for each vertex
-    # Phi0V = tp(V)*I
-    # Phi = tp(V).*exp(-lamb*t) #diffusion map
-    # Phi = V*Phi
-    
-    # all diffusion distances 
-    d = zeros([N, N])
-    for i in range(N):
-        for j in range(i-1,N):
-            d[i,j] = np.linalg.norm( Phi[:,i] - Phi[:,j] )
-
-    d = d + d.T
-    d[d<eps] = 0
-    
-    return d
 
 #--------------------------Diffusion 
-def Diff(L, t, l):
-    #The distance is measured on the graph G=(V,E,w), which is a Matlab object.
-
-    # compute diffusion by matrix exponential
-    Phi = sc.sparse.linalg.expm(-t*L).toarray()
+def diffDist(L, t, retEval , dist = 0):
+    import scipy.sparse.linalg as sla
+    #import scipy.sparse as sp
+    
+    # compute diffusion
+    if retEval == 0: # compute diffusion by matrix exponential
+        Phi = sla.expm(-t*L)
+    else:  # compute diffusion by eigenvalue decomposition
+        (evals, evecs) = sla.eigs(L, k=retEval, which='LA')
+        #evals = np.diag(evals)
+        Phi = np.transpose(evecs*np.exp(-np.real(evals)*t)) #diffusion map
+        Phi = evecs@Phi
+    
     eps = np.finfo(float).eps
-    Phi[Phi < eps] = 0
+    Phi[Phi < eps] = 0 
     
-    # compute diffusion by eigenvalue decomposition
-    # [V,lamb] = eig(L) #s(L,l,'la')
-    # lamb = diag(lamb)
-    # I = eye(N) #initial condition for each vertex
-    # Phi0V = tp(V)*I
-    # Phi = tp(V).*exp(-lamb*t) #diffusion map
-    # Phi = V*Phi
+    N = L.shape[0]
+    d = np.zeros([N, N])
+    if dist == 1:      
+        # all diffusion distances       
+        for i in range(N):
+            for j in range(i-1,N):
+                d[i,j] = np.linalg.norm( Phi[:,i] - Phi[:,j] )
+
+        d = d + d.T
+        d[d<eps] = 0
     
-    return Phi
+    return Phi, d
                  
           
 #--------------------------Exact optimal transport problem (lin program)  
@@ -170,17 +144,14 @@ def Diff(L, t, l):
 '''
 def W1(mx,my,dist):
 
-    nmx = len(mx) 
-    nmy = len(my)
+    nmx = np.max(mx.shape)
+    nmy = np.max(my.shape)
     dist = np.reshape(np.transpose(dist), nmx*nmy)
 
     A = np.concatenate( (np.kron(np.ones([1,nmy], dtype=int),np.eye(nmx, dtype=int)), np.kron(np.eye(nmy, dtype=int),np.ones([1,nmx], dtype=int))),axis=0 )
     beq = np.concatenate((mx, my),axis=0)
 
-    #options = optimoptions('linprog','Algorithm','dual-simplex','display','off')
-    # maxIt = 1e5 
-    #tol = 1e-9
-    fval = sc.optimize.linprog(dist, A_eq=A, b_eq=beq, method='simplex')
+    fval = optimize.linprog(dist, A_eq=A, b_eq=beq, method='simplex')
        
     return fval.fun          
 
@@ -248,7 +219,8 @@ def W1(mx,my,dist):
 '''
     
 def sinkhornTransport(mx,my,K,U,lamb,stoppingCriterion = 'marginalDifference',p_norm=np.inf,tolerance=0.005,maxIter=5000,VERBOSE=0):
-  
+    from numpy import transpose as tp
+    
     # Checking the type of computation: 1-vs-N points or many pairs
     if mx.shape[1] == 1:
         ONE_VS_N = True # We are computing [D(mx,b_1), ... , D(mx,b_N)]
@@ -287,14 +259,14 @@ def sinkhornTransport(mx,my,K,U,lamb,stoppingCriterion = 'marginalDifference',p_
     while compt<maxIter:
         if ONE_VS_N: # 1-vs-N mode
             if BIGN:
-                uL = np.divide(1, ainvK @ np.divide(my, np.transpose(K)@uL)) # main iteration of Sinkhorn's algorithm
+                uL = np.divide(1.0, ainvK @ np.divide(my, tp(K)@uL)) # main iteration of Sinkhorn's algorithm
             else:
-                uL = np.divide(1, ainvK @ np.divide(my, np.transpose(np.transpose(uL)@csc_matrix(K))))
+                uL = np.divide(1.0, ainvK @ np.divide(my, tp(tp(uL)@csc_matrix(K))))
         else: # N times 1-vs-1 mode
             if BIGN:
-                uL = np.divide(mx, K @ np.divide(my, np.transpose(np.transpose(uL)@csc_matrix(K))))
+                uL = np.divide(mx, K @ np.divide(my, tp(tp(uL)@csc_matrix(K))))
             else:
-                uL = np.divide(mx, K @ np.divide(my, np.transpose(csc_matrix(K))@uL))
+                uL = np.divide(mx, K @ np.divide(my, tp(csc_matrix(K))@uL))
 
         compt=compt+1
     
@@ -304,9 +276,9 @@ def sinkhornTransport(mx,my,K,U,lamb,stoppingCriterion = 'marginalDifference',p_
         if np.mod(compt,20)==1 or compt==maxIter:   
             # split computations to recover right and left scalings.        
             if BIGN:
-                vR = np.divide(my, np.transpose(csc_matrix(K))@uL) # main iteration of Sinkhorn's algorithm
+                vR = np.divide(my, tp(csc_matrix(K))@uL) # main iteration of Sinkhorn's algorithm
             else:
-                vR = np.divide(my, np.transpose(np.transpose(uL)@csc_matrix(K)))
+                vR = np.divide(my, tp(tp(uL)@csc_matrix(K)))
         
             if ONE_VS_N: # 1-vs-N mode
                 uL= np.divide(1, ainvK@vR)
@@ -315,13 +287,13 @@ def sinkhornTransport(mx,my,K,U,lamb,stoppingCriterion = 'marginalDifference',p_
                         
             # check stopping criterion
             if stoppingCriterion == 'distanceRelativeDecrease':
-                D=np.sum(np.multiply(uL, U@vR))
+                D=np.sum(uL*U@vR)
                 Criterion = np.linalg.norm(np.divide(D, Dold-1,p_norm))
                 if Criterion<tolerance or np.isnan(Criterion):
                     break                
                 Dold=D               
             elif stoppingCriterion == 'marginalDifference':
-                Criterion = np.linalg.norm(np.array(np.sum(np.abs( np.multiply(vR, np.transpose(csc_matrix(K))@uL) - my )),ndmin=2),p_norm)
+                Criterion = np.linalg.norm(np.sum(np.abs( np.multiply(vR,tp(K)@uL) - my )),p_norm)
                 if Criterion<tolerance or np.isnan(Criterion): # npl.norm of all or . or_1 differences between the marginal of the current solution with the actual marginals.
                     break
             else:
@@ -335,106 +307,47 @@ def sinkhornTransport(mx,my,K,U,lamb,stoppingCriterion = 'marginalDifference',p_
                 sys.exit('NaN values have appeared during the fixed point iteration. This problem appears because of insufficient machine precision when processing computations with a regularization value of lamb that is too high. Try again with a reduced regularization parameter lamb or with a thresholded metric matrix M.')
 
     if stoppingCriterion == 'marginalDifference': # if we have been watching marginal differences, we need to compute the vector of distances.
-        D=np.sum(np.multiply(uL, U@vR))
+        D=np.sum(uL*U@vR)
 
     alpha = np.log(uL)
     beta = np.log(vR)
     beta[beta==-np.inf]=0 # zero values of vR (corresponding to zero values in my) generate inf numbers.
     if ONE_VS_N:
-        L = (np.transpose(mx)@alpha + np.sum(np.multiply(my, beta)))/lamb
+        L = (tp(mx)@alpha + np.sum(my*beta))/lamb
     else:       
         alpha[alpha==-np.inf]=0 # zero values of uL (corresponding to zero values in mx) generate inf numbers. in ONE-VS-ONE mode this never happens.
-        L = (np.sum(np.multiply(mx, alpha)) + np.sum(np.multiply(my, beta)))/lamb
+        L = (np.sum(mx*alpha) + np.sum(my*beta))/lamb
         
     return D, L
 
-    
 #--------------------------Plot
-def plotCluster(G,T,N,comms,X,Y,f):
-    import plotly.plotly as py
-    import plotly.graph_objs as go
+def plotCluster(G,pos,t,comms,numcomms):
+    #import plotly.plotly as py
+    #import plotly.graph_objs as go
+    import pylab as plt
     import networkx as nx
 
-
-    G=nx.random_geometric_graph(200,0.125)
-    pos=nx.get_node_attributes(G,'pos')
-
-    dmin=1
-    ncenter=0
-    for n in pos:
-        x,y=pos[n]
-        d=(x-0.5)**2+(y-0.5)**2
-        if d<dmin:
-            ncenter=n
-            dmin=d
-
-    p=nx.single_source_shortest_path_length(G,ncenter)
+    col = [G[u][v]['kappa'] for u,v in G.edges()]
+    w = [G[u][v]['weight'] for u,v in G.edges()]
+    plt.figure()
     
-    edge_trace = go.Scatter(
-    x=[],
-    y=[],
-    line=dict(width=0.5,color='#888'),
-    hoverinfo='none',
-    mode='lines')
+    # set edge colours and weights by curvature
+    maxcol = max([ abs(x) for x in col ])
+    mincol = min([ abs(x) for x in col ])
+    nx.draw(G, pos, node_size=20, node_color='k',edge_color=col, width = w, edge_cmap = plt.cm.bwr, edge_vmin = -mincol, edge_vmax = maxcol)
+    #nx.draw_networkx_edge_labels(G,pos,edge_labels=col)
+    #print(np.min(col))
+    #print(np.max(col))
 
-    for edge in G.edges():
-        x0, y0 = G.node[edge[0]]['pos']
-        x1, y1 = G.node[edge[1]]['pos']
-        edge_trace['x'] += tuple([x0, x1, None])
-        edge_trace['y'] += tuple([y0, y1, None])
+    #plt.savefig('images/t_'+str(t)+'.png')
 
-        node_trace = go.Scatter(
-            x=[],
-            y=[],
-            text=[],
-            mode='markers',
-            hoverinfo='text',
-            marker=dict(
-                showscale=True,
-                # colorscale options
-                #'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
-                #'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
-                #'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
-                colorscale='YlGnBu',
-                reversescale=True,
-                color=[],
-                size=10,
-                colorbar=dict(
-                    thickness=15,
-                    title='Node Connections',
-                    xanchor='left',
-                    titleside='right'
-                ),
-                line=dict(width=2)))
-
-    for node in G.nodes():
-        x, y = G.node[node]['pos']
-        node_trace['x'] += tuple([x])
-        node_trace['y'] += tuple([y])
-        
-        
-    for node, adjacencies in enumerate(G.adjacency()):
-        node_trace['marker']['color']+=tuple([len(adjacencies[1])])
-        node_info = '# of connections: '+str(len(adjacencies[1]))
-        node_trace['text']+=tuple([node_info])   
+    #plt.close() 
+    #plt.figure()
+    #plt.hist(col,bins=50)
+    #plt.xlabel('curvature')
+    #plt.savefig('images/hist_'+str(t)+'.png')
     
-    fig = go.Figure(data=[edge_trace, node_trace],
-             layout=go.Layout(
-                title='<br>Network graph made with Python',
-                titlefont=dict(size=16),
-                showlegend=False,
-                hovermode='closest',
-                margin=dict(b=20,l=5,r=5,t=40),
-                annotations=[ dict(
-                    text="Python code: <a href='https://plot.ly/ipython-notebooks/network-graphs/'> https://plot.ly/ipython-notebooks/network-graphs/</a>",
-                    showarrow=False,
-                    xref="paper", yref="paper",
-                    x=0.005, y=-0.002 ) ],
-                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)))
-
-    py.iplot(fig, filename='networkx')
-#    # plot
+    
 #    sp1 = subplot(1,2,1,'Parent',f)
 #    if ~isempty(X) && ~isempty(Y):
 #        p = plot(G,'XData',X,'YData',Y,'MarkerSize',4,'Parent',sp1)
@@ -477,3 +390,54 @@ def plotCluster(G,T,N,comms,X,Y,f):
 #    drawnow
 #    frame = getframe(f) 
 #    return frame      
+    
+#--------------------------Input graphs
+def inputGraphs(n):
+    import networkx as nx
+
+    pos= []
+    if n == 1:
+        #Watts-Strogatz
+        N = 20
+        G = nx.newman_watts_strogatz_graph(N, 2, 0.20)  
+        A = nx.to_numpy_matrix(G) 
+    
+        #pos = nx.spring_layout(G)
+        x = np.linspace(0,2*np.pi,N)
+        posx = np.cos(x)
+        posy = np.sin(x)
+        
+        for i in range(N):
+            pos.append([posx[i],posy[i]])
+            
+    elif n == 2:
+        #Symmetric barbell graph
+        N = 10
+        A = np.vstack((np.hstack((np.ones([N//2,N//2]), np.zeros([N//2,N//2]))), np.hstack((np.zeros([N//2,N//2]), np.ones([N//2,N//2])))))
+        A = A-np.eye(N)
+        A[N//2-1,N//2] = 1
+        A[N//2,N//2-1] = 1
+        G=nx.Graph(A)
+        pos = nx.spring_layout(G)
+        
+    elif n == 3:
+        A = np.matrix([[  0.,  86., 103., 139., 119.],
+                       [ 86.,   0.,  95., 141.,  78.],
+                       [103.,  95.,   0.,  37.,  59.],
+                       [139., 141.,  37.,   0.,  72.],
+                       [119.,  78.,  59.,  72.,   0.]])
+        G=nx.Graph(A)
+    
+    
+    # normalised Laplacian
+    N = A.shape[0]
+    A = sc.sparse.csr_matrix(A)
+    diags = A.sum(axis=1).flatten()
+    D = sc.sparse.spdiags(diags, [0], N, N, format='csr')
+    L = D - A
+    diags_sqrt = 1.0/sc.sqrt(diags)
+    diags_sqrt[sc.isinf(diags_sqrt)] = 0
+    DH = sc.sparse.spdiags(diags_sqrt, [0], N, N, format='csr')
+    L = DH.dot(L.dot(DH))
+    
+    return G, A, L, pos
