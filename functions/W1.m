@@ -8,9 +8,9 @@ function fval = W1(mx,my,d)
 m = length(mx); n = length(my);
 d = reshape(d,1,m*n);
 
-A = sparse([ kron(ones(1,n),eye(m)); kron(eye(n),ones(1,m)) ]);
+B = sparse([ kron(ones(1,n),eye(m)); kron(eye(n),ones(1,m)) ]);
 lb = zeros(length(d),1); ub = inf(length(d),1);
 beq = [mx my];
 
 options = optimoptions('linprog','Algorithm','dual-simplex','display','off');
-[~, fval] = linprog(d,[],[],A,beq,lb',ub',options);
+[~, fval] = linprog(d,[],[],B,beq,lb',ub',options);

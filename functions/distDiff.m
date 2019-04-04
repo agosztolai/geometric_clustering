@@ -23,6 +23,6 @@ Phi(Phi<eps) = 0;
 
 %all diffusion distances
 if dist == 1 
-    d = distmat1(Phi);
+    d = squareform(pdist(Phi));
     d(d<eps) = 0;
 end
