@@ -1,8 +1,15 @@
 import numpy as np
 import scipy as sc
+from tqdm import tqdm
+import time as time
 from scipy import optimize
 import sys
 from scipy.sparse import csc_matrix
+import networkx as nx
+from multiprocessing import Pool
+from functools import partial
+
+
 
 
 #--------------------------Curvature matrix
@@ -18,6 +25,72 @@ INPUT: A adjacency matrix
 OUTPUT: K NxN matrix with entries kij marking the curvature between
 nodes i and j
 '''
+
+def delta(i, n):
+    """
+    return a delta initial condition
+    """
+
+    p0 = np.zeros(n)
+    p0[i] = 1.
+
+    return p0
+
+def mx_comp(L, T, precision, i):
+    mx_tmp = sc.sparse.linalg.expm_multiply(-L, delta(i, np.shape(L)[0]), T[0], T[-1], len(T) )
+    mx_all = [] 
+    for it in range(len(T)):
+        mx_non_zero = np.where(mx_tmp[it] > precision)[0] 
+        mx_all.append(sc.sparse.lil_matrix(mx_tmp[it, mx_non_zero]))
+
+    return mx_all
+
+def kappa_comp(mx_all, T, dist, e):
+    # distribution at x and y supported by the neighbourhood Nx and Ny
+    i = e[0]
+    j = e[1]
+
+    Kappa = np.zeros(len(T))
+    for it, t in enumerate(T):
+
+        mx_non_zero = mx_all[i][it].nonzero() 
+        my_non_zero = mx_all[j][it].nonzero() 
+
+        mx = mx_all[i][it][mx_non_zero].toarray()[0]
+        my = mx_all[j][it][my_non_zero].toarray()[0]
+
+        dist_xy = dist[mx_non_zero[1],:][:,my_non_zero[1]]
+
+        W = W1(mx, my, dist_xy) #solve using simplex
+
+        Kappa[it] = 1. - W/dist[i, j]  
+    
+    return Kappa
+
+
+def ORcurvAll_sparse_full_parallel(G, dist, T, precision):
+
+    N_n = len(G)
+    N_e = len(G.edges)
+
+    Kappa = np.zeros([len(T), N_n, N_n])
+
+    L = sc.sparse.csc_matrix(nx.normalized_laplacian_matrix(G), dtype=np.float64)
+    lamb_2 = np.max(abs(sc.sparse.linalg.eigs(L, which='SM', k=2)[0]))
+    print('spectral gap:', lamb_2)
+    L /= lamb_2
+
+
+    n_processes = 5
+
+    with Pool(processes = n_processes) as p_mx:  #initialise the parallel computation
+        mx_all = list(tqdm(p_mx.imap(partial(mx_comp, L, T, precision), np.arange(N_n)), total = N_n))
+
+    with Pool(processes = n_processes) as p_kappa:  #initialise the parallel computation
+        Kappa = list(tqdm(p_kappa.imap(partial(kappa_comp, mx_all, T, dist), G.edges()), total = N_e))
+
+    return Kappa
+
 def ORcurvAll_sparse_full(A,dist,Phi,cutoff=1,lamb=0):
 
     #parse inputs
@@ -32,9 +105,19 @@ def ORcurvAll_sparse_full(A,dist,Phi,cutoff=1,lamb=0):
     KappaL = np.zeros([N,N])
     for i in range(len(x)):
         # distribution at x and y supported by the neighbourhood Nx and Ny
+
         mx = Phi[x[i],:]
         my = Phi[y[i],:]
-        
+
+        mx_non_zero = np.where(mx>0)[0] 
+        my_non_zero = np.where(my>0)[0] 
+
+        mx = mx[mx_non_zero]
+        my = my[my_non_zero]
+
+        dist_xy = dist[mx_non_zero,:][:,my_non_zero]
+
+        """
         if cutoff != 1:
             # Prune small masses to reduce problem size
             Nx = np.argsort(mx)[::-1]
@@ -47,29 +130,31 @@ def ORcurvAll_sparse_full(A,dist,Phi,cutoff=1,lamb=0):
             ind = cmy[1:] < cutoff
             Ny = Ny[np.insert(ind,0,True)] 
             my = my[Ny]/np.sum(my[Ny])
-            
             # Wasserstein distance between mx and my   
             dist = dist[Nx,:][:,Ny]
+        """ 
 
         # curvature along x-y
         if lamb != 0: #entropy regularised OT
+            print('does not work!')
             K = np.exp(-lamb*dist)
-            mx = np.transpose(mx.todense())
-            my = np.transpose(my.todense())
+            mx = np.transpose(mx)
+            my = np.transpose(my)
             (U,L) = sinkhornTransport(mx, my, K, K*dist, lamb)
             KappaL[x[i],y[i]] = 1 - U/dist[x[i],y[i]] 
             KappaU[x[i],y[i]] = 1 - L/dist[x[i],y[i]]  
+
         else: #classical sparse OT
-            W = W1(mx.toarray(),my.toarray(),dist) #solve using simplex
+            W = W1(mx, my, dist_xy) #solve using simplex
             KappaU[x[i],y[i]] = 1 - W/dist[x[i],y[i]]  
-            KappaL = KappaU
+            #KappaL = KappaU
 
     KappaU = KappaU + np.transpose(KappaU)
-    KappaL = KappaL + np.transpose(KappaL)
+    #KappaL = KappaL + np.transpose(KappaL)
     KappaU[np.abs(KappaU) < eps] = 0
-    KappaL[np.abs(KappaL) < eps] = 0
+    #KappaL[np.abs(KappaL) < eps] = 0
     
-    return KappaL, KappaU
+    return KappaU#, KappaU
 
 
 #--------------------------Geodesic distance matrix
@@ -111,7 +196,7 @@ def diffDist(L, t, retEval , dist = 0):
     
     # compute diffusion
     if retEval == 0: # compute diffusion by matrix exponential
-        Phi = sla.expm(-t*L)
+        Phi = sc.sparse.csr_matrix(sla.expm(-t*L.toarray()))
     else:  # compute diffusion by eigenvalue decomposition
         (evals, evecs) = sla.eigs(L, k=retEval, which='LA')
         #evals = np.diag(evals)
@@ -142,16 +227,18 @@ def diffDist(L, t, retEval , dist = 0):
  mx and my at x and y, respectively
  d is 1 x m*n vector of distances between supp(mx) and supp(my)    
 '''
-def W1(mx,my,dist):
+def W1(mx, my, dist):
 
-    nmx = np.max(mx.shape)
-    nmy = np.max(my.shape)
-    dist = np.reshape(np.transpose(dist), nmx*nmy)
+    nmx = len(mx)
+    nmy = len(my)
 
-    A = np.concatenate( (np.kron(np.ones([1,nmy], dtype=int),np.eye(nmx, dtype=int)), np.kron(np.eye(nmy, dtype=int),np.ones([1,nmx], dtype=int))),axis=0 )
+    A1 = np.kron(np.ones(nmy), np.eye(nmx)) 
+    A2 = np.kron( np.eye(nmy), np.ones(nmx))
+    A = np.concatenate( (A1, A2), axis=0 )
     beq = np.concatenate((mx, my),axis=0)
 
-    fval = optimize.linprog(dist, A_eq=A, b_eq=beq, method='simplex')
+    fval = optimize.linprog(dist.T.flatten(), A_eq=A, b_eq=beq,method='interior-point')#  method='simplex')
+    #fval = optimize.linprog(dist.T.flatten(), A_eq=A, b_eq=beq,method='simplex')
        
     return fval.fun          
 
@@ -338,8 +425,8 @@ def plotCluster(G,pos,t,comms,numcomms):
     #nx.draw_networkx_edge_labels(G,pos,edge_labels=col)
     #print(np.min(col))
     #print(np.max(col))
-
-    #plt.savefig('images/t_'+str(t)+'.png')
+    
+    plt.savefig('images/t_'+str(t)+'.png')
 
     #plt.close() 
     #plt.figure()
@@ -399,8 +486,10 @@ def inputGraphs(n):
     if n == 1:
         #Watts-Strogatz
         N = 20
-        G = nx.newman_watts_strogatz_graph(N, 2, 0.20)  
+        G = nx.newman_watts_strogatz_graph(N, 2, 0.30)  
         A = nx.to_numpy_matrix(G) 
+        for i, j in G.edges():
+            G[i][j]['weight'] = 1.
     
         #pos = nx.spring_layout(G)
         x = np.linspace(0,2*np.pi,N)
