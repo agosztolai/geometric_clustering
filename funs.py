@@ -415,7 +415,6 @@ def plotCluster(G,T,pos,t,comms,vi,nComms):
     
     ax2.set_xscale('log')
     ax2.set_yscale('log')
-    #    ax3.set_yscale('log')
     
     ax2.set_xlim(10**np.floor(np.log10(T[0])), 10**np.ceil(np.log10(T[len(T)-1])))
     ax2.set_xlim(1, 10**np.ceil(np.log10(np.max(nComms))))   
