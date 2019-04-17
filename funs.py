@@ -72,9 +72,9 @@ def ORcurvAll_sparse(E,dist,Phi,cutoff=1,lamb=0):
         # reduce support of mx and my
         Nx = np.where(mx>(1-cutoff)*np.max(mx))[0] 
         Ny = np.where(my>(1-cutoff)*np.max(my))[0]     
-    
         # restrict & renormalise 
         dNxNy = dist[Nx,:][:,Ny] 
+
         mx = mx[Nx]
         my = my[Ny]
         mx = mx/sum(mx)
@@ -98,27 +98,26 @@ def ORcurvAll_sparse(E,dist,Phi,cutoff=1,lamb=0):
 '''
 #--------------------------Curvature matrix (parallelised)
 '''
-def ORcurvAll_sparse_parallel(G, dist, T, cutoff):
+def ORcurvAll_sparse_parallel(G, dist, T, cutoff, lamb):
 
     N_n = len(G)
     N_e = len(G.edges)
 
-    Kappa = np.zeros([len(T), N_n, N_n])
+    #Kappa = np.zeros([len(T), N_n, N_n])
 
     L = sc.sparse.csc_matrix(nx.normalized_laplacian_matrix(G), dtype=np.float64)
-    lamb_2 = np.max(abs(sc.sparse.linalg.eigs(L, which='SM', k=2)[0]))
-    print('spectral gap:', lamb_2)
-    L /= lamb_2
+    #lamb_2 = np.max(abs(sc.sparse.linalg.eigs(L, which='SM', k=2)[0]))
+    #print('spectral gap:', lamb_2)
+    #L /= lamb_2
 
 
     n_processes = 5
 
     with Pool(processes = n_processes) as p_mx:  #initialise the parallel computation
-        mx_all = list(tqdm(p_mx.imap(partial(mx_comp, L, T, cutoff), np.arange(N_n)), total = N_n))
+        mx_all = list(tqdm(p_mx.imap(partial(mx_comp, L, T, cutoff), G.nodes()), total = N_n))
 
     with Pool(processes = n_processes) as p_kappa:  #initialise the parallel computation
-        Kappa = list(tqdm(p_kappa.imap(partial(kappa_comp, mx_all, T, dist), G.edges()), total = N_e))
-
+        Kappa = list(tqdm(p_kappa.imap(partial(kappa_comp, mx_all, T, dist, lamb), G.edges()), total = N_e))
     return Kappa
 
 # unit vector
@@ -135,16 +134,19 @@ def delta(i, n):
 # all neighbourhood densities
 def mx_comp(L, T, cutoff, i):
     N = np.shape(L)[0]
-    mx_tmp = sc.sparse.linalg.expm_multiply(-L, delta(i, N), T[0], T[-1], len(T) )
+    #mx_tmp= sc.sparse.linalg.expm_multiply(-L, delta(i, N), T[0], T[-1], len(T) )
     mx_all = [] 
-    for it in range(len(T)): 
-        Nx = np.where(mx_tmp[it] > (1-cutoff)*np.max(mx_tmp[it]))[0] 
-        mx_all.append(sc.sparse.lil_matrix(mx_tmp[it, Nx]))
+    Nx_all = []
+    for it, t in enumerate(T): 
+        mx_tmp = sc.sparse.linalg.expm_multiply(-t*L, delta(i, N))
+        Nx = np.argwhere(mx_tmp > (1-cutoff)*np.max(mx_tmp))
+        mx_all.append(sc.sparse.lil_matrix(mx_tmp[Nx]/np.sum(mx_tmp[Nx])))
+        Nx_all.append(Nx)
 
-    return mx_all
+    return mx_all, Nx_all
 
 # all xy curvatures
-def kappa_comp(mx_all, T, dist, e):
+def kappa_comp(mx_all, T, dist, lamb, e):
     # distribution at x and y supported by the neighbourhood Nx and Ny
     i = e[0]
     j = e[1]
@@ -152,21 +154,24 @@ def kappa_comp(mx_all, T, dist, e):
     Kappa = np.zeros(len(T))
     for it, t in enumerate(T):
 
-        Nx = mx_all[i][it].nonzero() 
-        Ny = mx_all[j][it].nonzero() 
+        Nx = np.array(mx_all[i][1][it]).flatten()
+        Ny = np.array(mx_all[j][1][it]).flatten()
 
-        mx = mx_all[i][it][Nx].toarray()[0]
-        my = mx_all[j][it][Ny].toarray()[0]
+        mx = mx_all[i][0][it].toarray().flatten()
+        my = mx_all[j][0][it].toarray().flatten()
 
-        dNxNy = dist[Nx[1],:][:,Ny[1]]
+        dNxNy = dist[Nx,:][:,Ny]
 
-        W = W1(mx, my, dNxNy) 
-        Kappa[it] = 1. - W/dist[i, j]  
-        
-#        K = np.exp(-lamb*dNxNy)
-#        (_,L) = sinkhornTransport(mx, my, K, K*dNxNy, lamb)
-#        KappaU[e[0],e[1]] = 1. - L/dist[i,e[1]] 
-    
+
+        if lamb != 0: #entropy regularised OT (faster)
+            K = np.exp(-lamb*dNxNy)
+            (_,L) = sinkhornTransport(mx, my, K, K*dNxNy, lamb)
+            Kappa[it] = 1. - L/dist[i,j]  
+
+        else: #classical sparse OT
+            W = W1(mx, my, dNxNy) 
+            Kappa[it] = 1. - W/dist[i, j]  
+
     return Kappa
               
 '''          
@@ -187,7 +192,8 @@ def W1(mx, my, dist):
     A = np.concatenate((A1, A2), axis=0)
     beq = np.concatenate((mx, my),axis=0)
 
-    fval = optimize.linprog(dist.T.flatten(), A_eq=A, b_eq=beq,method='interior-point')#  method='simplex')
+    fval = optimize.linprog(dist.T.flatten(), A_eq=A, b_eq=beq, method='interior-point')
+    #fval = optimize.linprog(dist.T.flatten(), A_eq=A, b_eq=beq, method='simplex')
        
     return fval.fun          
 

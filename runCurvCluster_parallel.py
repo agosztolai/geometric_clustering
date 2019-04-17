@@ -7,44 +7,53 @@ from scipy.sparse.csgraph import connected_components as conncomp
 from funs import *
 #import networkx as nx
 
-# parameters
-T = np.linspace(1e-4, 2, 100)  # diffusion time scale
-retEval = 0                    # num. retained evals (currently not relevant)
-prec = 1              # fraction of mass to retain
-lamb = 0              # regularising parameter (the larger the more accurate, but higher cost, and too large can blow up)
-whichGraph = 2
-precision = 1e-10
+from params import *
 
 # load graph ##WARNING currently only works for directed
 try:
     G
 except NameError:
-    (G,A,L,pos) = inputGraphs(whichGraph) 
+    (G,Aold,L,pos) = inputGraphs(whichGraph) 
      
 # geodesic distances (this is OK for directed)
-dist = np.array(distGeo(A.todense()))
+dist = np.array(distGeo(Aold))
 
 
-Kappa = ORcurvAll_sparse_full_parallel(G, dist, T, precision)
+Kappa = ORcurvAll_sparse_parallel(G, dist, T, cutoff, lamb)
 
-numcomms = np.zeros(len(T)) #v = 0 
+nComms = np.zeros([sample, len(T)]) 
+vi = np.zeros(len(T))
 for i in tqdm(range(len((T)))):
     #print(' Diffusion time: ', t)
 
+
+    A = Aold.copy()
     # update edge curvatures
     for e, edge in enumerate(G.edges):
+        #G.edges[edge]['weight'] = Kappa[e][i]
         G.edges[edge]['kappa'] = Kappa[e][i]
 
     #cluster (remove edges with negative curv and find conn comps)   
 
-    Kappa_A = nx.to_numpy_matrix(G) 
-    A[Kappa_A<=0] = 0
-    (numcomms[i], comms) = conncomp(csgraph=A, directed=False, return_labels=True)
+    Kappa_tmp = np.array(nx.to_numpy_matrix(G, weight='kappa')) 
+
+    #cluster (remove edges with negative curv and find conn comps)   
+    mink = np.min(Kappa_tmp)
+    maxk = np.max(Kappa_tmp)
+    labels = np.zeros([A.shape[0],sample])
+    thres = np.random.normal(0, perturb*(maxk-mink), sample)
+
+    for k in range(sample):
+        ind = np.where(Kappa_tmp<=thres[k])     
+        A = Aold.copy()
+        A[ind[0],ind[1]] = 0 #remove edges with -ve curv.       
+        (nComms[k,i], labels[:,k]) = conncomp(csr_matrix(A, dtype=int), directed=False, return_labels=True)
     
-    # append frame to movie
-    #frame = 
-    plotCluster(G,pos,i,comms,numcomms[i])
- 
+    # compute VI
+    (vi[i],_) = varinfo(labels);
+    
+    plotCluster(G,T,pos,i,labels[:,0],vi[0:i+1],np.mean(nComms[:,0:i+1],axis=0))
+
 import sys as sys
 sys.exit()
 print(np.shape(dist))
