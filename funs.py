@@ -397,28 +397,29 @@ def plotCluster(G,T,pos,t,comms,vi,nComms):
     
     # colour nodes by community
     cmapnode = plt.get_cmap("tab10")                    
-    nodecol = [10 if np.remainder(comms[i],10) == 0 else np.remainder(comms[i],10) for i in range(nx.number_of_nodes(G))]    
-    
-    nodes = nx.draw_networkx_nodes(G,pos,node_color=nodecol, node_size=20, \
-               node_cmap=cmapnode, with_labels=False, ax=ax1)
+    nodes = nx.draw_networkx_nodes(G, pos, node_color=comms, node_size=50, \
+               cmap=cmapnode, with_labels=False, ax=ax1)
        
     # plot number of communities and VI
     ax2 = plt.subplot(122)
     ax3 = ax2.twinx()
     
     ax2.plot(T[0:len(nComms)], nComms, 'b-')
-    ax3.plot(T[0:len(nComms)],vi, 'r-')
+    ax3.plot(T[0:len(nComms)], vi, 'r-')
     
     ax2.set_xlabel('Markov time')
     ax2.set_ylabel('# communities', color='b')
     ax3.set_ylabel('Average variation of information', color='r')
     
     ax2.set_xscale('log')
-    ax2.set_yscale('log')
+    ax3.set_xscale('log')
+    #ax2.set_yscale('log')
     
-    ax2.set_xlim(10**np.floor(np.log10(T[0])), 10**np.ceil(np.log10(T[len(T)-1])))
-    ax2.set_xlim(1, 10**np.ceil(np.log10(np.max(nComms))))   
-    ax3.set_ylim(0, np.max(vi)*1.1+0.01)
+    ax2.set_xlim(T[0], T[-1])
+    ax3.set_xlim(T[0], T[-1])
+
+    ax2.set_ylim(0, len(G)+2)
+    ax3.set_ylim(0, 1)
     
     ax2.tick_params('y', colors='b')
     ax3.tick_params('y', colors='r')  
