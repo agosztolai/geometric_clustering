@@ -1,7 +1,6 @@
 import numpy as np
 import scipy as sc
 from tqdm import tqdm
-import time as time
 from scipy import optimize
 import sys
 from scipy.sparse import csc_matrix, csr_matrix
@@ -9,17 +8,21 @@ import networkx as nx
 from multiprocessing import Pool
 from functools import partial
 
-'''
-#--------------------------Geodesic distance matrix
-'''
+# =============================================================================
+# Geodesic distance matrix
+# =============================================================================
+#
+# All pair shortest path using Floyd-Warshall algorithm
+#     Input
+#         An NxN NumPy array describing the directed distances between N nodes.
+#         A[i,j] = adjacency matrix
+#     Output
+#         An NxN NumPy array such that result[i,j] is the geodesic distance 
+#         between node i and node j. If i /~ i then result[i,j] == numpy.inf
+# 
+# =============================================================================
 def distGeo(A):
-    '''All pair shortest path using Floyd-Warshall algorithm
-    Input
-        An NxN NumPy array describing the directed distances between N nodes.
-        A[i,j] = adjacency matrix
-    Output
-        An NxN NumPy array such that result[i,j] is the shortest distance to travel between node i and node j. If no such path exists then result[i,j] == numpy.inf
-    '''
+    
     (mat, n) = check_and_convert_A(A)
 
     for k in range(n):
@@ -36,28 +39,28 @@ def check_and_convert_A(A):
     n = nrows
     
     #change zero elements to inf and zero diagonals
-    mat[mat==0] = np.inf
+    mat[mat==0] = 100000#np.inf
     np.fill_diagonal(mat, 0)
     
     assert (np.diagonal(mat) == 0.0).all()
 
     return (mat, n)
 
-'''
-#--------------------------Curvature matrix
-Ollivier-Ricci curvature between two prob. measures mi(k) and mj(l), which
-are defined as mi(k) = {Phi}ik, where Phi = Phi(t) = expm(-t*L).
-
-INPUT: E list of edges
-       d distance matrix
-
-OUTPUT: KappaU NxN matrices with entries kij marking the upper bound on the 
-OR curvature between nodes i and j
-'''
-
+# =============================================================================
+# Curvature matrix
+# =============================================================================    
+#
+# Ollivier-Ricci curvature between two prob. measures mi(k) and mj(l), which
+# are defined as mi(k) = {Phi}ik, where Phi = Phi(t) = expm(-t*L).
+# 
+# INPUT: E list of edges
+#        d distance matrix
+# 
+# OUTPUT: KappaU NxN matrices with entries kij marking the upper bound on the 
+# OR curvature between nodes i and j
+#    
+# =============================================================================
 def ORcurvAll_sparse(E,dist,Phi,cutoff=1,lamb=0):
-
-    eps = np.finfo(float).eps
 
     N = Phi.shape[1]  
     KappaU = np.zeros([N,N])
@@ -72,9 +75,9 @@ def ORcurvAll_sparse(E,dist,Phi,cutoff=1,lamb=0):
         # reduce support of mx and my
         Nx = np.where(mx>(1-cutoff)*np.max(mx))[0] 
         Ny = np.where(my>(1-cutoff)*np.max(my))[0]     
+        
         # restrict & renormalise 
         dNxNy = dist[Nx,:][:,Ny] 
-
         mx = mx[Nx]
         my = my[Ny]
         mx = mx/sum(mx)
@@ -91,40 +94,31 @@ def ORcurvAll_sparse(E,dist,Phi,cutoff=1,lamb=0):
             KappaU[e[0],e[1]] = 1. - W/dist[e[0],e[1]]  
 
     KappaU = KappaU + np.transpose(KappaU)
-    KappaU[np.abs(KappaU) < eps] = 0.
     
     return KappaU
 
-'''
-#--------------------------Curvature matrix (parallelised)
-'''
-def ORcurvAll_sparse_parallel(G, dist, T, cutoff, lamb):
+# =============================================================================
+# Curvature matrix (parallelised)
+# =============================================================================
+def ORcurvAll_sparse_parallel(G, dist, T, cutoff, lamb, workers):
 
     N_n = len(G)
     N_e = len(G.edges)
-
-    #Kappa = np.zeros([len(T), N_n, N_n])
 
     L = sc.sparse.csc_matrix(nx.normalized_laplacian_matrix(G), dtype=np.float64)
     #lamb_2 = np.max(abs(sc.sparse.linalg.eigs(L, which='SM', k=2)[0]))
     #print('spectral gap:', lamb_2)
     #L /= lamb_2
 
-
-    n_processes = 5
-
-    with Pool(processes = n_processes) as p_mx:  #initialise the parallel computation
+    with Pool(processes = workers) as p_mx:  #initialise the parallel computation
         mx_all = list(tqdm(p_mx.imap(partial(mx_comp, L, T, cutoff), G.nodes()), total = N_n))
 
-    with Pool(processes = n_processes) as p_kappa:  #initialise the parallel computation
+    with Pool(processes = workers) as p_kappa:  #initialise the parallel computation
         Kappa = list(tqdm(p_kappa.imap(partial(kappa_comp, mx_all, T, dist, lamb), G.edges()), total = N_e))
     return Kappa
 
-# unit vector
+# unit vector (return a delta initial condition)
 def delta(i, n):
-    """
-    return a delta initial condition
-    """
 
     p0 = np.zeros(n)
     p0[i] = 1.
@@ -145,9 +139,8 @@ def mx_comp(L, T, cutoff, i):
 
     return mx_all, Nx_all
 
-# all xy curvatures
+# compute curvature for an edge ij
 def kappa_comp(mx_all, T, dist, lamb, e):
-    # distribution at x and y supported by the neighbourhood Nx and Ny
     i = e[0]
     j = e[1]
 
@@ -162,7 +155,6 @@ def kappa_comp(mx_all, T, dist, lamb, e):
 
         dNxNy = dist[Nx,:][:,Ny]
 
-
         if lamb != 0: #entropy regularised OT (faster)
             K = np.exp(-lamb*dNxNy)
             (_,L) = sinkhornTransport(mx, my, K, K*dNxNy, lamb)
@@ -173,15 +165,17 @@ def kappa_comp(mx_all, T, dist, lamb, e):
             Kappa[it] = 1. - W/dist[i, j]  
 
     return Kappa
-              
-'''          
-#--------------------------Exact optimal transport problem (lin program)  
- Wasserstein distance (Hitchcock optimal transportation problem) between
- measures mx, my.
- beq is 1 x (m+n) vector [mx,my] of the one-step probability distributions
- mx and my at x and y, respectively
- d is 1 x m*n vector of distances between supp(mx) and supp(my)    
-'''
+                      
+# =============================================================================
+#  Exact optimal transport problem (lin program)  
+# =============================================================================  
+#
+#  Wasserstein distance (Hitchcock optimal transportation problem) between
+#  measures mx, my.
+#  beq is 1 x (m+n) vector [mx,my] of the one-step probability distributions
+#  mx and my at x and y, respectively
+#  d is 1 x m*n vector of distances between supp(mx) and supp(my)    
+# =============================================================================
 def W1(mx, my, dist):
 
     nmx = len(mx)
@@ -193,67 +187,56 @@ def W1(mx, my, dist):
     beq = np.concatenate((mx, my),axis=0)
 
     fval = optimize.linprog(dist.T.flatten(), A_eq=A, b_eq=beq, method='interior-point')
-    #fval = optimize.linprog(dist.T.flatten(), A_eq=A, b_eq=beq, method='simplex')
        
     return fval.fun          
 
-''' 
-#--------------------------Entropy regularised optimal transport problem
- Compute N dual-Sinkhorn divergences (upper bound on the EMD) as well as
- N lower bounds on the EMD for all the pairs
-
- INPUTS:
-
- a is either
-    - a d1 x 1 column vector in the probability simplex (nonnegative,
-    summing to one). This is the [1-vs-N mode]
-    - a d_1 x N matrix, where each column vector is in the probability simplex
-      This is the [N x 1-vs-1 mode]
-
- b is a d2 x N matrix of N vectors in the probability simplex
-
- K is a d1 x d2 matrix, equal to exp(-lamb M), where M is the d1 x d2
- matrix of pairwise distances between bins described in a and bins in the 
- b_1,...b_N histograms. In the most simple case d_1=d_2 and M is simply a 
- distance matrix (zero on the diagonal and such that m_ij < m_ik + m_kj
-
-
- U = K.*M is a d1 x d2 matrix, pre-stored to speed up the computation of
- the distances.
-
- OPTIONAL
-
- stoppingCriterion in {'marginalDifference','distanceRelativeDecrease'}
-   - marginalDifference (Default) : checks whether the difference between
-              the marginals of the current optimal transport and the
-              theoretical marginals set by a b_1,...,b_N are satisfied.
-   - distanceRelativeDecrease : only focus on convergence of the vector
-              of distances
-
- p_norm: parameter in {(1,+infty]} used to compute a stoppingCriterion 
- statistic from N numbers (these N numbers might be the 1-norm of marginal
- differences or the vector of distances.
-
- tolerance : >0 number to test the stoppingCriterion.
-
- maxIter: maximal number of Sinkhorn fixed point iterations.
- 
- verbose: 0 by default.
-
- OUTPUTS
-
- D : vector of N dual-sinkhorn divergences, or upper bounds to the EMD.
-
- L : vector of N lower bounds to the original OT problem, a.k.a EMD. This is 
- computed by using the dual variables of the smoothed problem, which, when 
- modified adequately, are feasible for the original (non-smoothed) OT dual 
- problem
-
- u : d1 x N matrix of left scalings
- v : d2 x N matrix of right scalings
-
-'''
-    
+# =============================================================================
+# Entropy regularised optimal transport problem
+# =============================================================================
+#
+#  Compute N dual-Sinkhorn divergences (upper bound on the EMD) as well as
+#  N lower bounds on the EMD for all the pairs
+# 
+#  INPUTS
+# 
+#  mx : d1 x 1 column vector in the probability simplex (nonnegative,
+#     summing to one)
+# 
+#  my : d2 x 1 column vector in the probability simplex
+# 
+#  K is a d1 x d2 matrix, equal to exp(-lamb M), where M is the d1 x d2
+#  matrix of pairwise distances between bins described in a and bins in b. 
+#  In the most simple case d_1=d_2 and M is simply a distance matrix 
+# (zero on the diagonal and such that m_ij < m_ik + m_kj
+# 
+#  U = K.*M is a d1 x d2 matrix, pre-stored to speed up the computation of
+#  the distances.
+# 
+#  OPTIONAL
+# 
+#  stoppingCriterion in {'marginalDifference','distanceRelativeDecrease'}
+#    - marginalDifference (Default) : checks whether the difference between
+#               the marginals of the current optimal transport and the
+#               theoretical marginals set by a b_1,...,b_N are satisfied.
+#    - distanceRelativeDecrease : only focus on convergence of the vector
+#               of distances
+# 
+# 
+#  tolerance : >0 number to test the stoppingCriterion.
+# 
+#  maxIter : maximal number of Sinkhorn fixed point iterations.
+#   
+#  verbose : 0 by default    
+# 
+#  OUTPUTS
+# 
+#  D : vector of N dual-sinkhorn divergences, or upper bounds to the EMD.
+# 
+#  L : vector of N lower bounds to the original OT problem, a.k.a EMD. This is 
+#  computed by using the dual variables of the smoothed problem, which, when 
+#  modified adequately, are feasible for the original (non-smoothed) OT dual 
+#  problem
+# =============================================================================    
 def sinkhornTransport(mx,my,K,U,lamb,tolerance=0.005,maxIter=5000,VERBOSE=0):
     
     from numpy import transpose as tp
@@ -316,9 +299,33 @@ def sinkhornTransport(mx,my,K,U,lamb,tolerance=0.005,maxIter=5000,VERBOSE=0):
 
     return D, L
 
-'''
-#--------------------------Variation of information
-'''
+# =============================================================================
+# Cluster
+# =============================================================================
+def cluster(G,sample,perturb):
+    from scipy.sparse.csgraph import connected_components as conncomp
+    
+    Aold = nx.adjacency_matrix(G).toarray()
+    Kappa_tmp = np.array(nx.to_numpy_matrix(G, weight='kappa')) 
+
+    # cluster (remove edges with negative curv and find conn comps)   
+    mink = np.min(Kappa_tmp)
+    maxk = np.max(Kappa_tmp)
+    labels = np.zeros([Aold.shape[0],sample])
+    thres = np.append(0.0, np.random.normal(0, perturb*(maxk-mink), sample-1))
+
+    nComms = np.zeros(sample)
+    for k in range(sample):
+        ind = np.where(Kappa_tmp<=thres[k])     
+        A = Aold.copy()
+        A[ind[0],ind[1]] = 0 #remove edges with -ve curv.       
+        (nComms[k], labels[:,k]) = conncomp(csr_matrix(A, dtype=int), directed=False, return_labels=True) 
+
+    return nComms, labels
+
+# =============================================================================
+# Variation of information
+# =============================================================================
 def varinfo(comms): 
 
     comms = comms.astype(int)
@@ -372,15 +379,14 @@ def varinfo(comms):
 
     return vi, vi_mat
 
-'''
-#--------------------------Plot
-'''
+# =============================================================================
+# Plot
+# =============================================================================
 def plotCluster(G,T,pos,t,comms,vi,nComms):
     import matplotlib.pyplot as plt
     import pylab
     import networkx as nx
     import os
-    
 
     f = plt.figure(num=None, figsize=(10, 4), dpi=80, facecolor='w', edgecolor='k')
        
@@ -402,8 +408,8 @@ def plotCluster(G,T,pos,t,comms,vi,nComms):
     ax1.axis('off')
     
     # colour nodes by community
-    cmapnode = plt.get_cmap("tab10")                    
-    nodes = nx.draw_networkx_nodes(G, pos, node_color=comms, node_size=50, \
+    cmapnode = plt.get_cmap("tab20")                    
+    nodes = nx.draw_networkx_nodes(G, pos, node_color=comms, node_size=25, \
                cmap=cmapnode, with_labels=False, ax=ax1)
        
     # plot number of communities and VI
@@ -419,13 +425,12 @@ def plotCluster(G,T,pos,t,comms,vi,nComms):
     
     ax2.set_xscale('log')
     ax3.set_xscale('log')
-    #ax2.set_yscale('log')
     
     ax2.set_xlim(T[0], T[-1])
     ax3.set_xlim(T[0], T[-1])
 
     ax2.set_ylim(0, len(G)+2)
-    ax3.set_ylim(0, 1)
+    ax3.set_ylim(0, max(np.max(vi),0.01))
     
     ax2.tick_params('y', colors='b')
     ax3.tick_params('y', colors='r')  
@@ -441,58 +446,23 @@ def plotCluster(G,T,pos,t,comms,vi,nComms):
     plt.savefig('images/t_'+str(t)+'.png')
 #    plt.show()
     
-'''    
-#--------------------------Input graphs
-'''
-def inputGraphs(n):
-    import networkx as nx
-  
-    if n == 1: #Watts-Strogatz      
-        N = 20
-        G = nx.newman_watts_strogatz_graph(N, 2, 0.30)  
-        A = nx.to_numpy_matrix(G) 
-        for i, j in G.edges():
-            G[i][j]['weight'] = 1.
+# =============================================================================
+# Save
+# =============================================================================
+def savedata(filename,T,nComms,vi,data):
+    import os
     
-        x = np.linspace(0,2*np.pi,N)
-        posx = np.cos(x)
-        posy = np.sin(x)
-        
-        pos= []
-        for i in range(N):
-            pos.append([posx[i],posy[i]])
-            
-    elif n == 2: #Symmetric barbell graph      
-        N = 10
-        A = np.vstack((np.hstack((np.ones([N//2,N//2]), np.zeros([N//2,N//2]))), np.hstack((np.zeros([N//2,N//2]), np.ones([N//2,N//2])))))
-        A = A-np.eye(N)
-        A[N//2-1,N//2] = 1; A[N//2,N//2-1] = 1
-        G=nx.Graph(A)
-        pos = nx.spring_layout(G)
-        
-    elif n == 3: #Triangle of triangles
-        m = 1
-        N = 3
-        A = np.ones([N, N])-np.eye(N)
-        A = np.kron(np.eye(N**m),A)
-        A[2,3]=1; A[3,2]=1; A[1,6]=1; A[6,1]=1; A[4,8]=1; A[8,4]=1
-        A = np.vstack((np.hstack((A, np.zeros([9, 9]))), np.hstack((np.zeros([9, 9]), A))))
-        A[0,9]=1; A[9,0]=1
-    
-        G = nx.Graph(A); 
-        pos = nx.spring_layout(G,iterations=1000)
-    
-    
-    # normalised Laplacian
-#    N = A.shape[0]
-#    A = sc.sparse.csr_matrix(A)
-#    diags = A.sum(axis=1).flatten()
-#    D = sc.sparse.spdiags(diags, [0], N, N, format='csr')
-#    L = D - A
-#    diags_sqrt = 1.0/sc.sqrt(diags)
-#    diags_sqrt[sc.isinf(diags_sqrt)] = 0
-#    DH = sc.sparse.spdiags(diags_sqrt, [0], N, N, format='csr')
-#    L = DH.dot(L.dot(DH))
-    L = nx.normalized_laplacian_matrix(G)
-    
-    return G, A, L, pos
+    if not os.path.isdir('data'):
+            os.makedirs('data')
+    f = open("data/"+filename+".dat","w") 
+    f.write("T ")
+    np.savetxt(f, T, fmt='%1.3f',delimiter=' ',newline=' ')
+    f.write("\n")
+    f.write("nComms ")
+    np.savetxt(f, nComms.astype(int), fmt='%i',delimiter=' ',newline=' ')  
+    f.write("\n")   
+    f.write("vi ")
+    np.savetxt(f, vi, fmt='%1.3f',delimiter=' ',newline=' ') 
+    f.write("\n") 
+    np.savetxt(f, data.astype(int), fmt='%i')
+    f.close() 
