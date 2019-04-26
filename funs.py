@@ -113,8 +113,10 @@ def ORcurvAll_sparse_parallel(G, dist, T, cutoff, lamb, workers):
     with Pool(processes = workers) as p_mx:  #initialise the parallel computation
         mx_all = list(tqdm(p_mx.imap(partial(mx_comp, L, T, cutoff), G.nodes()), total = N_n))
 
-    with Pool(processes = workers) as p_kappa:  #initialise the parallel computation
-        Kappa = list(tqdm(p_kappa.imap(partial(kappa_comp, mx_all, T, dist, lamb), G.edges()), total = N_e))
+    with Pool(processes = n_processes) as p_kappa:  #initialise the parallel computation
+        G_comp = G#nx.complete_graph(len(G), create_using=G)
+        
+        Kappa = list(tqdm(p_kappa.imap(partial(kappa_comp, mx_all, T, dist, lamb), G_comp.edges()), total = len(G_comp.edges())))
     return Kappa
 
 # unit vector (return a delta initial condition)
@@ -393,7 +395,7 @@ def plotCluster(G,T,pos,t,comms,vi,nComms):
     # set edge colours and weights by curvature
     ax1 = plt.subplot(121)
     col = [G[u][v]['kappa'] for u,v in G.edges()]
-    w = [G[u][v]['weight'] for u,v in G.edges()]    
+    w = 2# [G[u][v]['weight'] for u,v in G.edges()]    
     vmax = max([ abs(x) for x in col ])
     vmin = min([ abs(x) for x in col ])
     cmapedge = pylab.cm.bwr
@@ -430,7 +432,7 @@ def plotCluster(G,T,pos,t,comms,vi,nComms):
     ax3.set_xlim(T[0], T[-1])
 
     ax2.set_ylim(0, len(G)+2)
-    ax3.set_ylim(0, max(np.max(vi),0.01))
+    ax3.set_ylim(0, 1)
     
     ax2.tick_params('y', colors='b')
     ax3.tick_params('y', colors='r')  
