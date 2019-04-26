@@ -328,26 +328,25 @@ def cluster_threshold(G,sample,perturb):
 
 def cluster_louvain(G):
 
-    import MarkovStability as ms
+    import PyGenStability as pgs
 
     louvain_runs = 10
     precision = 1e-5
-    stab_linear = ms.Stability(G,'modularity_signed', louvain_runs , precision, True)
+    stability = pgs.PyGenStability(G,'modularity_signed', louvain_runs , precision)
+    stability.cpp_folder = '/home/arnaudon/codes/PyGenStability'
+    stability.all_mi = True
+    stability.n_mi = 5
+    stability.n_processes_louv = 4
+    stability.n_processes_mi = 1
+    stability.post_process = True
+    stability.n_neigh = 10
 
-    stab_linear.all_mi = True
-    stab_linear.n_mi = 5
-    stab_linear.n_processes_louv = 4
-    stab_linear.n_processes_mi = 1
-    stab_linear.post_process = True
-    stab_linear.n_neigh = 10
-
-    stab_linear.run_single_stability(1.)
-    #stab_linear.print_single_result(1,1)
+    stability.run_single_stability(1.)
 
 
-    nComms = stab_linear.single_stability_result['number_of_comms']
-    labels = stab_linear.single_stability_result['community_id']
-    vi  = stab_linear.single_stability_result['MI']
+    nComms = stability.single_stability_result['number_of_comms']
+    labels = stability.single_stability_result['community_id']
+    vi  = stability.single_stability_result['MI']
 
     return nComms, labels, vi
 
