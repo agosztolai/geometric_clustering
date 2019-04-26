@@ -1,0 +1,6 @@
+
+*.edj
+
+images/
+
+__pycache__/
