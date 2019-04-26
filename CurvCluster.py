@@ -1,9 +1,9 @@
-def CurvCluster(G,L,pos,T,sample,cutoff,lamb,perturb,filename=None):
+def CurvCluster(G,L,pos,T,sample,cutoff,lamb,perturb,filename=None,louvain = False, vis=0):
 
     import numpy as np
     import scipy as sc
     from tqdm import tqdm
-    from funs import ORcurvAll_sparse, distGeo, plotCluster, varinfo, cluster
+    from funs import distGeo, ORcurvAll_sparse, varinfo, plotCluster,savedata,cluster_louvain, cluster_threshold
     import networkx as nx
     
     A = nx.adjacency_matrix(G).toarray()
@@ -34,18 +34,24 @@ def CurvCluster(G,L,pos,T,sample,cutoff,lamb,perturb,filename=None):
         # update edge curvatures
         for edge in G.edges:
             G.edges[edge]['kappa'] = Kappa[edge[0]][edge[1]]
+            G.edges[edge]['weight'] = Kappa[edge[0]][edge[1]]
             
         # cluster
-        nComms[:,i],labels = cluster(G,sample,perturb)    
-  
+        #nComms[:,i],labels = cluster(G,sample,perturb)
+        if louvain:
+            nComms[:,i], labels, vi[i] = cluster_louvain(G)
+        else:
+            nComms[:,i], labels, vi[i] = cluster_threshold(G,sample,perturb)
+ 
         # compute VI
-        (vi[i],_) = varinfo(labels);
+        #(vi[i],_) = varinfo(labels);
     
         # plot
-        plotCluster(G,T,pos,i,labels[:,0],vi[0:i+1],np.mean(nComms[:,0:i+1],axis=0))
+        if vis == 1:
+            plotCluster(G,T,pos,i,labels,vi[0:i+1],nComms[0,0:i+1])
     
         #collect data to be saved
-        data[:,[i]] = labels[:,[0]]
+        data[:,i+1] = labels#[:,[0]]
 
 # =============================================================================
 #     save data

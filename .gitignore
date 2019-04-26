@@ -4,3 +4,5 @@
 images/
 
 __pycache__/
+
+*.swp

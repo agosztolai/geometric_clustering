@@ -113,7 +113,7 @@ def ORcurvAll_sparse_parallel(G, dist, T, cutoff, lamb, workers):
     with Pool(processes = workers) as p_mx:  #initialise the parallel computation
         mx_all = list(tqdm(p_mx.imap(partial(mx_comp, L, T, cutoff), G.nodes()), total = N_n))
 
-    with Pool(processes = n_processes) as p_kappa:  #initialise the parallel computation
+    with Pool(processes = workers) as p_kappa:  #initialise the parallel computation
         G_comp = G#nx.complete_graph(len(G), create_using=G)
         
         Kappa = list(tqdm(p_kappa.imap(partial(kappa_comp, mx_all, T, dist, lamb), G_comp.edges()), total = len(G_comp.edges())))
@@ -187,8 +187,7 @@ def W1(mx, my, dist):
     A2 = np.kron(np.eye(nmy), np.ones(nmx))
     A = np.concatenate((A1, A2), axis=0)
     beq = np.concatenate((mx, my),axis=0)
-
-    fval = optimize.linprog(dist.T.flatten(), A_eq=A, b_eq=beq, method='interior-point')
+    fval = optimize.linprog(dist.T.flatten(), A_eq=A, b_eq=beq, method='interior-point', options={'sparse': False , 'presolve':False, 'lstsq': False})
        
     return fval.fun          
 
@@ -304,7 +303,7 @@ def sinkhornTransport(mx,my,K,U,lamb,tolerance=0.005,maxIter=5000,VERBOSE=0):
 # =============================================================================
 # Cluster
 # =============================================================================
-def cluster(G,sample,perturb):
+def cluster_threshold(G,sample,perturb):
     from scipy.sparse.csgraph import connected_components as conncomp
     
     Aold = nx.adjacency_matrix(G).toarray()
@@ -323,7 +322,34 @@ def cluster(G,sample,perturb):
         A[ind[0],ind[1]] = 0 #remove edges with -ve curv.       
         (nComms[k], labels[:,k]) = conncomp(csr_matrix(A, dtype=int), directed=False, return_labels=True) 
 
-    return nComms, labels
+    vi = 1-varinfo(labels)[0]
+
+    return np.mean(nComms, axis=0), labels[:,0], vi
+
+def cluster_louvain(G):
+
+    import MarkovStability as ms
+
+    louvain_runs = 10
+    precision = 1e-5
+    stab_linear = ms.Stability(G,'modularity_signed', louvain_runs , precision, True)
+
+    stab_linear.all_mi = True
+    stab_linear.n_mi = 5
+    stab_linear.n_processes_louv = 4
+    stab_linear.n_processes_mi = 1
+    stab_linear.post_process = True
+    stab_linear.n_neigh = 10
+
+    stab_linear.run_single_stability(1.)
+    #stab_linear.print_single_result(1,1)
+
+
+    nComms = stab_linear.single_stability_result['number_of_comms']
+    labels = stab_linear.single_stability_result['community_id']
+    vi  = stab_linear.single_stability_result['MI']
+
+    return nComms, labels, vi
 
 # =============================================================================
 # Variation of information
@@ -423,7 +449,7 @@ def plotCluster(G,T,pos,t,comms,vi,nComms):
     
     ax2.set_xlabel('Markov time')
     ax2.set_ylabel('# communities', color='b')
-    ax3.set_ylabel('Average variation of information', color='r')
+    ax3.set_ylabel('Average mutual information', color='r')
     
     ax2.set_xscale('log')
     ax3.set_xscale('log')
@@ -432,7 +458,7 @@ def plotCluster(G,T,pos,t,comms,vi,nComms):
     ax3.set_xlim(T[0], T[-1])
 
     ax2.set_ylim(0, len(G)+2)
-    ax3.set_ylim(0, 1)
+    ax3.set_ylim(0, 1.1)
     
     ax2.tick_params('y', colors='b')
     ax3.tick_params('y', colors='r')  
