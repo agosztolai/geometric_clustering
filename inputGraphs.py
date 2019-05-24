@@ -8,7 +8,6 @@ def inputGraphs(n):
     if n == 1: #Watts-Strogatz      
         N = 20
         G = nx.newman_watts_strogatz_graph(N, 2, 0.30)  
-        A = nx.adjacency_matrix(G) 
         for i, j in G.edges():
             G[i][j]['weight'] = 1.
     
@@ -25,7 +24,7 @@ def inputGraphs(n):
         A = np.vstack((np.hstack((np.ones([N//2,N//2]), np.zeros([N//2,N//2]))), np.hstack((np.zeros([N//2,N//2]), np.ones([N//2,N//2])))))
         A = A-np.eye(N)
         A[N//2-1,N//2] = 1; A[N//2,N//2-1] = 1
-        G=nx.Graph(A)
+        G = nx.Graph(A)
         pos = nx.spring_layout(G)
         
     elif n == 3: #Triangle of triangles
@@ -44,9 +43,6 @@ def inputGraphs(n):
         num_cliques = 5
         clique_size = 6
         G = nx.ring_of_cliques(num_cliques, clique_size)
-        A = nx.adjacency_matrix(G) 
-        A = A.toarray()
-        G=nx.Graph(A)
         
         x1 = np.linspace(-np.pi,np.pi,num_cliques)
         x2 = np.linspace(0,2*np.pi,clique_size)[::-1]
@@ -75,8 +71,6 @@ def inputGraphs(n):
 #         0.1*np.diag(np.ones(1,k-1),1) + 0.1*np.diag(np.ones(1,k-1),-1); % ordered communities
               
         G = nx.stochastic_block_model(sizes, probs, seed=0)
-        A = nx.adjacency_matrix(G) 
-        G = nx.Graph(A)
         pos = nx.spring_layout(G,iterations=1000)
         
     elif n == 6: #Girvan-Newman
@@ -86,9 +80,6 @@ def inputGraphs(n):
         p_out = (0.5-p_in)/3
 
         G = nx.planted_partition_graph(k, g, p_in, p_out, seed=0)
-        A = nx.adjacency_matrix(G) 
-        A = A.toarray()
-        G = nx.Graph(A)
         pos = nx.spring_layout(G,iterations=100)
         
         truth = np.ones([1,g])
@@ -102,15 +93,10 @@ def inputGraphs(n):
         mu = 0.5#fraction of edges per vertex to be shared with other comms
         
         G = nx.LFR_benchmark_graph(N, tau1, tau2, mu, average_degree=None, min_degree=None, tol=1e-07, max_iters=500, seed=0)
-        A = nx.adjacency_matrix(G) 
-        G = nx.Graph(A)
         pos = nx.spring_layout(G,iterations=1000)
         
-    elif n == 8: #Zachary’s Karate Club
-        G = nx.karate_club_graph()
-        A = nx.adjacency_matrix(G)
-        
-    # normalised Laplacian
-    L = nx.normalized_laplacian_matrix(G)
-    
-    return G, A, L, pos
+#    elif n == 8: 
+#        G = nx.karate_club_graph()
+#        A = nx.adjacency_matrix(G)
+
+    return G, pos

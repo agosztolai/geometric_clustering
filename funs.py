@@ -1,12 +1,11 @@
 import numpy as np
 import scipy as sc
 from tqdm import tqdm
-from scipy import optimize
-import sys
-from scipy.sparse import csc_matrix, csr_matrix
+from scipy.sparse import csr_matrix
 import networkx as nx
 from multiprocessing import Pool
 from functools import partial
+import ot
 
 # =============================================================================
 # Geodesic distance matrix
@@ -47,77 +46,28 @@ def check_and_convert_A(A):
     return (mat, n)
 
 # =============================================================================
-# Curvature matrix
-# =============================================================================    
-#
-# Ollivier-Ricci curvature between two prob. measures mi(k) and mj(l), which
-# are defined as mi(k) = {Phi}ik, where Phi = Phi(t) = expm(-t*L).
-# 
-# INPUT: E list of edges
-#        d distance matrix
-# 
-# OUTPUT: KappaU NxN matrices with entries kij marking the upper bound on the 
-# OR curvature between nodes i and j
-#    
-# =============================================================================
-def ORcurvAll_sparse(E,dist,Phi,cutoff=1,lamb=0):
-
-    N = Phi.shape[1]  
-    KappaU = np.zeros([N,N])
-    
-    # loop over every edge
-    for e in E:
-        
-        # distribution at x and y 
-        mx = Phi[e[0],:]
-        my = Phi[e[1],:]
-
-        # reduce support of mx and my
-        Nx = np.where(mx>(1-cutoff)*np.max(mx))[0] 
-        Ny = np.where(my>(1-cutoff)*np.max(my))[0]     
-        
-        # restrict & renormalise 
-        dNxNy = dist[Nx,:][:,Ny] 
-        mx = mx[Nx]
-        my = my[Ny]
-        mx = mx/sum(mx)
-        my = my/sum(my)
-
-        # curvature along x-y
-        if lamb != 0: #entropy regularised OT (faster)
-            K = np.exp(-lamb*dNxNy)
-            (_,L) = sinkhornTransport(mx, my, K, K*dNxNy, lamb)
-            KappaU[e[0],e[1]] = 1. - L/dist[e[0],e[1]]  
-
-        else: #classical sparse OT
-            W = W1(mx, my, dNxNy)
-            KappaU[e[0],e[1]] = 1. - W/dist[e[0],e[1]]  
-
-    KappaU = KappaU + np.transpose(KappaU)
-    
-    return KappaU
-
-# =============================================================================
 # Curvature matrix (parallelised)
 # =============================================================================
-def ORcurvAll_sparse_parallel(G, dist, T, cutoff, lamb, workers):
-
-    N_n = len(G)
-    N_e = len(G.edges)
+def ORcurvAll_sparse(G, dist, T, cutoff, lamb, workers, GPU=0):
 
     L = sc.sparse.csc_matrix(nx.normalized_laplacian_matrix(G), dtype=np.float64)
-    #lamb_2 = np.max(abs(sc.sparse.linalg.eigs(L, which='SM', k=2)[0]))
-    #print('spectral gap:', lamb_2)
-    #L /= lamb_2
+    
+    if GPU == 0:
+        with Pool(processes = workers) as p_mx:  #initialise the parallel computation
+            mx_all = list(tqdm(p_mx.imap(partial(mx_comp, L, T, cutoff), G.nodes()),\
+                           total = len(G)))
 
-    with Pool(processes = workers) as p_mx:  #initialise the parallel computation
-        mx_all = list(tqdm(p_mx.imap(partial(mx_comp, L, T, cutoff), G.nodes()), total = N_n))
-
-    with Pool(processes = workers) as p_kappa:  #initialise the parallel computation
-        G_comp = G#nx.complete_graph(len(G), create_using=G)
+        with Pool(processes = workers) as p_kappa:  #initialise the parallel computation
+            K = list(tqdm(p_kappa.imap(partial(K_comp, mx_all, dist, lamb), G.edges()),\
+                          total = len(G.edges)))
+    elif GPU == 1:
+        with Pool(processes = workers) as p_mx:  #initialise the parallel computation
+            mx_all = list(tqdm(p_mx.imap(partial(mx_comp, L, T, cutoff), G.nodes()),\
+                           total = len(G)))
+            
+        K = K_comp_gpu(G,T,mx_all,dist,lamb)       
         
-        Kappa = list(tqdm(p_kappa.imap(partial(kappa_comp, mx_all, T, dist, lamb), G_comp.edges()), total = len(G_comp.edges())))
-    return Kappa
+    return K
 
 # unit vector (return a delta initial condition)
 def delta(i, n):
@@ -130,10 +80,10 @@ def delta(i, n):
 # all neighbourhood densities
 def mx_comp(L, T, cutoff, i):
     N = np.shape(L)[0]
-    #mx_tmp= sc.sparse.linalg.expm_multiply(-L, delta(i, N), T[0], T[-1], len(T) )
+
     mx_all = [] 
     Nx_all = []
-    for it, t in enumerate(T): 
+    for t in T: 
         mx_tmp = sc.sparse.linalg.expm_multiply(-t*L, delta(i, N))
         Nx = np.argwhere(mx_tmp > (1-cutoff)*np.max(mx_tmp))
         mx_all.append(sc.sparse.lil_matrix(mx_tmp[Nx]/np.sum(mx_tmp[Nx])))
@@ -142,213 +92,73 @@ def mx_comp(L, T, cutoff, i):
     return mx_all, Nx_all
 
 # compute curvature for an edge ij
-def kappa_comp(mx_all, T, dist, lamb, e):
+def K_comp(mx_all, dist, lamb, e):
     i = e[0]
     j = e[1]
 
-    Kappa = np.zeros(len(T))
-    for it, t in enumerate(T):
+    n = len(mx_all[0][0])
+    K = np.zeros(n)
+    for it in range(n):
 
         Nx = np.array(mx_all[i][1][it]).flatten()
         Ny = np.array(mx_all[j][1][it]).flatten()
-
         mx = mx_all[i][0][it].toarray().flatten()
         my = mx_all[j][0][it].toarray().flatten()
 
-        dNxNy = dist[Nx,:][:,Ny]
+        dNxNy = dist[Nx,:][:,Ny].copy(order='C')
 
-        if lamb != 0: #entropy regularised OT (faster)
-            K = np.exp(-lamb*dNxNy)
-            (_,L) = sinkhornTransport(mx, my, K, K*dNxNy, lamb)
-            Kappa[it] = 1. - L/dist[i,j]  
-
-        else: #classical sparse OT
-            W = W1(mx, my, dNxNy) 
-            Kappa[it] = 1. - W/dist[i, j]  
-
-    return Kappa
-                      
-# =============================================================================
-#  Exact optimal transport problem (lin program)  
-# =============================================================================  
-#
-#  Wasserstein distance (Hitchcock optimal transportation problem) between
-#  measures mx, my.
-#  beq is 1 x (m+n) vector [mx,my] of the one-step probability distributions
-#  mx and my at x and y, respectively
-#  d is 1 x m*n vector of distances between supp(mx) and supp(my)    
-# =============================================================================
-def W1(mx, my, dist):
-
-    nmx = len(mx)
-    nmy = len(my)
-
-    A1 = np.kron(np.ones(nmy), np.eye(nmx)) 
-    A2 = np.kron(np.eye(nmy), np.ones(nmx))
-    A = np.concatenate((A1, A2), axis=0)
-    beq = np.concatenate((mx, my),axis=0)
-    fval = optimize.linprog(dist.T.flatten(), A_eq=A, b_eq=beq, method='interior-point', options={'sparse': False , 'presolve':False, 'lstsq': False})
-       
-    return fval.fun          
-
-# =============================================================================
-# Entropy regularised optimal transport problem
-# =============================================================================
-#
-#  Compute N dual-Sinkhorn divergences (upper bound on the EMD) as well as
-#  N lower bounds on the EMD for all the pairs
-# 
-#  INPUTS
-# 
-#  mx : d1 x 1 column vector in the probability simplex (nonnegative,
-#     summing to one)
-# 
-#  my : d2 x 1 column vector in the probability simplex
-# 
-#  K is a d1 x d2 matrix, equal to exp(-lamb M), where M is the d1 x d2
-#  matrix of pairwise distances between bins described in a and bins in b. 
-#  In the most simple case d_1=d_2 and M is simply a distance matrix 
-# (zero on the diagonal and such that m_ij < m_ik + m_kj
-# 
-#  U = K.*M is a d1 x d2 matrix, pre-stored to speed up the computation of
-#  the distances.
-# 
-#  OPTIONAL
-# 
-#  stoppingCriterion in {'marginalDifference','distanceRelativeDecrease'}
-#    - marginalDifference (Default) : checks whether the difference between
-#               the marginals of the current optimal transport and the
-#               theoretical marginals set by a b_1,...,b_N are satisfied.
-#    - distanceRelativeDecrease : only focus on convergence of the vector
-#               of distances
-# 
-# 
-#  tolerance : >0 number to test the stoppingCriterion.
-# 
-#  maxIter : maximal number of Sinkhorn fixed point iterations.
-#   
-#  verbose : 0 by default    
-# 
-#  OUTPUTS
-# 
-#  D : vector of N dual-sinkhorn divergences, or upper bounds to the EMD.
-# 
-#  L : vector of N lower bounds to the original OT problem, a.k.a EMD. This is 
-#  computed by using the dual variables of the smoothed problem, which, when 
-#  modified adequately, are feasible for the original (non-smoothed) OT dual 
-#  problem
-# =============================================================================    
-def sinkhornTransport(mx,my,K,U,lamb,tolerance=0.005,maxIter=5000,VERBOSE=0):
-    
-    from numpy import transpose as tp
-
-    mx = mx[:,np.newaxis]
-    my = my[:,np.newaxis]
-    
-    # If not all components of mx are >0 we can get rid of some lines of K to go faster.
-    I = np.where(mx)[0]
-    if np.all(I) == 0: 
-        K = K[I,:]
-        U = U[I,:]
-        mx = mx[I]
-
-    ainvK = np.divide(K,mx) # precomputation of this matrix saves a d1 x 1 Schur product at each iteration.
-
-    # Initialization of Left scaling Factors, N column vectors.
-    uL = np.ones([mx.shape[0],1]) / mx.shape[0]
-
-    # Fixed Point Loop: repeated iteration of uL=mx./(K*(my./(K'*uL)))
-    compt=0
-    while compt<maxIter:
-
-        compt += 1
-        uL = np.divide(1.0, ainvK @ np.divide(my, tp(tp(uL)@csc_matrix(K))))
-
-        # check the stopping criterion every 20 fixed point iterations
-        # or, if that's the case, before the final iteration to store the most
-        # recent value for the matrix of right scaling factors vR.
-        if np.mod(compt,20)==1 or compt==maxIter:   
+        if lamb != 0:
+            W = ot.sinkhorn2(mx, my, dNxNy, lamb)
+        elif lamb == 0: #classical sparse OT
+            W = ot.emd2(mx, my, dNxNy) 
             
-            # split computations to recover right and left scalings.        
-            vR = np.divide(my, tp(tp(uL)@csc_matrix(K)))        
-            uL= np.divide(1.0, ainvK@vR)
+        K[it] = 1. - W/dist[i, j]  
 
-            # check stopping criterion              
-            Criterion = np.sum(np.abs( np.multiply(vR,tp(csc_matrix(K))@uL) - my ))
-            if Criterion<tolerance or np.isnan(Criterion): # npl.norm of all or . or_1 differences between the marginal of the current solution with the actual marginals.
-                break       
-      
-            compt += 1
-            if VERBOSE>0:
-               print('Iteration :',compt,' Criterion: ',Criterion)        
+    return K
+
+def K_comp_gpu(G,T,mx_all, dist, lamb):
+#    import cupy
+    import ot.gpu
+#    
+#    #        ot.gpu.to_gpu(mx_all) 
+##        ot.gpu.to_gpu(dist)
+##    for q,t in enumerate(T):
+#    K = np.zeros()
+#    for i in G.nodes:
+#        ni = [n for n in G.neighbors(i) if n>i]  
+#        mt = mx_all[i][1][q]
+#        for k in ni:
+#            mt = np.hstack(mt,mx_all[k][1][q])                
+#        
+#        dNxNy = dist[Nx,:][:,Ny].copy(order='C')
+#        W = ot.gpu.sinkhorn(mt[:,1], mt[:,2:], dNxNy, lamb)    
+#        K = 1. - W/dist[i, ni]
         
-            if np.any(np.isnan(Criterion)): 
-                sys.exit('NaN values have appeared during the fixed point \
-                         iteration. This problem appears because of \
-                         insufficient machine precision when processing \
-                         computations with a regularization value of lamb that \
-                         is too high. Try again with a reduced regularization\
-                         parameter lamb or with a thresholded metric matrix M.')
-
-    D = np.sum(uL*U@vR)
-
-    alpha = np.log(uL)
-    beta = np.log(vR)
-    beta[beta==-np.inf]=0 # zero values of vR (corresponding to zero values in my) generate inf numbers.
-
-    L = (tp(mx)@alpha + np.sum(np.multiply(my,beta)))/lamb
-
-    return D, L
+#    return K
 
 # =============================================================================
 # Cluster
 # =============================================================================
-def cluster_threshold(G,sample,perturb):
+def cluster(G,sample,perturb):
     from scipy.sparse.csgraph import connected_components as conncomp
     
     Aold = nx.adjacency_matrix(G).toarray()
-    Kappa_tmp = np.array(nx.to_numpy_matrix(G, weight='kappa')) 
+    K_tmp = np.array(nx.to_numpy_matrix(G, weight='kappa')) 
 
     # cluster (remove edges with negative curv and find conn comps)   
-    mink = np.min(Kappa_tmp)
-    maxk = np.max(Kappa_tmp)
+    mink = np.min(K_tmp)
+    maxk = np.max(K_tmp)
     labels = np.zeros([Aold.shape[0],sample])
     thres = np.append(0.0, np.random.normal(0, perturb*(maxk-mink), sample-1))
 
     nComms = np.zeros(sample)
     for k in range(sample):
-        ind = np.where(Kappa_tmp<=thres[k])     
+        ind = np.where(K_tmp<=thres[k])     
         A = Aold.copy()
         A[ind[0],ind[1]] = 0 #remove edges with -ve curv.       
         (nComms[k], labels[:,k]) = conncomp(csr_matrix(A, dtype=int), directed=False, return_labels=True) 
 
-    vi = 1-varinfo(labels)[0]
-
-    return np.mean(nComms, axis=0), labels[:,0], vi
-
-def cluster_louvain(G):
-
-    import PyGenStability as pgs
-
-    louvain_runs = 10
-    precision = 1e-5
-    stability = pgs.PyGenStability(G,'modularity_signed', louvain_runs , precision)
-    stability.cpp_folder = '/home/arnaudon/codes/PyGenStability'
-    stability.all_mi = True
-    stability.n_mi = 5
-    stability.n_processes_louv = 4
-    stability.n_processes_mi = 1
-    stability.post_process = True
-    stability.n_neigh = 10
-
-    stability.run_single_stability(1.)
-
-
-    nComms = stability.single_stability_result['number_of_comms']
-    labels = stability.single_stability_result['community_id']
-    vi  = stability.single_stability_result['MI']
-
-    return nComms, labels, vi
+    return nComms, labels
 
 # =============================================================================
 # Variation of information
@@ -399,9 +209,7 @@ def varinfo(comms):
         vi_mat_full[i,:] = vi_mat[i,ic]
 
     vi_mat_full = vi_mat_full[ic,:]
-
     vi_mat = vi_mat_full + np.transpose(vi_mat_full)
-
     vi = np.mean(sc.spatial.distance.squareform(vi_mat))
 
     return vi, vi_mat
@@ -420,7 +228,7 @@ def plotCluster(G,T,pos,t,comms,vi,nComms):
     # set edge colours and weights by curvature
     ax1 = plt.subplot(121)
     col = [G[u][v]['kappa'] for u,v in G.edges()]
-    w = 2# [G[u][v]['weight'] for u,v in G.edges()]    
+    w = [G[u][v]['weight'] for u,v in G.edges()]    
     vmax = max([ abs(x) for x in col ])
     vmin = min([ abs(x) for x in col ])
     cmapedge = pylab.cm.bwr
@@ -448,7 +256,7 @@ def plotCluster(G,T,pos,t,comms,vi,nComms):
     
     ax2.set_xlabel('Markov time')
     ax2.set_ylabel('# communities', color='b')
-    ax3.set_ylabel('Average mutual information', color='r')
+    ax3.set_ylabel('Average variation of information', color='r')
     
     ax2.set_xscale('log')
     ax3.set_xscale('log')
@@ -457,7 +265,7 @@ def plotCluster(G,T,pos,t,comms,vi,nComms):
     ax3.set_xlim(T[0], T[-1])
 
     ax2.set_ylim(0, len(G)+2)
-    ax3.set_ylim(0, 1.1)
+    ax3.set_ylim(0, max(np.max(vi),0.01))
     
     ax2.tick_params('y', colors='b')
     ax3.tick_params('y', colors='r')  
@@ -471,7 +279,6 @@ def plotCluster(G,T,pos,t,comms,vi,nComms):
         os.makedirs('images')
     
     plt.savefig('images/t_'+str(t)+'.png')
-#    plt.show()
     
 # =============================================================================
 # Save
@@ -483,7 +290,7 @@ def savedata(filename,T,nComms,vi,data):
             os.makedirs('data')
     f = open("data/"+filename+".dat","w") 
     f.write("T ")
-    np.savetxt(f, T, fmt='%1.3f',delimiter=' ',newline=' ')
+    np.savetxt(f, T, fmt='%1.3f', delimiter=' ',newline=' ')
     f.write("\n")
     f.write("nComms ")
     np.savetxt(f, nComms.astype(int), fmt='%i',delimiter=' ',newline=' ')  
@@ -493,3 +300,25 @@ def savedata(filename,T,nComms,vi,data):
     f.write("\n") 
     np.savetxt(f, data.astype(int), fmt='%i')
     f.close() 
+    
+# =============================================================================
+# Load
+# =============================================================================
+def loaddata(filename,path = 0):
+    import os
+
+    if path == 0:
+        path = os.getcwd()
+        
+    f = path + "/data/" + filename + ".dat"#path + "/" +  filename    
+    f = open(f,"r")
+    
+    T = f.readline().split(' ')
+    T = np.asarray(T[1:-1])
+    nComms = f.readline().split(' ')
+    nComms = np.asarray(nComms[1:-1])
+    vi = f.readline().split(' ')
+    vi = np.asarray(vi[1:-1])
+    data = np.loadtxt(f)
+
+    return T,nComms,vi,data    
