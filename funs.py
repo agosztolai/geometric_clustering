@@ -160,6 +160,32 @@ def cluster(G,sample,perturb):
 
     return nComms, labels
 
+    return np.mean(nComms, axis=0), labels[:,0], vi
+
+def cluster_louvain(G):
+
+    import PyGenStability as pgs
+
+    louvain_runs = 30
+    precision = 1e-8
+    stability = pgs.PyGenStability(G,'modularity_signed', louvain_runs , precision)
+    stability.cpp_folder = '/home/arnaudon/codes/PyGenStability'
+    stability.all_mi = True
+    stability.n_mi = 5
+    stability.n_processes_louv = 4
+    stability.n_processes_mi = 1
+    stability.post_process = True
+    stability.n_neigh = 10
+
+    stability.run_single_stability(1.)
+
+
+    nComms = stability.single_stability_result['number_of_comms']
+    labels = stability.single_stability_result['community_id']
+    vi  = stability.single_stability_result['MI']
+
+    return nComms, labels, vi
+
 # =============================================================================
 # Variation of information
 # =============================================================================
