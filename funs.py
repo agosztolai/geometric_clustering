@@ -59,13 +59,25 @@ def ORcurvAll_sparse(G, dist, T, cutoff, lamb, workers, GPU=0):
 
         with Pool(processes = workers) as p_kappa:  #initialise the parallel computation
             K = list(tqdm(p_kappa.imap(partial(K_comp, mx_all, dist, lamb), G.edges()),\
-                          total = len(G.edges)))
+                          total = len(G.edges)))   
+            
+        K = np.transpose(np.stack( K, axis=1 ))
+        
     elif GPU == 1:
+        cutoff = 1. #this is to keep distance matrix same, remove later if possible
         with Pool(processes = workers) as p_mx:  #initialise the parallel computation
             mx_all = list(tqdm(p_mx.imap(partial(mx_comp, L, T, cutoff), G.nodes()),\
                            total = len(G)))
+        
+        n = nx.number_of_nodes(G)
+        e = nx.Graph.size(G)
+        K = np.empty((e,len(T)))
+        for it in tqdm(range(len(T))):           
+            mx_all_t = np.empty([n,n]) 
+            for i in range(len(mx_all)):
+                mx_all_t[:,[i]] = mx_all[i][0][it].toarray()
             
-        K = K_comp_gpu(G,T,mx_all,dist,lamb)       
+            K[:,it] = K_comp_gpu(G,T,mx_all_t,dist,lamb)    
         
     return K
 
@@ -85,7 +97,7 @@ def mx_comp(L, T, cutoff, i):
     Nx_all = []
     for t in T: 
         mx_tmp = sc.sparse.linalg.expm_multiply(-t*L, delta(i, N))
-        Nx = np.argwhere(mx_tmp > (1-cutoff)*np.max(mx_tmp))
+        Nx = np.argwhere(mx_tmp >= (1-cutoff)*np.max(mx_tmp))
         mx_all.append(sc.sparse.lil_matrix(mx_tmp[Nx]/np.sum(mx_tmp[Nx])))
         Nx_all.append(Nx)
 
@@ -96,9 +108,9 @@ def K_comp(mx_all, dist, lamb, e):
     i = e[0]
     j = e[1]
 
-    n = len(mx_all[0][0])
-    K = np.zeros(n)
-    for it in range(n):
+    nt = len(mx_all[0][0])
+    K = np.zeros(nt)
+    for it in range(nt):
 
         Nx = np.array(mx_all[i][1][it]).flatten()
         Ny = np.array(mx_all[j][1][it]).flatten()
@@ -116,25 +128,21 @@ def K_comp(mx_all, dist, lamb, e):
 
     return K
 
-def K_comp_gpu(G,T,mx_all, dist, lamb):
-#    import cupy
-    import ot.gpu
-#    
-#    #        ot.gpu.to_gpu(mx_all) 
-##        ot.gpu.to_gpu(dist)
-##    for q,t in enumerate(T):
-#    K = np.zeros()
-#    for i in G.nodes:
-#        ni = [n for n in G.neighbors(i) if n>i]  
-#        mt = mx_all[i][1][q]
-#        for k in ni:
-#            mt = np.hstack(mt,mx_all[k][1][q])                
-#        
-#        dNxNy = dist[Nx,:][:,Ny].copy(order='C')
-#        W = ot.gpu.sinkhorn(mt[:,1], mt[:,2:], dNxNy, lamb)    
-#        K = 1. - W/dist[i, ni]
+def K_comp_gpu(G,T,mx_all, dist, lamb): 
+    import ot.gpu    
+    
+    mx_all = ot.gpu.to_gpu(mx_all) 
+    dist = ot.gpu.to_gpu(dist.astype(float))
+    lamb = ot.gpu.to_gpu(lamb)
+    Kt = []
+    x = np.unique([x[0] for x in G.edges])
+    for i in x:
+        ind = [y[1] for y in G.edges if y[0] == i]              
+
+        W = ot.gpu.sinkhorn(mx_all[:,i].tolist(), mx_all[:,ind].tolist(), dist.tolist(), lamb)    
+        Kt = np.append(Kt,1. - W/dist[i, ind])
         
-#    return K
+    return Kt
 
 # =============================================================================
 # Cluster
@@ -159,32 +167,6 @@ def cluster(G,sample,perturb):
         (nComms[k], labels[:,k]) = conncomp(csr_matrix(A, dtype=int), directed=False, return_labels=True) 
 
     return nComms, labels
-
-    return np.mean(nComms, axis=0), labels[:,0], vi
-
-def cluster_louvain(G):
-
-    import PyGenStability as pgs
-
-    louvain_runs = 30
-    precision = 1e-8
-    stability = pgs.PyGenStability(G,'modularity_signed', louvain_runs , precision)
-    stability.cpp_folder = '/home/arnaudon/codes/PyGenStability'
-    stability.all_mi = True
-    stability.n_mi = 5
-    stability.n_processes_louv = 4
-    stability.n_processes_mi = 1
-    stability.post_process = True
-    stability.n_neigh = 10
-
-    stability.run_single_stability(1.)
-
-
-    nComms = stability.single_stability_result['number_of_comms']
-    labels = stability.single_stability_result['community_id']
-    vi  = stability.single_stability_result['MI']
-
-    return nComms, labels, vi
 
 # =============================================================================
 # Variation of information

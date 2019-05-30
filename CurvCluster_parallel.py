@@ -1,5 +1,5 @@
 def CurvCluster_parallel(G,pos,T,sample,cutoff,lamb=0,perturb=0.1,\
-                         workers=1,GPU=0,filename=None,vis=0):
+                         workers=1,GPU=0,vis=0,filename=None):
 
     import numpy as np
     from tqdm import tqdm
@@ -34,7 +34,7 @@ def CurvCluster_parallel(G,pos,T,sample,cutoff,lamb=0,perturb=0.1,\
 
         # update edge curvatures
         for e, edge in enumerate(G.edges):
-            G.edges[edge]['kappa'] = Kappa[e][i]            
+            G.edges[edge]['kappa'] = Kappa[e,i]            
     
         # cluster
         nComms[:,i],labels = cluster(G,sample,perturb)

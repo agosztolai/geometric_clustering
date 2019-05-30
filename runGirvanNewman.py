@@ -12,7 +12,7 @@ lamb = 1                    # regularising parameter - set = 0 for exact
 sample = 100                 # how many samples to use for computing the VI
 perturb = 0.1                # threshold k ~ Norm(0,perturb(kmax-kmin))
 workers = 1                 # numbers of cpus
-GPU = 0
+GPU = 1
 
 # =============================================================================
 # Parameters for Girvan-Newman graph

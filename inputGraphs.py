@@ -34,10 +34,13 @@ def inputGraphs(n):
         A = np.kron(np.eye(N**m),A)
         A[2,3]=1; A[3,2]=1; A[1,6]=1; A[6,1]=1; A[4,8]=1; A[8,4]=1
         A = np.vstack((np.hstack((A, np.zeros([9, 9]))), np.hstack((np.zeros([9, 9]), A))))
-        A[0,9]=1; A[9,0]=1
+        A[0,9] = 1; A[9,0] = 1
     
         G = nx.Graph(A); 
         pos = nx.spring_layout(G,iterations=1000)
+        
+        for n, node in enumerate(G.nodes):
+            G.nodes[node]['block'] = 1
         
     elif n == 4: #Ring of cliques      
         num_cliques = 5
@@ -74,8 +77,8 @@ def inputGraphs(n):
         pos = nx.spring_layout(G,iterations=1000)
         
     elif n == 6: #Girvan-Newman
-        k = 4
-        g = 32
+        k = 2
+        g = 5
         p_in = 0.45
         p_out = (0.5-p_in)/3
 

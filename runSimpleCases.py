@@ -5,15 +5,16 @@ from inputGraphs import inputGraphs
 # =============================================================================
 # Parameters
 # =============================================================================
-T = np.logspace(0, 1, 20) # diffusion time scale 
+T = np.logspace(-2, 1, 20) # diffusion time scale 
 cutoff = 1              # set mx(k) = 0 if mx(k) < (1-cutoff)* max_k( mx(k) )
-lamb = 0                  # regularising parameter - set = 0 for exact 
+lamb = .1                  # regularising parameter - set = 0 for exact 
                            # (the larger the more accurate, but higher cost, 
                            # and too large can blow up)                           
 sample = 50                # how many samples to use for computing the VI
 perturb = 0.1              # threshold k ~ Norm(0,perturb(kmax-kmin))
-whichGraph = 3             # input graphs
-workers = 1                # numbers of cpus
+whichGraph = 6             # input graphs
+workers = 16                # numbers of cpus
+GPU = 1
         
 # load graph 
 try:
@@ -22,4 +23,4 @@ except NameError:
     (G,pos) = inputGraphs(whichGraph) 
          
 # cluster
-CurvCluster_parallel(G,pos,T,sample,cutoff,lamb,perturb)
+CurvCluster_parallel(G,pos,T,sample,cutoff,lamb,perturb,workers,GPU,1)
