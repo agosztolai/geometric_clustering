@@ -21,7 +21,10 @@ print('Used parameters:', params)
 # =============================================================================
 
 # diffusion time scale 
-T = np.logspace(params['t_min'], params['t_max'], params['n_t']) 
+t_min = params['t_min']
+t_max = params['t_max']
+n_t = params['n_t']
+
 # set mx(k) = 0 if mx(k) < (1-cutoff)* max_k( mx(k) )
 cutoff = params['cutoff']
 
@@ -46,7 +49,7 @@ os.chdir(graph_tpe)
 G, pos  = generate_graph(tpe = graph_tpe, params = params)
          
 # initialise the code with parameters and graph 
-gc = Geometric_Clustering(G, pos = pos, T = T, cutoff = cutoff, lamb = lamb)
+gc = Geometric_Clustering(G, pos = pos, t_min = t_min, t_max = t_max, n_t = n_t, log = True, cutoff = cutoff, lamb = lamb)
 
 #first compute the geodesic distances
 gc.compute_distance_geodesic()

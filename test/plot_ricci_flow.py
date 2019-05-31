@@ -18,10 +18,9 @@ print('Used parameters:', params)
 # Parameters
 # =============================================================================
 # diffusion time scale 
-t_min = params['t_min']
-t_max = params['t_max']
+t_min = 10**params['t_min']
+t_max = 10**params['t_max']
 n_t = params['n_t']
-
 # set mx(k) = 0 if mx(k) < (1-cutoff)* max_k( mx(k) )
 cutoff = params['cutoff']
 
@@ -41,17 +40,19 @@ os.chdir(graph_tpe)
 G, pos  = generate_graph(tpe = graph_tpe, params = params)
          
 # initialise the code with parameters and graph 
-gc = Geometric_Clustering(G, pos = pos, t_min = t_min, t_max = t_max, n_t = n_t, log = True, cutoff = cutoff, lamb = lamb)
+gc = Geometric_Clustering(G, pos = pos, t_min = t_min, t_max = t_max, n_t = n_t, log = False, cutoff = cutoff, lamb = lamb)
 
 #load results
-gc.load_curvature()
+gc.load_ricci_flow()
 
 #plot results
 gc.figsize = (5,4)
 gc.plot_curvatures()
+gc.plot_ricci_flow()
 
 gc.labels = False
 gc.video_curvature(n_plot=20)
+gc.video_ricci_flow(n_plot=20)
 
 
 

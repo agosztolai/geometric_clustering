@@ -11,8 +11,6 @@ karate:
         lamb: 0.
 
 
-
-
 miserable:
         t_min: -2.0
         t_max: 2.0

@@ -19,7 +19,7 @@ class Geometric_Clustering(object):
     Main class for geometric clustering
     """
 
-    def __init__(self, G = [], pos = [], laplacian_tpe = 'normalized', T =[0,1], cutoff = 0.95,  lamb = 0, GPU = False, workers = 2, node_labels = False):
+    def __init__(self, G = [], pos = [], laplacian_tpe = 'normalized', t_min =0, t_max = 1, n_t = 100, log = True, cutoff = 0.95,  lamb = 0, GPU = False, workers = 2, node_labels = False):
 
         #set the graph
         self.G = G
@@ -27,7 +27,11 @@ class Geometric_Clustering(object):
         self.m = len(G.edges)
 
         #time vector
-        self.T = T
+        self.log = log
+        if log:
+            self.T = np.logspace(t_min, t_max, n_t)
+        else:
+            self.T = np.linspace(t_min, t_max, n_t)
 
         #precision parameters
         self.cutoff = cutoff
@@ -58,13 +62,27 @@ class Geometric_Clustering(object):
             self.pos = pos
 
 
+
+        #save the laplacian matrix and adjacency matrix
+        self.laplacian_tpe = laplacian_tpe
+        self.construct_laplacian()
+
+
+    def construct_laplacian(self): 
+        """
+        save the laplacian matrix for later
+        """
+
         #save the adjacency matrix (sparse)
         self.A = nx.adjacency_matrix(self.G)
-        
+
         #save Laplacian matrix
-        self.laplacian_tpe = laplacian_tpe
         if self.laplacian_tpe == 'normalized':
-            self.L = sc.sparse.csc_matrix(nx.normalized_laplacian_matrix(G), dtype=np.float64)
+            degree = np.array(self.A.sum(1)).flatten()
+            self.L = sc.sparse.csr_matrix(nx.laplacian_matrix(self.G).toarray().dot(np.diag(1./degree))) #combinatorial Laplacian
+            #self.L = sc.sparse.csr_matrix((np.diag(1./degree)).dot(nx.laplacian_matrix(self.G).toarray())) #combinatorial Laplacian
+
+
 
         elif self.laplacian_tpe == 'combinatorial':
             self.L = sc.sparse.csr_matrix(1.*nx.laplacian_matrix(self.G)) #combinatorial Laplacian
@@ -113,7 +131,7 @@ class Geometric_Clustering(object):
         self.dist = dist
 
        
-    def compute_OR_curvatures(self):
+    def compute_OR_curvatures(self, disp = True):
         """
         # =============================================================================
         # Compute the Curvature matrix (parallelised)
@@ -122,13 +140,20 @@ class Geometric_Clustering(object):
 
         
         if not self.GPU:
-            print('Compute the measures')
-            with Pool(processes = self.workers) as p_mx:  #initialise the parallel computation
-                mx_all = list(tqdm(p_mx.imap(partial(mx_comp, self.L, self.T, self.cutoff), self.G.nodes()), total = self.n))
+            if disp:
+                print('Compute the measures')
+                disable = False
+            else:
+                disable = True
 
-            print('Compute the edge curvatures')
+            with Pool(processes = self.workers) as p_mx:  #initialise the parallel computation
+                mx_all = list(tqdm(p_mx.imap(partial(mx_comp, self.L, self.T, self.cutoff), self.G.nodes()), total = self.n, disable=disable))
+
+            if disp:
+                print('Compute the edge curvatures')
+
             with Pool(processes = self.workers) as p_kappa:  #initialise the parallel computation
-                Kappa = list(tqdm(p_kappa.imap(partial(K_comp, mx_all, self.dist, self.lamb), self.G.edges()), total = self.m))   
+                Kappa = list(tqdm(p_kappa.imap(partial(K_comp, mx_all, self.dist, self.lamb), self.G.edges()), total = self.m, disable= disable))   
             #curvature of size (edges, time) 
             Kappa = np.transpose(np.stack(Kappa, axis=1))
             
@@ -162,6 +187,47 @@ class Geometric_Clustering(object):
 
         self.Kappa_node = Dinv.dot(B).dot(self.Kappa)
 
+
+    def compute_ricci_flow(self, dt):
+
+        self.T_ricci = self.T.copy()
+        self.T = [dt, ]
+
+
+        def new_kappa(): 
+
+            self.construct_laplacian()
+            self.compute_distance_geodesic()
+            self.compute_OR_curvatures(disp= False)
+
+            return self.Kappa.flatten()
+
+
+        def f(weight):
+
+            for k, e in enumerate(self.G.edges):
+                self.G[e[0]][e[1]]['weight'] = weight[k]
+
+            self.kappa = new_kappa()
+
+            kappa_mean = (self.kappa*weight).sum()/weight.sum()
+
+            return -(self.kappa-kappa_mean)*weight
+ 
+        weights = np.zeros([len(self.T_ricci)+1, self.m])
+        weights[0] = np.array([self.G[i][j]['weight'] for i,j in self.G.edges])
+        kappas = np.zeros([len(self.T_ricci), self.m])
+
+        for i in tqdm(range(len(self.T_ricci))):
+
+            weights[i+1] = weights[i] + dt*f(weights[i])
+            kappas[i] = self.kappa
+
+        self.Kappa = kappas.T
+        self.Weights = weights[:-1].T
+
+        return weights, kappas
+
     ##########################
     ## save/load functions ###
     ##########################
@@ -169,15 +235,24 @@ class Geometric_Clustering(object):
     def save_curvature(self):
         pickle.dump(self.Kappa, open('OR_results.pkl','wb'))
 
+    def save_ricci_flow(self):
+        pickle.dump([self.Kappa, self.Weights], open('Ricci_flow_results.pkl','wb'))
+
     def load_curvature(self):
         self.Kappa = pickle.load(open('OR_results.pkl','rb'))
 
+    def load_ricci_flow(self):
+        self.Kappa, self.Weights = pickle.load(open('Ricci_flow_results.pkl','rb'))
 
     ########################
     ## plotting functions ##
     ########################
 
     def plot_curvature_graph(self, t, node_size  = 100, edge_width = 2):
+
+        """
+        plot the curvature on the graph for a given time t
+        """
 
         plt.figure(figsize = self.figsize)
 
@@ -205,11 +280,9 @@ class Geometric_Clustering(object):
         limits = plt.axis('off') #turn axis odd
 
 
-
-
     def video_curvature(self, n_plot = 10, folder = 'images_curvature', node_size = 100):
         """
-        plot the reachability for all tau
+        plot the curvature on the graph for each time
         """
 
         #create folder it not already there
@@ -235,25 +308,28 @@ class Geometric_Clustering(object):
         """
         plot the curvature of each edge as a function of time
         """
-
+        
         #plot the edge curvatures
         plt.figure(figsize = self.figsize)
 
-        plt.semilogx(self.T, self.Kappa.mean(0), lw=5,c='C1',label='mean curvature')
+        plt.plot(self.T, self.Kappa.mean(0), lw=5,c='C1',label='mean curvature')
         plt.fill_between(self.T,self.Kappa.mean(0)-self.Kappa.std(0),self.Kappa.mean(0)+self.Kappa.std(0), alpha=0.5, color='C0',label='std curvature')
 
         plt.axvline(self.T[np.argmax(self.Kappa.std(0))], ls='--', c='C0', label='max(std)')
         plt.axhline(np.min(self.Kappa.mean(0)),c='C1', ls='--', label='min(mean)')
         plt.axhline(0,ls='--',c='0.5',label='flat')
 
-        plt.semilogx(self.T, self.Kappa[0], c='0.3', lw=0.2,label='edge curvature')
+        plt.plot(self.T, self.Kappa[0], c='0.3', lw=0.2,label='edge curvature')
         for k in self.Kappa:
-            plt.semilogx(self.T, k, c='0.3', lw=0.2)
+            plt.plot(self.T, k, c='0.3', lw=0.2)
 
+        ax = plt.gca()
+        if self.log:
+            ax.set_xscale('log')
 
         plt.xlabel('Time')
         plt.ylabel('Edge curvature')
-        plt.axis([self.T[0],self.T[-1],np.min(self.Kappa), 1])
+        plt.axis([self.T[0],self.T[-1],np.min(self.Kappa),np.max(self.Kappa) ])
         plt.legend(loc='best')
         plt.savefig('curvatures_edges.svg', bbox = 'tight')
 
@@ -263,21 +339,107 @@ class Geometric_Clustering(object):
 
         plt.figure(figsize = self.figsize)
 
-        plt.semilogx(self.T, self.Kappa_node.mean(0), lw=5,c='C1', label='mean curvature')
+        plt.plot(self.T, self.Kappa_node.mean(0), lw=5,c='C1', label='mean curvature')
         plt.fill_between(self.T,self.Kappa_node.mean(0)-self.Kappa_node.std(0),self.Kappa_node.mean(0)+self.Kappa_node.std(0), alpha=0.5,color='C0', label='std curvature')
         plt.axvline(self.T[np.argmax(self.Kappa_node.std(0))], ls='--', c='C0', label='max(std)')
         plt.axhline(np.min(self.Kappa.mean(0)),c='C1',ls='--', label='min(mean)')
         plt.axhline(0,ls='--',c='0.5', label='flat')
 
-        plt.semilogx(self.T, self.Kappa_node[0], c='0.3', lw=0.2,label='node curvature')
+        plt.plot(self.T, self.Kappa_node[0], c='0.3', lw=0.2,label='node curvature')
         for k in self.Kappa_node:
-            plt.semilogx(self.T, k, c='0.3', lw=0.2)
+            plt.plot(self.T, k, c='0.3', lw=0.2)
 
+        ax = plt.gca()
+        if self.log:
+            ax.set_xscale('log')
         plt.xlabel('Time')
         plt.ylabel('Node curvature')
-        plt.axis([self.T[0],self.T[-1],np.min(self.Kappa_node), 1])
+        plt.axis([self.T[0],self.T[-1], np.min(self.Kappa_node), np.max(self.Kappa_node) ])
         plt.legend(loc='best')
         plt.savefig('curvatures_nodes.svg', bbox='tight')
+
+    def plot_ricci_flow_graph(self, t, node_size  = 100, edge_width = 2):
+
+        """
+        plot the curvature on the graph for a given time t
+        """
+
+        plt.figure(figsize = self.figsize)
+
+        edge_vmin = np.min(abs(self.Weights[:,t]))
+        edge_vmax = np.max(abs(self.Weights[:,t]))
+        
+        nodes = nx.draw_networkx_nodes(self.G, pos = self.pos, node_size = node_size) #, node_color = self.Kappa_node[:,t], vmin = vmin, vmax = vmax,  cmap=plt.get_cmap('coolwarm'))
+
+        edges = nx.draw_networkx_edges(self.G, pos = self.pos, width = edge_width, edge_color = self.Weights[:, t], edge_vmin = edge_vmin, edge_vmax = edge_vmax, edge_cmap=plt.get_cmap('plasma'))
+
+        plt.colorbar(edges, label='Edge weight')
+
+        if self.labels:
+            old_labels={}
+            for i in self.G:
+                old_labels[i] = str(i) + ' ' + self.G.node[i]['old_label']
+            nx.draw_networkx_labels(self.G, pos = self.pos, labels = old_labels)
+
+
+        limits = plt.axis('off') #turn axis odd
+
+
+    def video_ricci_flow(self, n_plot = 10, folder = 'images_ricci_flow', node_size = 100):
+        """
+        plot the curvature on the graph for each time
+        """
+
+        #create folder it not already there
+        if not os.path.isdir(folder):
+            os.mkdir(folder)
+
+            print('plot curvature images')
+        if n_plot > len(self.T)-1:
+            n_plot = len(self.T)-1
+
+        dt = int(len(self.T)/n_plot)
+        for i in tqdm(range(n_plot)):
+            t = i*dt   
+
+            self.plot_ricci_flow_graph(t, node_size = node_size)
+
+            plt.title(r'$log_{10}(t)=$'+str(np.around(np.log10(self.T[t]),2)))
+
+            plt.savefig(folder + '/weight_' + str(i) + '.svg', bbox='tight')
+            plt.close()
+
+
+    def plot_ricci_flow(self):
+        """
+        plot the curvature of each edge as a function of time
+        """
+
+        #plot the edge curvatures
+        plt.figure(figsize = self.figsize)
+
+        plt.plot(self.T, self.Weights.mean(0), lw=5,c='C1',label='mean weight')
+        plt.fill_between(self.T,self.Weights.mean(0)-self.Weights.std(0),self.Weights.mean(0)+self.Weights.std(0), alpha=0.5, color='C0',label='std weight')
+
+        plt.axvline(self.T[np.argmax(self.Weights.std(0))], ls='--', c='C0', label='max(std)')
+        plt.axhline(np.min(self.Weights.mean(0)),c='C1', ls='--', label='min(mean)')
+        plt.axhline(0,ls='--',c='0.5',label='flat')
+
+        plt.plot(self.T, self.Weights[0], c='0.3', lw=0.2,label='edge curvature')
+        for k in self.Weights:
+            plt.plot(self.T, k, c='0.3', lw=0.2)
+
+        ax = plt.gca()
+        if self.log:
+            ax.set_xscale('log')
+
+        plt.xlabel('Time')
+        plt.ylabel('Edge weight')
+        plt.axis([self.T[0],self.T[-1],np.min(self.Weights),np.max(self.Weights) ])
+        plt.legend(loc='best')
+        plt.savefig('weights_edges.svg', bbox = 'tight')
+
+
 
 
 #########################################

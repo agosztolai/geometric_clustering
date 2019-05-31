@@ -54,17 +54,27 @@ def generate_graph(tpe='SM', params= {}):
 
     elif tpe == 'karate':
         G = nx.karate_club_graph()
+
+        for i,j in G.edges:
+            G[i][j]['weight']= 1.
+
         for i in G:
             G.node[i]['old_label'] = G.node[i]['club']+' ' + str(i)
         
     elif tpe == 'miserable':
         G = nx.read_gml('../datasets/lesmis.gml')
         G = nx.convert_node_labels_to_integers(G, label_attribute='old_label')
+
+        for i,j in G.edges:
+            G[i][j]['weight']= 1.
     
     elif tpe == 'dolphin':
         G = nx.read_gml('../datasets/dolphins.gml')
         G = nx.convert_node_labels_to_integers(G, label_attribute='old_label' )
         
+        for i,j in G.edges:
+            G[i][j]['weight']= 1.
+
     elif tpe == 'football':
         G = nx.read_gml('../datasets/football.gml')
         G = nx.convert_node_labels_to_integers(G, label_attribute='old_label' )
