@@ -10,9 +10,18 @@ def generate_graph(tpe='SM', params= {}):
         
     elif tpe == 'ER':
         G = nx.erdos_renyi_graph(params['n'], params['p'])
-        
+         
     elif tpe == 'grid' or tpe == 'grid_rect':
         G = nx.grid_2d_graph(params['n'], params['m'], periodic=False)
+        G = nx.convert_node_labels_to_integers(G, label_attribute='old_label')
+
+        pos = {}
+        for i in G:
+            pos[i] = np.array(G.node[i]['old_label'])
+         
+
+    elif tpe == 'torus':
+        G = nx.grid_2d_graph(params['n'], params['m'], periodic=True)
         G = nx.convert_node_labels_to_integers(G, label_attribute='old_label')
 
         pos = {}
@@ -212,10 +221,10 @@ def generate_graph(tpe='SM', params= {}):
 
         points = np.array(points)
 
-        gauss_pos = [.2, 0.2]
+        gauss_pos = [.5, 0.5]
         gauss_pos2 = [0.7, 0.7]
         gauss_var = [.05,.05]
-        new_points = np.random.normal(gauss_pos, gauss_var , [50,2])
+        new_points = np.random.normal(gauss_pos, gauss_var , [20,2])
         #new_points = np.concatenate( (new_points, np.random.normal( gauss_pos2, gauss_var, [50,2])) )
 
         for p in new_points:

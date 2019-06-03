@@ -25,8 +25,36 @@ dolphin:
         cutoff: 1.
         lamb: 0.
 
+grid:
+        n: 10
+        m: 10
+        t_min: -2.0
+        t_max: 3.0
+        n_t: 20
+        cutoff: 1.
+        lamb: 0.
 
 
+delaunay-grid:
+        n: 10
+        t_min: -2.0
+        t_max: 3.0
+        n_t: 20
+        cutoff: 1.
+        lamb: 0.
+
+
+delaunay:
+        n: 10
+        t_min: -2.0
+        t_max: 3.0
+        n_t: 20
+        cutoff: 1.
+        lamb: 0.
+
+
+ 
+  
 
 
 
@@ -38,19 +66,6 @@ football:
 netscience:
         t_min: -3.5
         t_max: 1.0
-        n_t: 200
-        
-delaunay-grid:
-        n: 15
-        t_min: -2.5
-        t_max: 1.5
-        n_t: 200
-
-
-delaunay:
-        n: 15
-        t_min: -2.5
-        t_max: 1.5
         n_t: 200
 
 powergrid:
@@ -126,15 +141,6 @@ grid_rect:
         t_min: -2.0
         t_max: 1.0
         n_t: 200
-
-
-grid:
-        n: 10
-        m: 10
-        t_min: -2.0
-        t_max: 1.0
-        n_t: 200
-
 
 powerlaw:
         n: 80
