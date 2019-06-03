@@ -35,15 +35,19 @@ class Geometric_Clustering(object):
 
         #precision parameters
         self.cutoff = cutoff
-        self.lamb = 0
+        self.lamb = lamb
     
+        #cluster with threshold parameters
+        self.sample = 50                # how many samples to use for computing the VI
+        self.perturb = 0.02              # threshold k ~ Norm(0,perturb(kmax-kmin))
+
         #GPU and cpu parameters
         self.GPU = GPU
         self.workers = workers
 
         #plotting parameters
         self.figsize = None #(5,4)
-        self.labels = node_labels
+        self.node_labels = node_labels
 
 
         #if no positions given, use force atlas
@@ -189,6 +193,9 @@ class Geometric_Clustering(object):
 
 
     def compute_ricci_flow(self, dt):
+        """
+        Compute the ricci flow using forward Euler integration scheme
+        """
 
         self.T_ricci = self.T.copy()
         self.T = [dt, ]
@@ -228,7 +235,81 @@ class Geometric_Clustering(object):
 
         return weights, kappas
 
+
+
     ##########################
+    ## Clustering functions ##
+    ##########################
+
+    def cluster_threshold(self):
+        """
+        find threshold cluster using weights kappa in graph self.G 
+        """
+
+        Aold = nx.adjacency_matrix(self.G).toarray()
+        K_tmp = nx.adjacency_matrix(self.G, weight='kappa').toarray()
+
+        mink = np.min(K_tmp)
+        maxk = np.max(K_tmp)
+        labels = np.zeros([self.sample, Aold.shape[0] ])
+
+        #set the first threshold to 0, others are random numbers around 0
+        thres = np.append(0.0, np.random.normal(0, self.perturb*(maxk-mink), self.sample-1))
+
+        nComms = np.zeros(self.sample)
+        for k in range(self.sample):
+            ind = np.where(K_tmp <= thres[k])     
+            A = Aold.copy()
+            A[ind[0], ind[1]] = 0 #remove edges with negative curvature.       
+            nComms[k], labels[k] = sc.sparse.csgraph.connected_components(csr_matrix(A, dtype=int), directed=False, return_labels=True) 
+
+        # compute the MI between the threshold=0 and other ones
+        from sklearn.metrics.cluster import normalized_mutual_info_score
+
+        mi = 0
+        k = 0 
+        for i in range(self.sample):
+            #for j in range(i-1):
+                j=0
+                mi += normalized_mutual_info_score(list(labels[i]),list(labels[j]), average_method='arithmetic' )
+                k+=1
+
+        #return the mean number of communities, MI and label at threshold = 0 
+        return np.mean(nComms), mi/k, labels[0]
+
+
+    def clustering(self):
+        """
+        Apply signed clustering on the curvature weigthed graphs
+        """
+
+        nComms = np.zeros(len(self.T)) 
+        MIs = np.zeros(len(self.T)) 
+        labels = np.zeros([len(self.T), self.n]) 
+
+
+        for i in tqdm(range(len((self.T)))):
+
+            # update edge curvatures in G
+            for e, edge in enumerate(self.G.edges):
+                self.G.edges[edge]['kappa'] = self.Kappa[e,i]            
+        
+            # cluster
+            if self.cluster_tpe == 'threshold':
+                nComms[i], MIs[i], labels[i] = self.cluster_threshold()
+            
+            # plot  
+            #if vis == 1:
+            #    plotCluster(G,T,pos,i,labels[:,0],vi[0:i+1],nComms[0,0:i+1])
+            
+            # collect data to be saved
+            #data[:,[i+1]] = labels[:,[0]]
+
+        self.nComms = nComms
+        self.MIs = MIs
+        self.labels = labels
+
+   ##########################
     ## save/load functions ###
     ##########################
 
@@ -238,11 +319,17 @@ class Geometric_Clustering(object):
     def save_ricci_flow(self):
         pickle.dump([self.Kappa, self.Weights], open('Ricci_flow_results.pkl','wb'))
 
+    def save_clustering(self):
+        pickle.dump([self.nComms, self.MIs, self.labels], open('clustering_results.pkl','wb'))
+
     def load_curvature(self):
         self.Kappa = pickle.load(open('OR_results.pkl','rb'))
 
     def load_ricci_flow(self):
         self.Kappa, self.Weights = pickle.load(open('Ricci_flow_results.pkl','rb'))
+
+    def load_clustering(self):
+        self.nComms, self.MIs, self.labels =  pickle.load(open('clustering_results.pkl','rb'))
 
     ########################
     ## plotting functions ##
@@ -270,7 +357,7 @@ class Geometric_Clustering(object):
 
         plt.colorbar(edges, label='Edge curvature')
 
-        if self.labels:
+        if self.node_labels:
             old_labels={}
             for i in self.G:
                 old_labels[i] = str(i) + ' ' + self.G.node[i]['old_label']
@@ -375,7 +462,7 @@ class Geometric_Clustering(object):
 
         plt.colorbar(edges, label='Edge weight')
 
-        if self.labels:
+        if self.node_labels:
             old_labels={}
             for i in self.G:
                 old_labels[i] = str(i) + ' ' + self.G.node[i]['old_label']
@@ -439,6 +526,78 @@ class Geometric_Clustering(object):
         plt.legend(loc='best')
         plt.savefig('weights_edges.svg', bbox = 'tight')
 
+
+    def plot_clustering(self):
+        """
+        plot the clustering results
+        """
+
+        plt.figure(figsize=self.figsize)
+        ax1 = plt.gca()
+        ax1.semilogx(self.T, self.nComms, 'C0')
+
+        ax1.set_xlabel('Markov time')
+        ax1.set_ylabel('# communities', color='C0')
+
+        ax2 = ax1.twinx()
+        ax2.semilogx(self.T, self.MIs, 'C1')
+
+        ax2.set_ylabel('Average mutual information', color='C1')
+
+        plt.savefig('clustering.svg', bbox = 'tight')
+
+ 
+
+    def plot_clustering_graph(self, t, node_size  = 100, edge_width = 2):
+
+        """
+        plot the curvature on the graph for a given time t
+        """
+
+        plt.figure(figsize = self.figsize)
+
+        edge_vmin = -np.max(abs(self.Kappa[:,t]))
+        edge_vmax = np.max(abs(self.Kappa[:,t]))
+        
+        nodes = nx.draw_networkx_nodes(self.G, pos = self.pos, node_size = node_size, node_color = self.labels[t], cmap=plt.get_cmap("tab20"))
+
+        edges = nx.draw_networkx_edges(self.G, pos = self.pos, width = edge_width, edge_color = self.Kappa[:, t], edge_vmin = edge_vmin, edge_vmax = edge_vmax, edge_cmap=plt.get_cmap('coolwarm'))
+
+        plt.colorbar(edges, label='Edge curvature')
+
+        if self.node_labels:
+            old_labels={}
+            for i in self.G:
+                old_labels[i] = str(i) + ' ' + self.G.node[i]['old_label']
+            nx.draw_networkx_labels(self.G, pos = self.pos, labels = old_labels)
+
+
+        limits = plt.axis('off') #turn axis odd
+
+
+    def video_clustering(self, n_plot = 10, folder = 'images_clustering', node_size = 100):
+        """
+        plot the curvature on the graph for each time
+        """
+
+        #create folder it not already there
+        if not os.path.isdir(folder):
+            os.mkdir(folder)
+
+        print('plot clustering images')
+        if n_plot > len(self.T)-1:
+            n_plot = len(self.T)-1
+
+        dt = int(len(self.T)/n_plot)
+        for i in tqdm(range(n_plot)):
+            t = i*dt   
+
+            self.plot_clustering_graph(t, node_size = node_size)
+
+            plt.title(r'$log_{10}(t)=$'+str(np.around(np.log10(self.T[t]),2)))
+
+            plt.savefig(folder + '/clustering_' + str(i) + '.svg', bbox='tight')
+            plt.close()
 
 
 
