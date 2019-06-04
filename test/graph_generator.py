@@ -9,7 +9,13 @@ def generate_graph(tpe='SM', params= {}):
         G = nx.newman_watts_strogatz_graph(params['n'], params['k'], params['p'])
         
     elif tpe == 'ER':
-        G = nx.erdos_renyi_graph(params['n'], params['p'])
+        G = nx.erdos_renyi_graph(params['n'], params['p'], seed=params['seed'])
+
+    elif tpe == 'barbell':
+        G = nx.barbell_graph(params['m1'], params['m2'])
+
+    elif tpe == 'tree':
+        G = nx.balanced_tree(params['r'], params['h'])
          
     elif tpe == 'grid' or tpe == 'grid_rect':
         G = nx.grid_2d_graph(params['n'], params['m'], periodic=False)

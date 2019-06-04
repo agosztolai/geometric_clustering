@@ -53,8 +53,36 @@ delaunay:
         lamb: 0.
 
 
- 
-  
+tree:
+        r: 2
+        h: 5
+        t_min: -2.0
+        t_max: 4.0
+        n_t: 20
+        cutoff: 1.
+        lamb: 0.
+
+
+barbell:
+        m1: 10
+        m2: 3
+        t_min: -2.0
+        t_max: 3.0
+        n_t: 20
+        cutoff: 1.
+        lamb: 0.
+
+
+ER:
+        n: 20
+        p: 0.5
+        seed: 0
+        t_min: -2.0
+        t_max: 3.0
+        n_t: 20
+        cutoff: 1.
+        lamb: 0.
+
 
 
 
@@ -123,12 +151,6 @@ SM:
         t_max: 5
         n_t: 200
 
-ER:
-        n: 50
-        p: 0.16
-        t_min: -1.
-        t_max: 2.
-        n_t: 200
 2grid:
         n: 16
         t_min: -3.0

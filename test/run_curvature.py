@@ -35,7 +35,7 @@ lamb = params['lamb']
 
 
 workers = 16               # numbers of cpus
-GPU = 1
+GPU = 0
 
 
 #create a folder and move into it

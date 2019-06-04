@@ -51,7 +51,7 @@ gc.figsize = (5,4)
 gc.plot_curvatures()
 
 gc.labels = False
-gc.video_curvature(n_plot=20)
+gc.video_curvature(n_plot=20,node_size=50)
 
 
 
