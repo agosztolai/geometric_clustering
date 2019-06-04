@@ -74,7 +74,7 @@ def generate_graph(tpe='SM', params= {}):
             G[i][j]['weight']= 1.
 
         for i in G:
-            G.node[i]['old_label'] = G.node[i]['club']+' ' + str(i)
+            G.node[i]['old_label'] =  str(i) + ' ' + G.node[i]['club']
         
     elif tpe == 'miserable':
         G = nx.read_gml('../datasets/lesmis.gml')

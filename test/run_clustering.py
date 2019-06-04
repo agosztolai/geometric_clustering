@@ -49,7 +49,7 @@ gc = Geometric_Clustering(G, pos = pos, t_min = t_min, t_max = t_max, n_t = n_t,
 #load results
 gc.load_curvature()
 
-gc.cluster_tpe = 'threshold'
+gc.cluster_tpe = 'modularity' #'threshold'
 
 #apply the clustering
 gc.clustering()
@@ -58,10 +58,11 @@ gc.clustering()
 gc.save_clustering()
 
 #plot the scan in time
-gc.figsize = (5,4)
+gc.figsize = (10,8)
+gc.node_labels= True
 gc.plot_clustering()
 
 #plot a graph snapshot per time
-gc.video_clustering(n_plot = 20)
+gc.video_clustering(n_plot = 100)
 
 

@@ -10,6 +10,7 @@ import os as os
 import pickle as pickle
 from fa2 import ForceAtlas2
 import pylab as plt
+import pandas as pd
 
 
 
@@ -38,7 +39,7 @@ class Geometric_Clustering(object):
         self.lamb = lamb
     
         #cluster with threshold parameters
-        self.sample = 50                # how many samples to use for computing the VI
+        self.sample = 20                # how many samples to use for computing the VI
         self.perturb = 0.02              # threshold k ~ Norm(0,perturb(kmax-kmin))
 
         #GPU and cpu parameters
@@ -54,7 +55,7 @@ class Geometric_Clustering(object):
         if len(pos) == 0:
             forceatlas2 = ForceAtlas2(
                         # Tuning
-                        scalingRatio=2.,
+                        scalingRatio=0.5,
                         strongGravityMode=False,
                         gravity=1.0,
                         outboundAttractionDistribution=False,  # Dissuade hubs
@@ -283,22 +284,76 @@ class Geometric_Clustering(object):
         Apply signed clustering on the curvature weigthed graphs
         """
 
-        nComms = np.zeros(len(self.T)) 
-        MIs = np.zeros(len(self.T)) 
-        labels = np.zeros([len(self.T), self.n]) 
 
 
-        for i in tqdm(range(len((self.T)))):
+        # cluster
+        if self.cluster_tpe == 'threshold':
+            nComms = np.zeros(len(self.T)) 
+            MIs = np.zeros(len(self.T)) 
+            labels = np.zeros([len(self.T), self.n]) 
 
-            # update edge curvatures in G
-            for e, edge in enumerate(self.G.edges):
-                self.G.edges[edge]['kappa'] = self.Kappa[e,i]            
-        
-            # cluster
-            if self.cluster_tpe == 'threshold':
-                nComms[i], MIs[i], labels[i] = self.cluster_threshold()
+            for i in tqdm(range(len((self.T)))):
+
+                # update edge curvatures in G
+                for e, edge in enumerate(self.G.edges):
+                    self.G.edges[edge]['kappa'] = self.Kappa[e,i]            
             
-            # plot  
+
+                nComms[i], MIs[i], labels[i] = self.cluster_threshold()
+
+        if self.cluster_tpe == 'modularity':
+
+            import PyGenStability as pgs
+            
+            louvain_runs = 100
+            precision = 1e-6
+
+            G_modularity = self.G.copy()
+
+            self.stability = pgs.PyGenStability(G_modularity, 'modularity_signed', louvain_runs , precision)
+            self.stability.all_mi = False #to compute MI between al Louvain
+            self.stability.n_mi = 40  #if all_mi = False, number of top Louvai run to use for MI
+            #number of cpu for parallel compuations
+            self.stability.n_processes_louv = 2
+            self.stability.n_processes_mi = 2
+
+            stabilities = []
+            nComms = []
+            MIs = []
+            labels = []
+            for i in tqdm(range(len((self.T)))):
+
+                # update edge weights in stability.G
+                for e, edge in enumerate(self.G.edges):
+                    self.stability.G.edges[edge]['weight'] = self.Kappa[e,i]            
+
+                self.stability.A = nx.adjacency_matrix(self.stability.G, weight='weight')
+                self.stability.run_single_stability(time = 1.)
+
+                stabilities.append(self.stability.single_stability_result['stability'])
+                nComms.append(self.stability.single_stability_result['number_of_comms'])
+                MIs.append(self.stability.single_stability_result['MI'])
+                labels.append(self.stability.single_stability_result['community_id'])
+
+
+            #save the results
+            timesteps = [element[0] for element in enumerate(self.T)]
+            self.stability.stability_results = pd.DataFrame(
+                {
+                    'Markov time' : self.T,
+                    'stability' : stabilities,
+                    'number_of_communities' : nComms,
+                    'community_id' : labels,
+                    'MI' : MIs
+                },
+                index = timesteps,
+            )
+                            
+            self.stability.ttprime = self.stability.compute_ttprime()
+
+            #self.stability.stability_postprocess()
+
+                # plot  
             #if vis == 1:
             #    plotCluster(G,T,pos,i,labels[:,0],vi[0:i+1],nComms[0,0:i+1])
             
@@ -532,17 +587,20 @@ class Geometric_Clustering(object):
         plot the clustering results
         """
 
-        plt.figure(figsize=self.figsize)
-        ax1 = plt.gca()
-        ax1.semilogx(self.T, self.nComms, 'C0')
+        if self.cluster_tpe == 'modularity':
+            self.stability.plot_scan(time_axis=False) #if time_axis=True, the ttprime is wrong (bug to fix)
+        else:
+            plt.figure(figsize=self.figsize)
+            ax1 = plt.gca()
+            ax1.semilogx(self.T, self.nComms, 'C0')
 
-        ax1.set_xlabel('Markov time')
-        ax1.set_ylabel('# communities', color='C0')
+            ax1.set_xlabel('Markov time')
+            ax1.set_ylabel('# communities', color='C0')
 
-        ax2 = ax1.twinx()
-        ax2.semilogx(self.T, self.MIs, 'C1')
+            ax2 = ax1.twinx()
+            ax2.semilogx(self.T, self.MIs, 'C1')
 
-        ax2.set_ylabel('Average mutual information', color='C1')
+            ax2.set_ylabel('Average mutual information', color='C1')
 
         plt.savefig('clustering.svg', bbox = 'tight')
 

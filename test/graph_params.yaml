@@ -4,7 +4,7 @@
 ##################
 
 karate:
-        t_min: -3.0
+        t_min: -5.0
         t_max: 2.0
         n_t: 100
         cutoff: 1.
