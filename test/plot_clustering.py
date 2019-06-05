@@ -9,14 +9,18 @@ from geometric_clustering import Geometric_Clustering
 from graph_generator import generate_graph
 
 
+#get the graph from terminal input 
 graph_tpe = sys.argv[-1]
 
+#load parameters
 params = yaml.load(open('graph_params.yaml','rb'))[graph_tpe]
 print('Used parameters:', params)
 
+
 # =============================================================================
-# Parameters
+# Set parameters
 # =============================================================================
+
 # diffusion time scale 
 t_min = params['t_min']
 t_max = params['t_max']
@@ -46,12 +50,24 @@ gc = Geometric_Clustering(G, pos = pos, t_min = t_min, t_max = t_max, n_t = n_t,
 #load results
 gc.load_curvature()
 
-#plot results
-gc.figsize = (5,2)
-gc.plot_curvatures()
+gc.cluster_tpe = 'modularity' #'threshold'
 
-gc.labels = False
-gc.video_curvature(n_plot=20,node_size=50)
+#save it in a pickle
+gc.load_clustering()
+
+#plot the scan in time
+gc.figsize = (5,4)
+gc.node_labels = False
+gc.plot_clustering()
+
+#plot a graph snapshot per time
+gc.video_clustering(n_plot = 100)
+
+#plot labels on one snapshot
+gc.figsize = (10,10)
+gc.node_labels = True
+gc.plot_clustering_graph(0)
+plt.savefig('clustering_labels.svg', bbox_inches = 'tight')
 
 
 

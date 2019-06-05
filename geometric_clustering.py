@@ -305,14 +305,14 @@ class Geometric_Clustering(object):
 
             import PyGenStability as pgs
             
-            louvain_runs = 100
+            louvain_runs = 10
             precision = 1e-6
 
             G_modularity = self.G.copy()
 
             self.stability = pgs.PyGenStability(G_modularity, 'modularity_signed', louvain_runs , precision)
             self.stability.all_mi = False #to compute MI between al Louvain
-            self.stability.n_mi = 40  #if all_mi = False, number of top Louvai run to use for MI
+            self.stability.n_mi = 10  #if all_mi = False, number of top Louvai run to use for MI
             #number of cpu for parallel compuations
             self.stability.n_processes_louv = 2
             self.stability.n_processes_mi = 2
@@ -335,6 +335,7 @@ class Geometric_Clustering(object):
                 MIs.append(self.stability.single_stability_result['MI'])
                 labels.append(self.stability.single_stability_result['community_id'])
 
+            ttprime = self.stability.compute_ttprime(labels, nComms, self.T)
 
             #save the results
             timesteps = [element[0] for element in enumerate(self.T)]
@@ -344,21 +345,12 @@ class Geometric_Clustering(object):
                     'stability' : stabilities,
                     'number_of_communities' : nComms,
                     'community_id' : labels,
-                    'MI' : MIs
+                    'MI' : MIs, 
+                    'ttprime': ttprime
                 },
                 index = timesteps,
             )
                             
-            self.stability.ttprime = self.stability.compute_ttprime()
-
-            #self.stability.stability_postprocess()
-
-                # plot  
-            #if vis == 1:
-            #    plotCluster(G,T,pos,i,labels[:,0],vi[0:i+1],nComms[0,0:i+1])
-            
-            # collect data to be saved
-            #data[:,[i+1]] = labels[:,[0]]
 
         self.nComms = nComms
         self.MIs = MIs
@@ -375,7 +367,11 @@ class Geometric_Clustering(object):
         pickle.dump([self.Kappa, self.Weights], open('Ricci_flow_results.pkl','wb'))
 
     def save_clustering(self):
-        pickle.dump([self.nComms, self.MIs, self.labels], open('clustering_results.pkl','wb'))
+
+        if self.cluster_tpe == 'threshold':
+            pickle.dump([self.nComms, self.MIs, self.labels], open('clustering_results.pkl','wb'))
+        else:
+            pickle.dump(self.stability.stability_results,  open('clustering_results.pkl','wb'))
 
     def load_curvature(self):
         self.Kappa = pickle.load(open('OR_results.pkl','rb'))
@@ -384,7 +380,27 @@ class Geometric_Clustering(object):
         self.Kappa, self.Weights = pickle.load(open('Ricci_flow_results.pkl','rb'))
 
     def load_clustering(self):
-        self.nComms, self.MIs, self.labels =  pickle.load(open('clustering_results.pkl','rb'))
+
+        if self.cluster_tpe == 'threshold':
+            self.nComms, self.MIs, self.labels =  pickle.load(open('clustering_results.pkl','rb'))
+        else:
+            
+            louvain_runs = 10
+            precision = 1e-6
+
+            G_modularity = self.G.copy()
+
+            import PyGenStability as pgs
+
+            self.stability = pgs.PyGenStability(G_modularity, 'modularity_signed', louvain_runs , precision)
+            self.stability.all_mi = False #to compute MI between al Louvain
+            self.stability.n_mi = 10  #if all_mi = False, number of top Louvai run to use for MI
+            #number of cpu for parallel compuations
+            self.stability.n_processes_louv = 2
+            self.stability.n_processes_mi = 2
+
+            self.stability.stability_results = pickle.load(  open('clustering_results.pkl','rb'))
+            self.labels = self.stability.stability_results['community_id']
 
     ########################
     ## plotting functions ##
@@ -443,7 +459,7 @@ class Geometric_Clustering(object):
 
             plt.title(r'$log_{10}(t)=$'+str(np.around(np.log10(self.T[t]),2)))
 
-            plt.savefig(folder + '/curvature_' + str(i) + '.svg', bbox='tight')
+            plt.savefig(folder + '/curvature_' + str(i) + '.svg', bbox_inches='tight')
             plt.close()
 
     def plot_curvatures(self):
@@ -463,7 +479,7 @@ class Geometric_Clustering(object):
 
         plt.plot(self.T, self.Kappa[0], c='0.3', lw=0.2,label='edge curvature')
         for k in self.Kappa:
-            plt.plot(self.T, k, c='0.3', lw=0.2)
+            plt.plot(self.T, k, c='0.4', lw=0.2)
 
         ax = plt.gca()
         if self.log:
@@ -471,9 +487,9 @@ class Geometric_Clustering(object):
 
         plt.xlabel('Time')
         plt.ylabel('Edge curvature')
-        plt.axis([self.T[0],self.T[-1],np.min(self.Kappa),np.max(self.Kappa) ])
+        plt.axis([self.T[0],self.T[-1],np.min(self.Kappa)-0.1,1 ])
         plt.legend(loc='best')
-        plt.savefig('curvatures_edges.svg', bbox = 'tight')
+        plt.savefig('curvatures_edges.svg', bbox_inches = 'tight')
 
 
         #plot the node curvatures
@@ -498,7 +514,7 @@ class Geometric_Clustering(object):
         plt.ylabel('Node curvature')
         plt.axis([self.T[0],self.T[-1], np.min(self.Kappa_node), np.max(self.Kappa_node) ])
         plt.legend(loc='best')
-        plt.savefig('curvatures_nodes.svg', bbox='tight')
+        plt.savefig('curvatures_nodes.svg', bbox_inches='tight')
 
     def plot_ricci_flow_graph(self, t, node_size  = 100, edge_width = 2):
 
@@ -548,7 +564,7 @@ class Geometric_Clustering(object):
 
             plt.title(r'$log_{10}(t)=$'+str(np.around(np.log10(self.T[t]),2)))
 
-            plt.savefig(folder + '/weight_' + str(i) + '.svg', bbox='tight')
+            plt.savefig(folder + '/weight_' + str(i) + '.svg', bbox_inches='tight')
             plt.close()
 
 
@@ -579,7 +595,7 @@ class Geometric_Clustering(object):
         plt.ylabel('Edge weight')
         plt.axis([self.T[0],self.T[-1],np.min(self.Weights),np.max(self.Weights) ])
         plt.legend(loc='best')
-        plt.savefig('weights_edges.svg', bbox = 'tight')
+        plt.savefig('weights_edges.svg', bbox_inches = 'tight')
 
 
     def plot_clustering(self):
@@ -588,7 +604,7 @@ class Geometric_Clustering(object):
         """
 
         if self.cluster_tpe == 'modularity':
-            self.stability.plot_scan(time_axis=False) #if time_axis=True, the ttprime is wrong (bug to fix)
+            self.stability.plot_scan(time_axis=True) #if time_axis=True, the ttprime is wrong (bug to fix)
         else:
             plt.figure(figsize=self.figsize)
             ax1 = plt.gca()
@@ -602,7 +618,7 @@ class Geometric_Clustering(object):
 
             ax2.set_ylabel('Average mutual information', color='C1')
 
-        plt.savefig('clustering.svg', bbox = 'tight')
+        plt.savefig('clustering.svg', bbox_inches = 'tight')
 
  
 
@@ -654,7 +670,7 @@ class Geometric_Clustering(object):
 
             plt.title(r'$log_{10}(t)=$'+str(np.around(np.log10(self.T[t]),2)))
 
-            plt.savefig(folder + '/clustering_' + str(i) + '.svg', bbox='tight')
+            plt.savefig(folder + '/clustering_' + str(i) + '.svg', bbox_inches='tight')
             plt.close()
 
 
