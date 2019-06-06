@@ -10,3 +10,5 @@ __pycache__/
 data/
 
 build/
+
+test/\.ipynb_checkpoints/
