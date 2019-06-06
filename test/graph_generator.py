@@ -95,11 +95,14 @@ def generate_graph(tpe='SM', params= {}):
         G = nx.convert_node_labels_to_integers(G, label_attribute='old_label' )
 
     elif tpe == 'SBM' or tpe == 'SBM_2':
-        import SBM as sbm
+        #import SBM as sbm
         G = nx.stochastic_block_model(params['sizes'],np.array(params['probs'])/params['sizes'][0], seed=params['seed'])
         for i in G:
-            G.node[i]['old_label'] = G.node[i]['block']
+            G.node[i]['old_label'] = str(G.node[i]['block'])
+        for i,j in G.edges:
+            G[i][j]['weight'] = 1.
         
+        G = nx.convert_node_labels_to_integers(G, label_attribute='labels_orig')
         #G,community_labels= sbm.SBM_graph(params['n'], params['n_comm'], params['p'])
         
     elif tpe == 'powerlaw':
