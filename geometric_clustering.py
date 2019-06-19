@@ -13,19 +13,21 @@ import pylab as plt
 import pandas as pd
 
 
-
-
 class Geometric_Clustering(object):
     """
     Main class for geometric clustering
     """
 
-    def __init__(self, G = [], pos = [], laplacian_tpe = 'normalized', t_min =0, t_max = 1, n_t = 100, log = True, cutoff = 0.95,  lamb = 0, GPU = False, workers = 2, node_labels = False):
+    def __init__(self, G=[], pos=[], laplacian_tpe='normalized', \
+                 t_min=0, t_max = 1, n_t = 100, log=True, cutoff=0.95, \
+                 lamb=0, GPU=False, workers=2, node_labels=False, filename = 'res'):
 
         #set the graph
         self.G = G
         self.n = len(G.nodes)
         self.m = len(G.edges)
+        
+        self.filename = filename
 
         #time vector
         self.log = log
@@ -39,8 +41,8 @@ class Geometric_Clustering(object):
         self.lamb = lamb
     
         #cluster with threshold parameters
-        self.sample = 20                # how many samples to use for computing the VI
-        self.perturb = 0.02              # threshold k ~ Norm(0,perturb(kmax-kmin))
+        self.sample = 20     # how many samples to use for computing the VI
+        self.perturb = 0.02  # threshold k ~ Norm(0,perturb(kmax-kmin))
 
         #GPU and cpu parameters
         self.GPU = GPU
@@ -50,32 +52,27 @@ class Geometric_Clustering(object):
         self.figsize = None #(5,4)
         self.node_labels = node_labels
 
-
         #if no positions given, use force atlas
         if len(pos) == 0:
             forceatlas2 = ForceAtlas2(
-                        # Tuning
                         scalingRatio=0.5,
                         strongGravityMode=False,
                         gravity=1.0,
                         outboundAttractionDistribution=False,  # Dissuade hubs
-                        # Log
                         verbose=False)
 
             self.pos = forceatlas2.forceatlas2_networkx_layout(self.G, pos=None, iterations=2000)
         else: #else use positions
             self.pos = pos
 
-
-
-        #save the laplacian matrix and adjacency matrix
+        #save the Laplacian matrix and adjacency matrix
         self.laplacian_tpe = laplacian_tpe
         self.construct_laplacian()
 
 
     def construct_laplacian(self): 
         """
-        save the laplacian matrix for later
+        save the Laplacian matrix for later
         """
 
         #save the adjacency matrix (sparse)
@@ -84,13 +81,11 @@ class Geometric_Clustering(object):
         #save Laplacian matrix
         if self.laplacian_tpe == 'normalized':
             degree = np.array(self.A.sum(1)).flatten()
-            self.L = sc.sparse.csr_matrix(nx.laplacian_matrix(self.G).toarray().dot(np.diag(1./degree))) #combinatorial Laplacian
-            #self.L = sc.sparse.csr_matrix((np.diag(1./degree)).dot(nx.laplacian_matrix(self.G).toarray())) #combinatorial Laplacian
-
-
+            self.L = sc.sparse.csr_matrix(nx.laplacian_matrix(self.G).toarray().dot(np.diag(1./degree))) 
+            #self.L = sc.sparse.csr_matrix((np.diag(1./degree)).dot(nx.laplacian_matrix(self.G).toarray()))
 
         elif self.laplacian_tpe == 'combinatorial':
-            self.L = sc.sparse.csr_matrix(1.*nx.laplacian_matrix(self.G)) #combinatorial Laplacian
+            self.L = sc.sparse.csr_matrix(1.*nx.laplacian_matrix(self.G)) 
 
 
     def compute_distance_geodesic(self):
@@ -106,8 +101,6 @@ class Geometric_Clustering(object):
         #     Output
         #         An NxN NumPy array such that result[i,j] is the geodesic distance 
         #         between node i and node j. If i /~ i then result[i,j] == numpy.inf
-        # 
-        # =============================================================================
         """
 
         #check A matrix
@@ -142,74 +135,77 @@ class Geometric_Clustering(object):
         # Compute the Curvature matrix (parallelised)
         # =============================================================================
         """
-
+      
+        if disp:
+            disable = False
+        else:
+            disable = True
         
         if not self.GPU:
-            if disp:
-                print('Compute the measures')
-                disable = False
-            else:
-                disable = True
+            
+            print('Compute the measures')
 
             with Pool(processes = self.workers) as p_mx:  #initialise the parallel computation
-                mx_all = list(tqdm(p_mx.imap(partial(mx_comp, self.L, self.T, self.cutoff), self.G.nodes()), total = self.n, disable=disable))
+                mx_all = list(tqdm(p_mx.imap(partial(mx_comp, self.L, self.T, self.cutoff), self.G.nodes()), total = self.n, disable = disable))
 
-            if disp:
-                print('Compute the edge curvatures')
+            print('Compute the edge curvatures')
 
             with Pool(processes = self.workers) as p_kappa:  #initialise the parallel computation
-                Kappa = list(tqdm(p_kappa.imap(partial(K_comp, mx_all, self.dist, self.lamb), self.G.edges()), total = self.m, disable= disable))   
-            #curvature of size (edges, time) 
+                Kappa = list(tqdm(p_kappa.imap(partial(K_comp, mx_all, self.dist, self.lamb), self.G.edges()), total = self.m, disable = disable))   
+            
+            #curvature matrix of size (edges x time) 
             Kappa = np.transpose(np.stack(Kappa, axis=1))
             
         elif self.GPU:
             print("Not working yet!!!!!")
-            cutoff = 1. #this is to keep distance matrix same, remove later if possible
-            with Pool(processes = workers) as p_mx:  #initialise the parallel computation
-                mx_all = list(tqdm(p_mx.imap(partial(mx_comp, L, T, cutoff), G.nodes()),\
-                               total = len(G)))
+            cutoff = 1. #this is to keep dist matrix same, remove later if possible
             
-            n = nx.number_of_nodes(G)
-            e = nx.Graph.size(G)
-            Kappa = np.empty((e,len(T)))
-            for it in tqdm(range(len(T))):           
+            print('Compute the measures')
+            
+            with Pool(processes = self.workers) as p_mx:  #initialise the parallel computation
+                mx_all = list(tqdm(p_mx.imap(partial(mx_comp, self.L, self.T, cutoff), self.G.nodes()), total = self.n, disable = disable))
+            
+            print('Compute the edge curvatures')
+            
+            n = nx.number_of_nodes(self.G)
+            e = nx.Graph.size(self.G)
+            Kappa = np.empty((e,len(self.T)))
+            for it in tqdm(range(len(self.T))):           
                 mx_all_t = np.empty([n,n]) 
                 for i in range(len(mx_all)):
                     mx_all_t[:,[i]] = mx_all[i][0][it].toarray()
                 
-                Kappa[:,it] = K_comp_gpu(G,T,mx_all_t,dist,lamb)    
-           
+                Kappa[:,it] = K_comp_gpu(self.G,self.T,mx_all_t,self.dist,self.lamb)            
 
         self.Kappa = Kappa
 
     def node_curvature(self):
         """
-        compute the node curvature from the adjacent edge curvatures
+        Compute node curvatures from the adjacent edge curvatures
         """
 
         B = nx.incidence_matrix(self.G).toarray() #incidence matrix with only ones (no negative values)
-        Dinv = np.diag(1./B.sum(1)) # degree matrix
+        Dinv = np.diag(1./B.sum(1)) # inverse degree matrix
 
         self.Kappa_node = Dinv.dot(B).dot(self.Kappa)
 
 
-    def compute_ricci_flow(self, dt):
+    def compute_ricci_flow(self, tau):
         """
-        Compute the ricci flow using forward Euler integration scheme
+        Compute the Ricci flow using forward Euler scheme
         """
 
         self.T_ricci = self.T.copy()
-        self.T = [dt, ]
-
+        self.T = [tau]
+        dt = self.T_ricci[1] - self.T_ricci[0]
 
         def new_kappa(): 
 
             self.construct_laplacian()
             self.compute_distance_geodesic()
-            self.compute_OR_curvatures(disp= False)
+            self.compute_OR_curvatures(disp = False)
 
             return self.Kappa.flatten()
-
 
         def f(weight):
 
@@ -220,7 +216,7 @@ class Geometric_Clustering(object):
 
             kappa_mean = (self.kappa*weight).sum()/weight.sum()
 
-            return -(self.kappa-kappa_mean)*weight
+            return -(self.kappa - kappa_mean)*weight
  
         weights = np.zeros([len(self.T_ricci)+1, self.m])
         weights[0] = np.array([self.G[i][j]['weight'] for i,j in self.G.edges])
@@ -236,15 +232,13 @@ class Geometric_Clustering(object):
 
         return weights, kappas
 
-
-
-    ##########################
-    ## Clustering functions ##
-    ##########################
+# =============================================================================
+# Clustering functions
+# =============================================================================
 
     def cluster_threshold(self):
         """
-        find threshold cluster using weights kappa in graph self.G 
+        Find threshold cluster using weights kappa in graph self.G 
         """
 
         Aold = nx.adjacency_matrix(self.G).toarray()
@@ -270,7 +264,7 @@ class Geometric_Clustering(object):
         mi = 0
         k = 0 
         for i in range(self.sample):
-            #for j in range(i-1):
+            for j in range(i-1):
                 j=0
                 mi += normalized_mutual_info_score(list(labels[i]),list(labels[j]), average_method='arithmetic' )
                 k+=1
@@ -284,8 +278,6 @@ class Geometric_Clustering(object):
         Apply signed clustering on the curvature weigthed graphs
         """
 
-
-
         # cluster
         if self.cluster_tpe == 'threshold':
             nComms = np.zeros(len(self.T)) 
@@ -296,8 +288,7 @@ class Geometric_Clustering(object):
 
                 # update edge curvatures in G
                 for e, edge in enumerate(self.G.edges):
-                    self.G.edges[edge]['kappa'] = self.Kappa[e,i]            
-            
+                    self.G.edges[edge]['kappa'] = self.Kappa[e,i]                     
 
                 nComms[i], MIs[i], labels[i] = self.cluster_threshold()
 
@@ -312,10 +303,9 @@ class Geometric_Clustering(object):
 
             self.stability = pgs.PyGenStability(G_modularity, 'modularity_signed', louvain_runs , precision)
             self.stability.all_mi = False #to compute MI between al Louvain
-            self.stability.n_mi = 10  #if all_mi = False, number of top Louvai run to use for MI
-            #number of cpu for parallel compuations
-            self.stability.n_processes_louv = 2
-            self.stability.n_processes_mi = 2
+            self.stability.n_mi = 10  #if all_mi = False, number of top Louvai run to use for MI        
+            self.stability.n_processes_louv = 2 #number of cpus 
+            self.stability.n_processes_mi = 2 #number of cpus
 
             stabilities = []
             nComms = []
@@ -351,40 +341,38 @@ class Geometric_Clustering(object):
                 index = timesteps,
             )
                             
-
         self.nComms = nComms
         self.MIs = MIs
         self.labels = labels
 
-   ##########################
-    ## save/load functions ###
-    ##########################
+# =============================================================================
+# save/load functions
+# =============================================================================
 
     def save_curvature(self):
-        pickle.dump(self.Kappa, open('OR_results.pkl','wb'))
+        pickle.dump(self.Kappa, open(self.filename + '.pkl','wb'))
 
     def save_ricci_flow(self):
-        pickle.dump([self.Kappa, self.Weights], open('Ricci_flow_results.pkl','wb'))
+        pickle.dump([self.Kappa, self.Weights], open(self.filename + '.pkl','wb'))
 
     def save_clustering(self):
 
         if self.cluster_tpe == 'threshold':
-            pickle.dump([self.nComms, self.MIs, self.labels], open('clustering_results.pkl','wb'))
+            pickle.dump([self.G, self.nComms, self.MIs, self.labels], open(self.filename + '.pkl','wb'))
         else:
-            pickle.dump(self.stability.stability_results,  open('clustering_results.pkl','wb'))
+            pickle.dump([self.G, self.stability.stability_results], open(self.filename + '.pkl','wb'))
 
     def load_curvature(self):
-        self.Kappa = pickle.load(open('OR_results.pkl','rb'))
+        self.Kappa = pickle.load(open(self.filename + '.pkl','rb'))
 
     def load_ricci_flow(self):
-        self.Kappa, self.Weights = pickle.load(open('Ricci_flow_results.pkl','rb'))
+        self.Kappa, self.Weights = pickle.load(open(self.filename + '.pkl','rb'))
 
     def load_clustering(self):
 
         if self.cluster_tpe == 'threshold':
-            self.nComms, self.MIs, self.labels =  pickle.load(open('clustering_results.pkl','rb'))
-        else:
-            
+            self.G, self.nComms, self.MIs, self.labels = pickle.load(open(self.filename + '.pkl','rb'))
+        else:           
             louvain_runs = 10
             precision = 1e-6
 
@@ -392,22 +380,20 @@ class Geometric_Clustering(object):
 
             import PyGenStability as pgs
 
-            self.stability = pgs.PyGenStability(G_modularity, 'modularity_signed', louvain_runs , precision)
+            self.stability = pgs.PyGenStability(G_modularity, 'modularity_signed', louvain_runs, precision)
             self.stability.all_mi = False #to compute MI between al Louvain
-            self.stability.n_mi = 10  #if all_mi = False, number of top Louvai run to use for MI
-            #number of cpu for parallel compuations
-            self.stability.n_processes_louv = 2
-            self.stability.n_processes_mi = 2
+            self.stability.n_mi = 10  #if all_mi = False, number of top Louvain run to use for MI
+            self.stability.n_processes_louv = 2 #number of cpus 
+            self.stability.n_processes_mi = 2 #number of cpus 
 
-            self.stability.stability_results = pickle.load(  open('clustering_results.pkl','rb'))
+            self.stability.stability_results = pickle.load(open(self.filename + '.pkl','rb'))
             self.labels = self.stability.stability_results['community_id']
 
-    ########################
-    ## plotting functions ##
-    ########################
+# =============================================================================
+# plotting functions
+# =============================================================================
 
     def plot_curvature_graph(self, t, node_size  = 100, edge_width = 2):
-
         """
         plot the curvature on the graph for a given time t
         """
@@ -423,7 +409,6 @@ class Geometric_Clustering(object):
         vmax = np.max(abs(self.Kappa_node[:,t]))
 
         nodes = nx.draw_networkx_nodes(self.G, pos = self.pos, node_size = node_size, node_color = self.Kappa_node[:,t], vmin = vmin, vmax = vmax,  cmap=plt.get_cmap('coolwarm'))
-
         edges = nx.draw_networkx_edges(self.G, pos = self.pos, width = edge_width, edge_color = self.Kappa[:, t], edge_vmin = edge_vmin, edge_vmax = edge_vmax, edge_cmap=plt.get_cmap('coolwarm'))
 
         plt.colorbar(edges, label='Edge curvature')
@@ -433,7 +418,6 @@ class Geometric_Clustering(object):
             for i in self.G:
                 old_labels[i] = str(i) + ' ' + self.G.node[i]['old_label']
             nx.draw_networkx_labels(self.G, pos = self.pos, labels = old_labels)
-
 
         limits = plt.axis('off') #turn axis odd
 
@@ -491,7 +475,6 @@ class Geometric_Clustering(object):
         plt.legend(loc='best')
         plt.savefig('curvatures_edges.svg', bbox_inches = 'tight')
 
-
         #plot the node curvatures
         self.node_curvature()
 
@@ -528,7 +511,6 @@ class Geometric_Clustering(object):
         edge_vmax = np.max(abs(self.Weights[:,t]))
         
         nodes = nx.draw_networkx_nodes(self.G, pos = self.pos, node_size = node_size) #, node_color = self.Kappa_node[:,t], vmin = vmin, vmax = vmax,  cmap=plt.get_cmap('coolwarm'))
-
         edges = nx.draw_networkx_edges(self.G, pos = self.pos, width = edge_width, edge_color = self.Weights[:, t], edge_vmin = edge_vmin, edge_vmax = edge_vmax, edge_cmap=plt.get_cmap('plasma'))
 
         plt.colorbar(edges, label='Edge weight')
@@ -538,7 +520,6 @@ class Geometric_Clustering(object):
             for i in self.G:
                 old_labels[i] = str(i) + ' ' + self.G.node[i]['old_label']
             nx.draw_networkx_labels(self.G, pos = self.pos, labels = old_labels)
-
 
         limits = plt.axis('off') #turn axis odd
 
@@ -621,7 +602,6 @@ class Geometric_Clustering(object):
         plt.savefig('clustering.svg', bbox_inches = 'tight')
 
  
-
     def plot_clustering_graph(self, t, node_size  = 100, edge_width = 2):
 
         """
@@ -634,7 +614,6 @@ class Geometric_Clustering(object):
         edge_vmax = np.max(abs(self.Kappa[:,t]))
         
         nodes = nx.draw_networkx_nodes(self.G, pos = self.pos, node_size = node_size, node_color = self.labels[t], cmap=plt.get_cmap("tab20"))
-
         edges = nx.draw_networkx_edges(self.G, pos = self.pos, width = edge_width, edge_color = self.Kappa[:, t], edge_vmin = edge_vmin, edge_vmax = edge_vmax, edge_cmap=plt.get_cmap('coolwarm'))
 
         plt.colorbar(edges, label='Edge curvature')
@@ -673,11 +652,9 @@ class Geometric_Clustering(object):
             plt.savefig(folder + '/clustering_' + str(i) + '.svg', bbox_inches='tight')
             plt.close()
 
-
-
-#########################################
-## functions for parallel computations ##
-#########################################
+# =============================================================================
+# functions for parallel computations
+# =============================================================================
 
 # compute all neighbourhood densities
 def mx_comp(L, T, cutoff, i):
@@ -687,7 +664,6 @@ def mx_comp(L, T, cutoff, i):
         p0 = np.zeros(n)
         p0[i] = 1.
         return p0
-
 
     mx_all = [] 
     Nx_all = []
@@ -721,7 +697,7 @@ def K_comp(mx_all, dist, lamb, e):
 
         dNxNy = dist[Nx,:][:,Ny].copy(order='C')
 
-        if lamb != 0:
+        if lamb != 0: #entropy regularized OT
             W = ot.sinkhorn2(mx, my, dNxNy, lamb)
         elif lamb == 0: #classical sparse OT
             W = ot.emd2(mx, my, dNxNy) 
@@ -747,5 +723,3 @@ def K_comp_gpu(G, T, mx_all, dist, lamb):
         Kt = np.append(Kt, 1. - W/dist[i, ind])
         
     return Kt
-
-

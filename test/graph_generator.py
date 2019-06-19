@@ -125,7 +125,6 @@ def generate_graph(tpe='SM', params= {}):
         #relabel the integers 
         G = nx.convert_node_labels_to_integers(G)
 
-
     elif tpe == 'powergrid':
         edges    = np.genfromtxt('../datasets/UCTE_edges.txt')
         location = np.genfromtxt('../datasets/UCTE_nodes.txt')
@@ -215,8 +214,6 @@ def generate_graph(tpe='SM', params= {}):
         G.add_edges_from(edge_list)
         pos = points.copy()
 
-
-
     elif tpe == 'delaunay':
 
         from scipy.spatial import Delaunay
@@ -255,7 +252,4 @@ def generate_graph(tpe='SM', params= {}):
         G.add_edges_from(edge_list)
         pos = points.copy()
 
-
-
     return G, pos
-
