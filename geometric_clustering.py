@@ -621,7 +621,7 @@ class Geometric_Clustering(object):
         if self.node_labels:
             old_labels={}
             for i in self.G:
-                old_labels[i] = str(i) + ' ' + self.G.node[i]['old_label']
+                old_labels[i] = str(i) + ' ' + str(self.G.node[i]['old_label'])
             nx.draw_networkx_labels(self.G, pos = self.pos, labels = old_labels)
 
 

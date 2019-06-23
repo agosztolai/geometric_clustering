@@ -213,6 +213,15 @@ def generate_graph(tpe='SM', params= {}):
         G.add_nodes_from(np.arange(len(points)))
         G.add_edges_from(edge_list)
         pos = points.copy()
+        
+    elif tpe == 'Fan':
+        G = nx.planted_partition_graph(4, 32, 1/8, 1/8, seed=params['seed'])
+        G = nx.convert_node_labels_to_integers(G, label_attribute='old_label')
+        for edge in G.edges:
+            if G.node[edge[0]]['block'] == G.node[edge[1]]['block']:
+                G.edges[edge]['weight'] = params['w_in']
+            else:
+                G.edges[edge]['weight'] = 2 - params['w_in']
 
     elif tpe == 'delaunay':
 
