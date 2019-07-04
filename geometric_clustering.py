@@ -358,9 +358,9 @@ class Geometric_Clustering(object):
     def save_clustering(self):
 
         if self.cluster_tpe == 'threshold':
-            pickle.dump([self.G, self.nComms, self.MIs, self.labels], open(self.filename + '.pkl','wb'))
+            pickle.dump([self.G, self.nComms, self.MIs, self.labels], open(self.filename + '_cluster.pkl','wb'))
         else:
-            pickle.dump([self.G, self.stability.stability_results], open(self.filename + '.pkl','wb'))
+            pickle.dump([self.G, self.stability.stability_results], open(self.filename + '_cluster.pkl','wb'))
 
     def load_curvature(self):
         self.Kappa = pickle.load(open(self.filename + '.pkl','rb'))
@@ -409,7 +409,7 @@ class Geometric_Clustering(object):
         vmax = np.max(abs(self.Kappa_node[:,t]))
 
         nodes = nx.draw_networkx_nodes(self.G, pos = self.pos, node_size = node_size, node_color = self.Kappa_node[:,t], vmin = vmin, vmax = vmax,  cmap=plt.get_cmap('coolwarm'))
-        edges = nx.draw_networkx_edges(self.G, pos = self.pos, width = edge_width, edge_color = self.Kappa[:, t], edge_vmin = edge_vmin, edge_vmax = edge_vmax, edge_cmap=plt.get_cmap('coolwarm'))
+        edges = nx.draw_networkx_edges(self.G, pos = self.pos, width = edge_width, edge_color = self.Kappa[:,t], edge_vmin = edge_vmin, edge_vmax = edge_vmax, edge_cmap=plt.get_cmap('coolwarm'))
 
         plt.colorbar(edges, label='Edge curvature')
 
@@ -603,7 +603,6 @@ class Geometric_Clustering(object):
 
  
     def plot_clustering_graph(self, t, node_size  = 100, edge_width = 2):
-
         """
         plot the curvature on the graph for a given time t
         """
@@ -624,7 +623,6 @@ class Geometric_Clustering(object):
                 old_labels[i] = str(i) + ' ' + str(self.G.node[i]['old_label'])
             nx.draw_networkx_labels(self.G, pos = self.pos, labels = old_labels)
 
-
         limits = plt.axis('off') #turn axis odd
 
 
@@ -633,7 +631,7 @@ class Geometric_Clustering(object):
         plot the curvature on the graph for each time
         """
 
-        #create folder it not already there
+        #create folder if not already there
         if not os.path.isdir(folder):
             os.mkdir(folder)
 
