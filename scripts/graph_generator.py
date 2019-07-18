@@ -1,7 +1,7 @@
 import networkx as nx
 import numpy as np
 
-def generate_graph(tpe='SM', params= {}):
+def generate_graph(tpe='SM', params= {}, batch_params = {}):
 
     pos = [] 
 
@@ -13,6 +13,13 @@ def generate_graph(tpe='SM', params= {}):
 
     elif tpe == 'barbell':
         G = nx.barbell_graph(params['m1'], params['m2'])
+        
+    elif tpe == 'asy_barbell':
+        A = np.block([[np.ones([params['m1'], params['m1']]), np.zeros([params['m1'],params['m2']])],\
+                       [np.zeros([params['m2'],params['m1']]), np.ones([params['m2'],params['m2']])]])
+        A = A - np.eye(params['m1'] + params['m2']);
+        A[params['m1'],params['m1']+1] = 1; A[params['m1']+1,params['m1']] = 1;
+        G = nx.from_numpy_matrix(A);
 
     elif tpe == 'tree':
         G = nx.balanced_tree(params['r'], params['h'])
@@ -95,7 +102,6 @@ def generate_graph(tpe='SM', params= {}):
         G = nx.convert_node_labels_to_integers(G, label_attribute='old_label' )
 
     elif tpe == 'SBM' or tpe == 'SBM_2':
-        #import SBM as sbm
         G = nx.stochastic_block_model(params['sizes'],np.array(params['probs'])/params['sizes'][0], seed=params['seed'])
         for i in G:
             G.node[i]['old_label'] = str(G.node[i]['block'])
@@ -103,7 +109,6 @@ def generate_graph(tpe='SM', params= {}):
             G[i][j]['weight'] = 1.
         
         G = nx.convert_node_labels_to_integers(G, label_attribute='labels_orig')
-        #G,community_labels= sbm.SBM_graph(params['n'], params['n_comm'], params['p'])
         
     elif tpe == 'powerlaw':
         G = nx.powerlaw_cluster_graph(params['n'], params['m'], params['p'])
@@ -215,13 +220,28 @@ def generate_graph(tpe='SM', params= {}):
         pos = points.copy()
         
     elif tpe == 'Fan':
-        G = nx.planted_partition_graph(4, 32, 1/8, 1/8, seed=params['seed'])
-        G = nx.convert_node_labels_to_integers(G, label_attribute='old_label')
-        for edge in G.edges:
-            if G.node[edge[0]]['block'] == G.node[edge[1]]['block']:
-                G.edges[edge]['weight'] = params['w_in']
+        G = nx.planted_partition_graph(params['l'], params['g'], params['p_in'], params['p_out'], params['seed'])   
+        
+        if batch_params == {}:
+            w_in = params['w_in']
+        else:
+            w_in = batch_params['w_in']
+        
+        for i,j in G.edges:
+            if G.node[i]['block'] == G.node[j]['block']:
+                G[i][j]['weight'] = w_in
             else:
-                G.edges[edge]['weight'] = 2 - params['w_in']
+                G[i][j]['weight'] = 2 - w_in
+                
+        G = nx.convert_node_labels_to_integers(G, label_attribute='old_label')       
+                
+    elif tpe == 'Girvan_Newman':
+        if batch_params == {}:
+            G = nx.planted_partition_graph(params['l'], params['g'], params['p_in'], params['p_out'], seed=params['seed'])
+        else:
+            G = nx.planted_partition_graph(params['l'], params['g'], batch_params['p_in'], batch_params['p_out'], seed=params['seed'])
+                
+        G = nx.convert_node_labels_to_integers(G, label_attribute='old_label')          
 
     elif tpe == 'delaunay':
 

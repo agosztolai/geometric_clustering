@@ -18,9 +18,9 @@ class Geometric_Clustering(object):
     Main class for geometric clustering
     """
 
-    def __init__(self, G=[], pos=[], laplacian_tpe='normalized', \
+    def __init__(self, G=nx.barbell_graph(7,1), pos=[], laplacian_tpe='normalized', \
                  t_min=0, t_max = 1, n_t = 100, log=True, cutoff=0.95, \
-                 lamb=0, GPU=False, workers=2, node_labels=False, filename = 'res'):
+                 lamb=0, GPU=False, workers=2, filename = 'res'):
 
         #set the graph
         self.G = G
@@ -49,8 +49,7 @@ class Geometric_Clustering(object):
         self.workers = workers
 
         #plotting parameters
-        self.figsize = None #(5,4)
-        self.node_labels = node_labels
+        self.figsize = (10,8)
 
         #if no positions given, use force atlas
         if len(pos) == 0:
@@ -76,11 +75,11 @@ class Geometric_Clustering(object):
         """
 
         #save the adjacency matrix (sparse)
-        self.A = nx.adjacency_matrix(self.G)
+        A = nx.adjacency_matrix(self.G)
 
         #save Laplacian matrix
         if self.laplacian_tpe == 'normalized':
-            degree = np.array(self.A.sum(1)).flatten()
+            degree = np.array(A.sum(1)).flatten()
             self.L = sc.sparse.csr_matrix(nx.laplacian_matrix(self.G).toarray().dot(np.diag(1./degree))) 
             #self.L = sc.sparse.csr_matrix((np.diag(1./degree)).dot(nx.laplacian_matrix(self.G).toarray()))
 
@@ -119,8 +118,8 @@ class Geometric_Clustering(object):
 
             return (mat, n)
 
-
-        dist, n = check_and_convert_A(self.A.toarray())
+        A = nx.adjacency_matrix(self.G)
+        dist, n = check_and_convert_A(A.toarray())
 
         for k in range(n):
             dist = np.minimum(dist, dist[np.newaxis,k,:] + dist[:,k,np.newaxis]) 
@@ -195,10 +194,6 @@ class Geometric_Clustering(object):
         Compute the Ricci flow using forward Euler scheme
         """
 
-        self.T_ricci = self.T.copy()
-        self.T = [tau]
-        dt = self.T_ricci[1] - self.T_ricci[0]
-
         def new_kappa(): 
 
             self.construct_laplacian()
@@ -218,6 +213,11 @@ class Geometric_Clustering(object):
 
             return -(self.kappa - kappa_mean)*weight
  
+    
+        self.T_ricci = self.T.copy()
+        self.T = [tau]
+        dt = self.T_ricci[1] - self.T_ricci[0]
+        
         weights = np.zeros([len(self.T_ricci)+1, self.m])
         weights[0] = np.array([self.G[i][j]['weight'] for i,j in self.G.edges])
         kappas = np.zeros([len(self.T_ricci), self.m])
@@ -393,7 +393,7 @@ class Geometric_Clustering(object):
 # plotting functions
 # =============================================================================
 
-    def plot_curvature_graph(self, t, node_size  = 100, edge_width = 2):
+    def plot_curvature_graph(self, t, node_size  = 100, edge_width = 2, node_labels = False):
         """
         plot the curvature on the graph for a given time t
         """
@@ -413,13 +413,13 @@ class Geometric_Clustering(object):
 
         plt.colorbar(edges, label='Edge curvature')
 
-        if self.node_labels:
+        if node_labels:
             old_labels={}
             for i in self.G:
                 old_labels[i] = str(i) + ' ' + self.G.node[i]['old_label']
             nx.draw_networkx_labels(self.G, pos = self.pos, labels = old_labels)
 
-        limits = plt.axis('off') #turn axis odd
+        plt.axis('off') #turn axis off
 
 
     def video_curvature(self, n_plot = 10, folder = 'images_curvature', node_size = 100):
@@ -499,7 +499,8 @@ class Geometric_Clustering(object):
         plt.legend(loc='best')
         plt.savefig('curvatures_nodes.svg', bbox_inches='tight')
 
-    def plot_ricci_flow_graph(self, t, node_size  = 100, edge_width = 2):
+
+    def plot_ricci_flow_graph(self, t, node_size  = 100, edge_width = 2, node_labels=False):
 
         """
         plot the curvature on the graph for a given time t
@@ -515,13 +516,13 @@ class Geometric_Clustering(object):
 
         plt.colorbar(edges, label='Edge weight')
 
-        if self.node_labels:
+        if node_labels:
             old_labels={}
             for i in self.G:
                 old_labels[i] = str(i) + ' ' + self.G.node[i]['old_label']
             nx.draw_networkx_labels(self.G, pos = self.pos, labels = old_labels)
 
-        limits = plt.axis('off') #turn axis odd
+        plt.axis('off') #turn axis off
 
 
     def video_ricci_flow(self, n_plot = 10, folder = 'images_ricci_flow', node_size = 100):
@@ -602,7 +603,7 @@ class Geometric_Clustering(object):
         plt.savefig('clustering.svg', bbox_inches = 'tight')
 
  
-    def plot_clustering_graph(self, t, node_size  = 100, edge_width = 2):
+    def plot_clustering_graph(self, t, node_size  = 100, edge_width = 2, node_labels = False):
         """
         plot the curvature on the graph for a given time t
         """
@@ -617,16 +618,16 @@ class Geometric_Clustering(object):
 
         plt.colorbar(edges, label='Edge curvature')
 
-        if self.node_labels:
+        if node_labels:
             old_labels={}
             for i in self.G:
                 old_labels[i] = str(i) + ' ' + str(self.G.node[i]['old_label'])
             nx.draw_networkx_labels(self.G, pos = self.pos, labels = old_labels)
 
-        limits = plt.axis('off') #turn axis odd
+        plt.axis('off') #turn axis off
 
 
-    def video_clustering(self, n_plot = 10, folder = 'images_clustering', node_size = 100):
+    def video_clustering(self, n_plot = 10, folder = 'images_clustering', node_size = 100, node_labels = False):
         """
         plot the curvature on the graph for each time
         """
@@ -643,7 +644,7 @@ class Geometric_Clustering(object):
         for i in tqdm(range(n_plot)):
             t = i*dt   
 
-            self.plot_clustering_graph(t, node_size = node_size)
+            self.plot_clustering_graph(t, node_size = node_size, node_labels = node_labels)
 
             plt.title(r'$log_{10}(t)=$'+str(np.around(np.log10(self.T[t]),2)))
 

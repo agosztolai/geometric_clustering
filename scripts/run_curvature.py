@@ -3,6 +3,7 @@ import os as os
 import yaml as yaml
 from geometric_clustering import Geometric_Clustering
 from graph_generator import generate_graph
+import networkx as nx
 
 #get the graph from terminal input 
 graph_tpe = sys.argv[-1]
@@ -10,13 +11,6 @@ graph_tpe = sys.argv[-1]
 #Load parameters
 params = yaml.load(open('graph_params.yaml','rb'))[graph_tpe]
 print('Used parameters:', params)
-
-#Set parameters
-t_min = params['t_min'] #min Markov time
-t_max = params['t_max'] #max Markov time
-n_t = params['n_t'] #number of steps
-cutoff = params['cutoff'] # truncate mx below cutoff*max(mx)
-lamb = params['lamb'] # regularising parameter 
 workers = 16 # numbers of cpus
 GPU = 0 # use GPU?
 
@@ -30,8 +24,8 @@ os.chdir(graph_tpe)
 G, pos  = generate_graph(tpe = graph_tpe, params = params)
          
 #Initialise the code with parameters and graph 
-gc = Geometric_Clustering(G, pos=pos, t_min=t_min, t_max=t_max, n_t = n_t, \
-                          log=True, cutoff=cutoff, workers=workers, GPU=GPU, lamb=lamb)
+gc = Geometric_Clustering(G, pos=pos, t_min=params['t_min'], t_max=params['t_max'], n_t = params['n_t'], \
+                          log=True, cutoff=params['cutoff'], workers=workers, GPU=GPU, lamb=params['lamb'])
 
 #First compute the geodesic distances
 gc.compute_distance_geodesic()
@@ -41,3 +35,4 @@ gc.compute_OR_curvatures()
 
 #Save results for later analysis
 gc.save_curvature()
+nx.write_gpickle(G, graph_tpe + ".gpickle")

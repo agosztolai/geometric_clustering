@@ -21,14 +21,8 @@ print('Used parameters:', params)
 t_min = 10**params['t_min']
 t_max = 10**params['t_max']
 n_t = params['n_t']
-# set mx(k) = 0 if mx(k) < (1-cutoff)* max_k( mx(k) )
-cutoff = params['cutoff']
-
-# regularising parameter - set = 0 for exact 
-# (the larger the more accurate, but higher cost, 
-# and too large can blow up)                           
+cutoff = params['cutoff']                          
 lamb = params['lamb']
-
 
 workers = 16               # numbers of cpus
 GPU = 1
@@ -53,6 +47,3 @@ gc.plot_ricci_flow()
 gc.labels = False
 gc.video_curvature(n_plot=20)
 gc.video_ricci_flow(n_plot=20)
-
-
-
