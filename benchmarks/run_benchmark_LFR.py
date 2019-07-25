@@ -6,12 +6,13 @@ import yaml as yaml
 from graph_generator import generate_graph
 
 #Set parameters
-graph_tpe = 'Fan'
-workers = 16 # numbers of cpus
-folder = '/data/gosztolai/geocluster/Fan'
-numGraphs = 50               # number of realisations
-w_in = np.linspace(1.80,1.95,7) #edge weights inside clusters
+graph_tpe = 'LFR'
+workers = 4 # numbers of cpus
+folder = '/data/gosztolai/geocluster/LFR'
+numGraphs = 25             # number of realisations
+mu = np.linspace(0.,1.,6) #edge weights inside clusters
 params = yaml.load(open('graph_params.yaml','rb'))[graph_tpe]
+GPU = 1
 
 #run postprocess? 
 postprocess = 0
@@ -27,19 +28,19 @@ if postprocess != 1:
     # =============================================================================
     # Main loop: repeat for all parameters and network realisations
     # =============================================================================
-    for i in range(w_in.shape[0]):
-        for k in range(numGraphs):
-            filename = 'graph_'+str(k)+'_w_in_'+str(w_in[i])
-            print(filename) 
+    for i in range(mu.shape[0]):
+        for k in range(numGraphs):    
+            batch_params['filename'] = 'graph_'+str(k)+'_mu_'+str(mu[i])
+            print(batch_params['filename']) 
         
             # generate and save graph 
-            batch_params['w_in'] = w_in[i]
+            batch_params['mu'] = mu[i]
             G, pos  = generate_graph(graph_tpe, params, batch_params)
-            nx.write_gpickle(G, filename+".gpickle")
+            nx.write_gpickle(G, batch_params['filename']+".gpickle")
             
             # initialise the code with parameters and graph
             gc = Geometric_Clustering(G, t_min=params['t_min'], t_max=params['t_max'], n_t = params['n_t'], \
-                          cutoff=params['cutoff'], workers=workers, filename = filename)
+                          cutoff=params['cutoff'], workers=workers, filename = batch_params['filename'], GPU = GPU)
                  
             #First compute the geodesic distances
             gc.compute_distance_geodesic()
@@ -54,9 +55,9 @@ if postprocess == 1:
     # =============================================================================
     # Postprocess
     # ============================================================================= 
-    for i in range(w_in.shape[0]):
+    for i in range(mu.shape[0]):
         for k in range(numGraphs):
-            filename = 'graph_'+str(k)+'_w_in_'+str(w_in[i])
+            filename = 'graph_'+str(k)+'_mu_'+str(mu[i])
             print(filename) 
         
             # load graph 

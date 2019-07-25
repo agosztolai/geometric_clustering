@@ -5,23 +5,18 @@ import networkx as nx
 import yaml as yaml
 from graph_generator import generate_graph
 
-graph_tpe = 'Girvan_Newman'
-
 #Set parameters
+graph_tpe = 'Girvan_Newman'
 params = yaml.load(open('graph_params.yaml','rb'))[graph_tpe]
-l = params['l']         # clusters
-g = params['g']         # vertices per group
-workers = 16            # numbers of cpus
-folder = '/data/gosztolai/geocluster/' + graph_tpe
-
-#batch parameters
+workers = 16 # numbers of cpus
+#folder = '/data/gosztolai/geocluster/' + graph_tpe
+folder = '/disk2/Adam/geocluster/' + graph_tpe
 numGraphs = 100               # number of realisations
-p_in = np.array([0.15, 0.16, 0.17, 0.18, 0.19, 0.2, 0.21, 0.22, 0.23, 0.24, 0.25, 0.26, \
-                 0.27, 0.28, 0.29, 0.3, 0.31, 0.32, 0.33, 0.34, 0.36, 0.38, 0.4, 0.42])
+p_in = np.round(np.concatenate((np.linspace(0.15,0.34,20),np.linspace(0.36,0.42,4))),2)
 p_out = (0.5-p_in)/3         # edge between clusters
 
 #run postprocess? 
-postprocess = 1
+postprocess = 0
 
 #create a folder and move into it
 if not os.path.isdir(folder):
@@ -37,15 +32,14 @@ if postprocess != 1:
     for i in range(p_in.shape[0]):
         for k in range(numGraphs):
             filename = 'graph_'+str(k)+'_p_in_'+str(p_in[i])
-            print(filename)      
+            print(filename)     
+            params['seed'] = k
             
             # generate and save graph 
             batch_params['p_in'] = p_in[i]
             batch_params['p_out'] = p_out[i]
             G, pos  = generate_graph(graph_tpe, params, batch_params)
             nx.write_gpickle(G, filename+".gpickle")
-#            G = nx.planted_partition_graph(l, g, p_in[i], p_out[i], seed=1)
-#            nx.write_gpickle(G, gc.filename+".gpickle") 
             
             # initialise the code with parameters and graph
             gc = Geometric_Clustering(G, t_min=params['t_min'], t_max=params['t_max'], n_t = params['n_t'], \

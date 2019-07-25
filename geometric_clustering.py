@@ -12,14 +12,13 @@ from fa2 import ForceAtlas2
 import pylab as plt
 import pandas as pd
 
-
 class Geometric_Clustering(object):
     """
     Main class for geometric clustering
     """
 
     def __init__(self, G=nx.barbell_graph(7,1), pos=[], laplacian_tpe='normalized', \
-                 t_min=0, t_max = 1, n_t = 100, log=True, cutoff=0.95, \
+                 t_min=0, t_max = 1, n_t = 100, cutoff=0.95, \
                  lamb=0, GPU=False, workers=2, filename = 'res'):
 
         #set the graph
@@ -30,11 +29,7 @@ class Geometric_Clustering(object):
         self.filename = filename
 
         #time vector
-        self.log = log
-        if log:
-            self.T = np.logspace(t_min, t_max, n_t)
-        else:
-            self.T = np.linspace(t_min, t_max, n_t)
+        self.T = np.logspace(t_min, t_max, n_t)
 
         #precision parameters
         self.cutoff = cutoff
@@ -64,7 +59,7 @@ class Geometric_Clustering(object):
         else: #else use positions
             self.pos = pos
 
-        #save the Laplacian matrix and adjacency matrix
+        #Laplacian matrix and adjacency matrix
         self.laplacian_tpe = laplacian_tpe
         self.construct_laplacian()
 
@@ -74,14 +69,12 @@ class Geometric_Clustering(object):
         save the Laplacian matrix for later
         """
 
-        #save the adjacency matrix (sparse)
-        A = nx.adjacency_matrix(self.G)
+        A = nx.adjacency_matrix(self.G) #adjacency matrix 
 
         #save Laplacian matrix
         if self.laplacian_tpe == 'normalized':
             degree = np.array(A.sum(1)).flatten()
             self.L = sc.sparse.csr_matrix(nx.laplacian_matrix(self.G).toarray().dot(np.diag(1./degree))) 
-            #self.L = sc.sparse.csr_matrix((np.diag(1./degree)).dot(nx.laplacian_matrix(self.G).toarray()))
 
         elif self.laplacian_tpe == 'combinatorial':
             self.L = sc.sparse.csr_matrix(1.*nx.laplacian_matrix(self.G)) 
@@ -89,22 +82,22 @@ class Geometric_Clustering(object):
 
     def compute_distance_geodesic(self):
         """
-        # =============================================================================
-        # Geodesic distance matrix
-        # =============================================================================
-        #
-        # All pair shortest path using Floyd-Warshall algorithm
-        #     Input
-        #         An NxN NumPy array describing the directed distances between N nodes.
-        #         A[i,j] = adjacency matrix
-        #     Output
-        #         An NxN NumPy array such that result[i,j] is the geodesic distance 
-        #         between node i and node j. If i /~ i then result[i,j] == numpy.inf
+         =============================================================================
+         Geodesic distance matrix
+         =============================================================================
+        
+         All pair shortest path using Floyd-Warshall algorithm
+             Input
+                 An NxN NumPy array describing the directed distances between N nodes.
+                 A[i,j] = adjacency matrix
+             Output
+                 An NxN NumPy array such that result[i,j] is the geodesic distance 
+                 between node i and node j. If i /~ i then result[i,j] == numpy.inf
         """
 
         #check A matrix
         def check_and_convert_A(A):
-            mat = A.copy() #create copy
+            mat = A.copy() 
 
             (nrows, ncols) = mat.shape
             assert nrows == ncols
@@ -124,45 +117,47 @@ class Geometric_Clustering(object):
         for k in range(n):
             dist = np.minimum(dist, dist[np.newaxis,k,:] + dist[:,k,np.newaxis]) 
 
-        #save the distance matrix
         self.dist = dist
 
        
-    def compute_OR_curvatures(self, disp = True):
+    def compute_OR_curvatures(self):
         """
-        # =============================================================================
-        # Compute the Curvature matrix (parallelised)
-        # =============================================================================
+         =============================================================================
+         Compute the Curvature matrix (parallelised)
+         =============================================================================
         """
-      
-        if disp:
-            disable = False
-        else:
-            disable = True
         
         if not self.GPU:
             
             print('Compute the measures')
 
-            with Pool(processes = self.workers) as p_mx:  #initialise the parallel computation
-                mx_all = list(tqdm(p_mx.imap(partial(mx_comp, self.L, self.T, self.cutoff), self.G.nodes()), total = self.n, disable = disable))
+            with Pool(processes = self.workers) as p_mx: 
+                mx_all = tqdm(p_mx.imap(partial(mx_comp, self.L, self.T, self.cutoff), \
+                                        self.G.nodes()), \
+                              total = self.n, disable = True)
+                mx_all = list(mx_all)
 
             print('Compute the edge curvatures')
 
-            with Pool(processes = self.workers) as p_kappa:  #initialise the parallel computation
-                Kappa = list(tqdm(p_kappa.imap(partial(K_comp, mx_all, self.dist, self.lamb), self.G.edges()), total = self.m, disable = disable))   
+            with Pool(processes = self.workers) as p_kappa:  
+                Kappa = tqdm(p_kappa.imap(partial(K_comp, mx_all, self.dist, self.lamb), \
+                                          self.G.edges()), \
+                             total = self.m, disable = True)
+                Kappa = list(Kappa)
             
             #curvature matrix of size (edges x time) 
             Kappa = np.transpose(np.stack(Kappa, axis=1))
             
         elif self.GPU:
-            print("Not working yet!!!!!")
             cutoff = 1. #this is to keep dist matrix same, remove later if possible
             
             print('Compute the measures')
             
-            with Pool(processes = self.workers) as p_mx:  #initialise the parallel computation
-                mx_all = list(tqdm(p_mx.imap(partial(mx_comp, self.L, self.T, cutoff), self.G.nodes()), total = self.n, disable = disable))
+            with Pool(processes = self.workers) as p_mx:  
+                mx_all = tqdm(p_mx.imap(partial(mx_comp, self.L, self.T, cutoff), \
+                                        self.G.nodes()), \
+                              total = self.n, disable = True)               
+                mx_all = list(mx_all)
             
             print('Compute the edge curvatures')
             
@@ -177,6 +172,7 @@ class Geometric_Clustering(object):
                 Kappa[:,it] = K_comp_gpu(self.G,self.T,mx_all_t,self.dist,self.lamb)            
 
         self.Kappa = Kappa
+
 
     def node_curvature(self):
         """
@@ -198,7 +194,7 @@ class Geometric_Clustering(object):
 
             self.construct_laplacian()
             self.compute_distance_geodesic()
-            self.compute_OR_curvatures(disp = False)
+            self.compute_OR_curvatures()
 
             return self.Kappa.flatten()
 
@@ -261,8 +257,7 @@ class Geometric_Clustering(object):
         # compute the MI between the threshold=0 and other ones
         from sklearn.metrics.cluster import normalized_mutual_info_score
 
-        mi = 0
-        k = 0 
+        mi = 0; k = 0 
         for i in range(self.sample):
             for j in range(i-1):
                 j=0
@@ -275,7 +270,7 @@ class Geometric_Clustering(object):
 
     def clustering(self):
         """
-        Apply signed clustering on the curvature weigthed graphs
+        Signed clustering of curvature weigthed graphs
         """
 
         # cluster
@@ -373,19 +368,15 @@ class Geometric_Clustering(object):
         if self.cluster_tpe == 'threshold':
             self.G, self.nComms, self.MIs, self.labels = pickle.load(open(self.filename + '.pkl','rb'))
         else:           
-            louvain_runs = 10
-            precision = 1e-6
-
             G_modularity = self.G.copy()
 
             import PyGenStability as pgs
 
-            self.stability = pgs.PyGenStability(G_modularity, 'modularity_signed', louvain_runs, precision)
+            self.stability = pgs.PyGenStability(G_modularity, 'modularity_signed', louvain_runs = 10, precision = 1e-6)
             self.stability.all_mi = False #to compute MI between al Louvain
             self.stability.n_mi = 10  #if all_mi = False, number of top Louvain run to use for MI
             self.stability.n_processes_louv = 2 #number of cpus 
             self.stability.n_processes_mi = 2 #number of cpus 
-
             self.stability.stability_results = pickle.load(open(self.filename + '.pkl','rb'))
             self.labels = self.stability.stability_results['community_id']
 
@@ -466,8 +457,8 @@ class Geometric_Clustering(object):
             plt.plot(self.T, k, c='0.4', lw=0.2)
 
         ax = plt.gca()
-        if self.log:
-            ax.set_xscale('log')
+
+        ax.set_xscale('log')
 
         plt.xlabel('Time')
         plt.ylabel('Edge curvature')
@@ -491,8 +482,7 @@ class Geometric_Clustering(object):
             plt.plot(self.T, k, c='0.3', lw=0.2)
 
         ax = plt.gca()
-        if self.log:
-            ax.set_xscale('log')
+        ax.set_xscale('log')
         plt.xlabel('Time')
         plt.ylabel('Node curvature')
         plt.axis([self.T[0],self.T[-1], np.min(self.Kappa_node), np.max(self.Kappa_node) ])
@@ -570,8 +560,7 @@ class Geometric_Clustering(object):
             plt.plot(self.T, k, c='0.3', lw=0.2)
 
         ax = plt.gca()
-        if self.log:
-            ax.set_xscale('log')
+        ax.set_xscale('log')
 
         plt.xlabel('Time')
         plt.ylabel('Edge weight')
@@ -664,8 +653,7 @@ def mx_comp(L, T, cutoff, i):
         p0[i] = 1.
         return p0
 
-    mx_all = [] 
-    Nx_all = []
+    mx_all = []; Nx_all = []
 
     mx_tmp = delta(i, N) #set initial condition
     T = [0,] + list(T) #add time 0
@@ -682,8 +670,7 @@ def mx_comp(L, T, cutoff, i):
 
 # compute curvature for an edge ij
 def K_comp(mx_all, dist, lamb, e):
-    i = e[0]
-    j = e[1]
+    i = e[0]; j = e[1]
 
     nt = len(mx_all[0][0])
     K = np.zeros(nt)
@@ -719,6 +706,6 @@ def K_comp_gpu(G, T, mx_all, dist, lamb):
         ind = [y[1] for y in G.edges if y[0] == i]              
 
         W = ot.gpu.sinkhorn(mx_all[:,i].tolist(), mx_all[:,ind].tolist(), dist.tolist(), lamb)    
-        Kt = np.append(Kt, 1. - W/dist[i, ind])
+        Kt = np.append(Kt, 1. - W/ot.gpu.to_np(dist[i][ind]))
         
     return Kt

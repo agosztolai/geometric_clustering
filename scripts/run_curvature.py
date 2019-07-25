@@ -7,12 +7,13 @@ import networkx as nx
 
 #get the graph from terminal input 
 graph_tpe = sys.argv[-1]
+graph_tpe = 'LFR'
 
 #Load parameters
 params = yaml.load(open('graph_params.yaml','rb'))[graph_tpe]
 print('Used parameters:', params)
 workers = 16 # numbers of cpus
-GPU = 0 # use GPU?
+GPU = 1 # use GPU?
 
 #create a folder and move into it
 if not os.path.isdir(graph_tpe):
@@ -25,7 +26,7 @@ G, pos  = generate_graph(tpe = graph_tpe, params = params)
          
 #Initialise the code with parameters and graph 
 gc = Geometric_Clustering(G, pos=pos, t_min=params['t_min'], t_max=params['t_max'], n_t = params['n_t'], \
-                          log=True, cutoff=params['cutoff'], workers=workers, GPU=GPU, lamb=params['lamb'])
+                          cutoff=params['cutoff'], workers=workers, GPU=GPU, lamb=params['lamb'])
 
 #First compute the geodesic distances
 gc.compute_distance_geodesic()

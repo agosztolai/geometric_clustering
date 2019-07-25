@@ -132,9 +132,9 @@ LFR:
         seed: 1
         t_min: -0.5
         t_max: 0.5
-        n_t: 20
+        n_t: 10
         cutoff: 0.95
-        lamb: 1.      
+        lamb: 10.      
         tau1: 2
         tau2: 2
         mu: 0.2
