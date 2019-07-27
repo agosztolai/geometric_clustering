@@ -114,7 +114,7 @@ class Geometric_Clustering(object):
         A = nx.adjacency_matrix(self.G)
         dist, n = check_and_convert_A(A.toarray())
 
-        for k in range(n):
+        for k in tqdm(range(n), disable = False):
             dist = np.minimum(dist, dist[np.newaxis,k,:] + dist[:,k,np.newaxis]) 
 
         self.dist = dist
@@ -134,7 +134,7 @@ class Geometric_Clustering(object):
             with Pool(processes = self.workers) as p_mx: 
                 mx_all = tqdm(p_mx.imap(partial(mx_comp, self.L, self.T, self.cutoff), \
                                         self.G.nodes()), \
-                              total = self.n, disable = True)
+                              total = self.n, disable = False)
                 mx_all = list(mx_all)
 
             print('Compute the edge curvatures')
@@ -142,7 +142,7 @@ class Geometric_Clustering(object):
             with Pool(processes = self.workers) as p_kappa:  
                 Kappa = tqdm(p_kappa.imap(partial(K_comp, mx_all, self.dist, self.lamb), \
                                           self.G.edges()), \
-                             total = self.m, disable = True)
+                             total = self.m, disable = False )
                 Kappa = list(Kappa)
             
             #curvature matrix of size (edges x time) 
@@ -156,7 +156,7 @@ class Geometric_Clustering(object):
             with Pool(processes = self.workers) as p_mx:  
                 mx_all = tqdm(p_mx.imap(partial(mx_comp, self.L, self.T, cutoff), \
                                         self.G.nodes()), \
-                              total = self.n, disable = True)               
+                              total = self.n, disable = False )               
                 mx_all = list(mx_all)
             
             print('Compute the edge curvatures')

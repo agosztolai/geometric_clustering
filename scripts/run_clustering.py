@@ -20,7 +20,7 @@ pos = []
          
 # initialise the code with parameters and graph 
 gc = Geometric_Clustering(G, pos=pos, t_min=params['t_min'], t_max=params['t_max'], n_t=params['n_t'], \
-                          log=True, cutoff=params['cutoff'], workers=16)
+                          cutoff=params['cutoff'], workers=16)
 
 #load results
 gc.load_curvature()
