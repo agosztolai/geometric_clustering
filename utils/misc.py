@@ -24,7 +24,7 @@ def plot_clustering(gc):
     import matplotlib.gridspec as gridspec
     plt.figure(figsize=(5,5))
     
-    T = gc.clustering_results['Markov time']
+    T = np.log10(gc.clustering_results['Markov time'])
     
     if gc.cluster_tpe == 'threshold':
         ax1 = plt.gca()

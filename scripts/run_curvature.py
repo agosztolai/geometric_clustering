@@ -21,11 +21,11 @@ if not os.path.isdir(graph_tpe):
 os.chdir(graph_tpe)
         
 #Load graph 
-G = generate_graph(tpe = graph_tpe, params = params)
+G = generate_graph(tpe=graph_tpe, params=params)
          
 #Initialise the code with parameters and graph 
 T = np.logspace(params['t_min'], params['t_max'], params['n_t'])
-gc = Geometric_Clustering(G, T=T, cutoff=0.99, workers=2, GPU=False, lamb=0.)
+gc = Geometric_Clustering(G, T=T, cutoff=1., workers=16, GPU=False, lamb=1.)
 
 #Compute the OR curvatures
 gc.compute_OR_curvatures()

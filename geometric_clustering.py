@@ -1,6 +1,6 @@
 import numpy as np
 import scipy as sc
-from tqdm.auto import tqdm
+from tqdm import tqdm
 from scipy.sparse import csr_matrix
 import networkx as nx
 from multiprocessing import Pool
@@ -12,7 +12,7 @@ import ot
 class Geometric_Clustering(object): 
 
     def __init__(self, G, T=np.logspace(0,1,10), laplacian_tpe='normalized',\
-                 cutoff=0.99, lamb=0, GPU=False, workers=2):
+                 cutoff=1., lamb=0, GPU=False, workers=2):
 
         #set the graph
         self.G = G
@@ -68,13 +68,12 @@ class Geometric_Clustering(object):
         self.construct_laplacian() #Laplacian matrix 
         self.compute_distance_geodesic() #Geodesic distance matrix
         
-        if not self.GPU:
-            
-            print('\nCompute measures')
+        print('\nCompute measures')
 
-            with Pool(processes = self.workers) as p_mx: 
-                mx_all = list(tqdm(p_mx.imap(partial(mx_comp, self.L, self.T, self.cutoff), self.G.nodes()), total = self.n))
-
+        with Pool(processes = self.workers) as p_mx: 
+            mx_all = list(tqdm(p_mx.imap(partial(mx_comp, self.L, self.T, self.cutoff), self.G.nodes()), total = self.n))
+        
+        if self.cutoff < 1. or self.lamb == 0:
             print('\nCompute edge curvatures')
 
             with Pool(processes = self.workers) as p_kappa:  
@@ -83,25 +82,24 @@ class Geometric_Clustering(object):
             #curvature matrix of size (edges x time) 
             Kappa = np.transpose(np.stack(Kappa, axis=1))
             
-        elif self.GPU:
-            cutoff = 1. #this is to keep dist matrix same, remove later if possible
-            
-            print('\nCompute the measures')
-            
-            with Pool(processes = self.workers) as p_mx:  
-                mx_all = list(tqdm(p_mx.imap(partial(mx_comp, self.L, self.T, cutoff), self.G.nodes()), total = self.n))               
-            
-            print('Compute the edge curvatures')
+        elif self.cutoff == 1. and self.lamb > 0:
+            assert self.lamb > 0, 'Lambda must be greater than zero'
+               
+            print('\nCompute the edge curvatures')
             
             n = nx.number_of_nodes(self.G)
             e = nx.Graph.size(self.G)
             Kappa = np.empty((e,self.n_t))
-            for it in tqdm(range(self.n_t)):           
+            for it in range(self.n_t): 
+                print('    ... at Markov time ' + str(self.T[it]))
                 mx_all_t = np.empty([n,n]) 
                 for i in range(len(mx_all)):
                     mx_all_t[:,[i]] = mx_all[i][0][it].toarray()
                 
-                Kappa[:,it] = K_all_gpu(mx_all_t,self.dist,self.lamb,self.G)            
+                if self.GPU:
+                    Kappa[:,it] = K_all_gpu(mx_all_t,self.dist,self.lamb,self.G)  
+                else:
+                    Kappa[:,it] = K_all(mx_all_t,self.dist,self.lamb,self.G)  
 
         self.Kappa = Kappa
 
@@ -141,7 +139,7 @@ class Geometric_Clustering(object):
                     'MI' : MIs}    
 
         else:
-            import PyGenStability as pgs
+            import pygenstability.pygenstability as pgs
 
             #parameters
             stability = pgs.PyGenStability(self.G.copy(), cluster_tpe, louvain_runs=10, precision=1e-6)
@@ -161,8 +159,8 @@ class Geometric_Clustering(object):
                 elif cluster_by == 'weight' :   
                     stability.A = nx.adjacency_matrix(stability.G, weight='weight')
 
+                #run stability and collect results
                 stability.run_single_stability(time = 1.)
-
                 stabilities.append(stability.single_stability_result['stability'])
                 nComms.append(stability.single_stability_result['number_of_comms'])
                 MIs.append(stability.single_stability_result['MI'])
@@ -235,9 +233,24 @@ def K_ij(mx_all, dist, lamb, e):
     return K
 
 
-def K_all_gpu(mx_all, dist, lamb, G): 
-    import ot.gpu    
+def K_all(mx_all, dist, lamb, G):     
+       
+    dist = dist.astype(float)
     
+    Kt = []
+    x = np.unique([x[0] for x in G.edges])
+    for i in tqdm(x):
+        ind = [y[1] for y in G.edges if y[0] == i]              
+
+        W = ot.sinkhorn(mx_all[:,i].tolist(), mx_all[:,ind].tolist(), dist.tolist(), lamb)    
+        Kt = np.append(Kt, 1. - W/dist[i][ind])
+        
+    return Kt
+
+
+def K_all_gpu(mx_all, dist, lamb, G):   
+    import ot.gpu    
+       
     mx_all = ot.gpu.to_gpu(mx_all) 
     dist = ot.gpu.to_gpu(dist.astype(float))
     lamb = ot.gpu.to_gpu(lamb)
@@ -255,7 +268,7 @@ def K_all_gpu(mx_all, dist, lamb, G):
     return Kt
 
 
-def cluster_threshold(self,  sample = 20, perturb = 0.02):
+def cluster_threshold(self,  sample=20, perturb=0.02):
     #parameters
     #sample = 20     # how many samples to use for computing the VI
     #perturb = 0.02  # threshold k ~ Norm(0,perturb(kmax-kmin))
@@ -277,13 +290,11 @@ def cluster_threshold(self,  sample = 20, perturb = 0.02):
         A[ind[0], ind[1]] = 0 #remove edges with negative curvature.       
         nComms[k], labels[k] = sc.sparse.csgraph.connected_components(csr_matrix(A, dtype=int), directed=False, return_labels=True) 
 
-        # compute the MI between the threshold=0 and other ones
+    # compute the MI between the threshold=0 and other ones
     from sklearn.metrics.cluster import normalized_mutual_info_score
 
     mi = 0; k = 0 
     for i in range(sample):
-#        for j in range(i-1):
-#            j=0
             mi += normalized_mutual_info_score(list(labels[i]),list(self.labels_gt), average_method='arithmetic' )
             k+=1
 

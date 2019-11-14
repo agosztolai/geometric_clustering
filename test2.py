@@ -9,7 +9,8 @@ Created on Thu Oct 17 16:00:15 2019
 print(__doc__)
 
 from time import time
-
+import matplotlib as mpl
+mpl.use('macosx')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.ticker import NullFormatter
@@ -19,7 +20,7 @@ from sklearn import manifold, datasets
 # Next line to silence pyflakes. This import is needed.
 Axes3D
 
-n_points = 100
+n_points = 300
 X, color = datasets.samples_generator.make_s_curve(n_points, random_state=0)
 n_neighbors = 10
 n_components = 2

@@ -1,3 +1,52 @@
+barbell:
+        m1: 7
+        m2: 0
+        t_min: -2.0
+        t_max: 3.0
+        n_t: 20
+        
+barbell_asy:
+        m1: 7
+        m2: 10
+        t_min: -2.0
+        t_max: 3.0
+        n_t: 20     
+    
+grid:
+        n: 10
+        m: 10
+        t_min: -2.0
+        t_max: 3.0
+        n_t: 20          
+              
+2grid:
+        n: 10
+        t_min: -1.0
+        t_max: 2.0
+        n_t: 20        
+        
+delaunay-grid:
+        n: 10
+        t_min: -2.0
+        t_max: 3.0
+        n_t: 20
+
+delaunay-nonunif:
+        n: 10
+        t_min: -2.0
+        t_max: 3.0
+        n_t: 20     
+        
+dolphin:
+        t_min: -2.0
+        t_max: 2.0
+        n_t: 100   
+        
+email:
+        t_min: 0
+        t_max: 5
+        n_t: 20        
+                          
 karate:
         t_min: -5.0
         t_max: 2.0
@@ -6,51 +55,13 @@ karate:
 miserable:
         t_min: -2.0
         t_max: 2.0
-        n_t: 100
-
-dolphin:
-        t_min: -2.0
-        t_max: 2.0
-        n_t: 100
-
-grid:
-        n: 10
-        m: 10
-        t_min: -2.0
-        t_max: 3.0
-        n_t: 20    
-
-delaunay-grid:
-        n: 10
-        t_min: -2.0
-        t_max: 3.0
-        n_t: 20
-
-delaunay:
-        n: 10
-        t_min: -2.0
-        t_max: 3.0
-        n_t: 20
+        n_t: 100  
 
 tree:
         r: 2
         h: 5
         t_min: -2.0
         t_max: 4.0
-        n_t: 20
-
-barbell:
-        m1: 7
-        m2: 0
-        t_min: -2.0
-        t_max: 3.0
-        n_t: 20
-        
-asy_barbell:
-        m1: 7
-        m2: 10
-        t_min: -2.0
-        t_max: 3.0
         n_t: 20    
 
 ER:
@@ -141,28 +152,11 @@ celegans:
         t_max: 2.0
         n_t: 200
 
-email:
-        t_max: 5
-        n_t: 200
-
 SM:
         n: 50
         k: 2
         p: 0.3
         t_max: 5
-        n_t: 200
-
-2grid:
-        n: 16
-        t_min: -3.0
-        t_max: 0.0
-        n_t: 200
-
-grid_rect:
-        n: 10
-        m: 14
-        t_min: -2.0
-        t_max: 1.0
         n_t: 200
 
 powerlaw:
@@ -189,8 +183,24 @@ frucht:
         t_max: 2.0
         n_t: 200
 
-scale_free:
+scale-free:
         n: 30
+        
 gnr:
         n: 20
         p: 0.2
+        
+S: 
+        n: 300
+        s: 1.2
+        k: 10
+        radius: 1.
+        seed: 1
+        t_min: -2.0
+        t_max: -0.0
+        n_t: 10
+        similarity: 'heat'
+        
+swiss-roll:
+        n: 100 
+        noise: 0.0       
