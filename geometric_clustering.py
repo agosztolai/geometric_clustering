@@ -21,9 +21,9 @@ class Geometric_Clustering(object):
         self.e = len(G.edges)
         self.laplacian_tpe = laplacian_tpe
         self.labels_gt = []
-        if 'block' in G.node[0]:
+        if 'block' in G.nodes[0]:
             for i in self.G:
-                self.labels_gt = np.append(self.labels_gt,self.G.node[i]['block'])
+                self.labels_gt = np.append(self.labels_gt,self.G.nodes[i]['block'])
 
         #time vector
         self.n_t = len(T)

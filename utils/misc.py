@@ -89,7 +89,7 @@ def plot_graph(gc, t, node_size=100, edge_width=2, node_labels=False, cluster=Fa
     
     plt.figure(figsize = (10,8))
         
-    if 'pos' in gc.G.node[0]:
+    if 'pos' in gc.G.nodes[0]:
         pos = list(nx.get_node_attributes(gc.G,'pos').values())
     else:
         pos = nx.spring_layout(gc.G)  
@@ -109,7 +109,7 @@ def plot_graph(gc, t, node_size=100, edge_width=2, node_labels=False, cluster=Fa
     if node_labels:
         labels_gt={}
         for i in gc.G:
-            labels_gt[i] = str(i) + ' ' + str(gc.G.node[i]['old_label'])
+            labels_gt[i] = str(i) + ' ' + str(gc.G.nodes[i]['old_label'])
         nx.draw_networkx_labels(gc.G, pos=pos, labels=labels_gt)
 
     plt.axis('off')
