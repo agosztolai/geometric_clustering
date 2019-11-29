@@ -4,7 +4,15 @@ barbell:
         t_min: -2.0
         t_max: 2.0
         n_t: 20
-        
+
+barbell_noisy:
+        m1: 7
+        m2: 0
+        t_min: -2.0
+        t_max: 2.0
+        n_t: 20
+        noise: 0.2
+               
 barbell_asy:
         m1: 7
         m2: 10
@@ -48,14 +56,14 @@ email:
         n_t: 20        
                           
 karate:
-        t_min: -2.0
-        t_max: 2.0
-        n_t: 20
+        t_min: -3.0
+        t_max: 1.5
+        n_t: 50
 
 miserable:
         t_min: -2.0
         t_max: 2.0
-        n_t: 100  
+        n_t: 50  
 
 tree:
         r: 2

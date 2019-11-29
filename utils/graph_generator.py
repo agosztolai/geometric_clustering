@@ -50,7 +50,15 @@ def generate_graph(tpe='SM', params= {}):
         G = nx.barbell_graph(params['m1'], params['m2'])
         for i in G:
             G.nodes[i]['block'] = np.mod(i,params['m1'])
+     
+    if tpe == 'barbell_noisy':
+        G = nx.barbell_graph(params['m1'], params['m2'])
+        for i in G:
+            G.nodes[i]['block'] = np.mod(i,params['m1'])
+        for i,j in G.edges():
+            G[i][j]['weight'] = abs(np.random.normal(1,params['noise']))
             
+        
     elif tpe == 'barbell_asy':
         A = np.block([[np.ones([params['m1'], params['m1']]), np.zeros([params['m1'],params['m2']])],\
                        [np.zeros([params['m2'],params['m1']]), np.ones([params['m2'],params['m2']])]])
