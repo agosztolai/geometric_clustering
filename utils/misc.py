@@ -66,7 +66,7 @@ def plot_clustering(gc):
         #plot the stability
         ax2 = plt.subplot(gs[1, 0])
         ax2.plot(T, gc.clustering_results['stability'], label=r'$Q$',c='C2')
-        ax2.set_yscale('log') 
+        #ax2.set_yscale('log') 
         ax2.tick_params('y', colors='C2')
         ax2.set_ylabel('Modularity', color='C2')
         ax2.yaxis.set_label_position('left')
@@ -100,6 +100,8 @@ def plot_graph(gc, t, node_size=100, edge_width=2, node_labels=False, cluster=Fa
         
     edge_vmin = -np.max(abs(gc.Kappa[:,t]))
     edge_vmax = np.max(abs(gc.Kappa[:,t]))    
+    print(edge_vmin, edge_vmax)
+
 
     plt.figure(figsize = (5,4))
     nodes = nx.draw_networkx_nodes(gc.G, pos=pos, node_size=node_size, node_color=_labels, cmap=plt.get_cmap("tab20"))
@@ -119,6 +121,7 @@ def plot_edge_curvature(gc):
 
     plt.figure()
     plt.plot(np.log10(gc.T), gc.Kappa.T, c='C0', lw=0.5)
+    plt.axvline(np.log10(gc.T[np.argmax(np.std(gc.Kappa.T,1))]), c='r', ls='--')
     plt.axhline(1, ls='--', c='k')
     plt.axhline(0, ls='--', c='k')
     plt.xlabel('log(time)')
