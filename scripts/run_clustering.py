@@ -22,6 +22,7 @@ load_curvature(gc)
 #cluster_tpe: threshold, continuous_normalized (Markov stab), modularity_signed, linearized (Louvain))
 #cluster_by: curvature, weight
 gc.run_clustering(cluster_tpe='modularity_signed', cluster_by='curvature')
+#gc.run_clustering(cluster_tpe='continuous_normalized', cluster_by='weight')
 
 #save and plot
 save_clustering(gc)

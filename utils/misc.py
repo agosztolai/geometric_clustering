@@ -98,8 +98,8 @@ def plot_graph(gc, t, node_size=100, edge_width=2, node_labels=False, cluster=Fa
     else:
         _labels = [0] * gc.n
         
-    edge_vmin = -np.max(abs(gc.Kappa[:,t]))
-    edge_vmax = np.max(abs(gc.Kappa[:,t]))    
+    edge_vmin = -1. #-np.max(abs(gc.Kappa[:,t]))
+    edge_vmax = 1. #np.max(abs(gc.Kappa[:,t]))    
     print(edge_vmin, edge_vmax)
 
 

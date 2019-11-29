@@ -230,7 +230,9 @@ def K_ij(mx_all, dist, lamb, e):
         elif lamb == 0: #classical sparse OT
             W = ot.emd2(mx, my, dNxNy) 
             
-        K[it] = 1. - W/dist[i, j]  
+        #K[it] = 1. - W/dist[i, j]  
+        K[it] = dist[i, j]  - W
+         
 
     return K
 
@@ -245,7 +247,8 @@ def K_all(mx_all, dist, lamb, G):
         ind = [y[1] for y in G.edges if y[0] == i]              
 
         W = ot.sinkhorn(mx_all[:,i].tolist(), mx_all[:,ind].tolist(), dist.tolist(), lamb)    
-        Kt = np.append(Kt, 1. - W/dist[i][ind])
+        #Kt = np.append(Kt, 1. - W/dist[i][ind])
+        Kt = np.append(Kt, dist[i][ind] - W)
         
     return Kt
 

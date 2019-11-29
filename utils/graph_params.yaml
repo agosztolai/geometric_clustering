@@ -9,9 +9,9 @@ barbell_noisy:
         m1: 7
         m2: 0
         t_min: -2.0
-        t_max: 2.0
+        t_max: 3.0
         n_t: 20
-        noise: 0.2
+        noise: 0.5
                
 barbell_asy:
         m1: 7
@@ -46,9 +46,9 @@ delaunay-nonunif:
         n_t: 20     
         
 dolphin:
-        t_min: -2.0
-        t_max: 2.0
-        n_t: 100   
+        t_min: -1.5
+        t_max: 2.5
+        n_t: 50  
         
 email:
         t_min: 0
@@ -85,8 +85,8 @@ SBM:
         probs: [[10., 0.5,], 
                 [0.5, 10.,]]
         seed: 0
-        t_min: -0.5
-        t_max: 3.0
+        t_min: -1.5
+        t_max: 2.0
         n_t: 25
         
 SBM_2:

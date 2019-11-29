@@ -177,7 +177,7 @@ def generate_graph(tpe='SM', params= {}):
             
     elif tpe == 'dolphin':
         G = nx.read_gml('../../datasets/dolphins.gml')
-        
+        G = nx.convert_node_labels_to_integers(G)     
         for i,j in G.edges:
             G[i][j]['weight']= 1.
     
