@@ -5,8 +5,8 @@ Created on Tue Oct 15 16:13:18 2019
 
 @author: adamgosztolai
 """
-import matplotlib as mpl
-mpl.use('Agg')
+#import matplotlib as mpl
+#mpl.use('Agg')
 import pickle
 import pylab as plt
 import numpy as np
@@ -87,7 +87,6 @@ def plot_clustering(gc):
 def plot_graph(gc, t, node_size=100, edge_width=2, node_labels=False, cluster=False):
     """plot the curvature on the graph for a given time t"""
     
-    plt.figure(figsize = (10,8))
         
     if 'pos' in gc.G.nodes[0]:
         pos = list(nx.get_node_attributes(gc.G,'pos').values())
@@ -101,7 +100,9 @@ def plot_graph(gc, t, node_size=100, edge_width=2, node_labels=False, cluster=Fa
         
     edge_vmin = -np.max(abs(gc.Kappa[:,t]))
     edge_vmax = np.max(abs(gc.Kappa[:,t]))    
-    nx.draw_networkx_nodes(gc.G, pos=pos, node_size=node_size, node_color=_labels, cmap=plt.get_cmap("tab20"))
+
+    plt.figure(figsize = (5,4))
+    nodes = nx.draw_networkx_nodes(gc.G, pos=pos, node_size=node_size, node_color=_labels, cmap=plt.get_cmap("tab20"))
     edges = nx.draw_networkx_edges(gc.G, pos=pos, width=edge_width, edge_color=gc.Kappa[:, t], edge_vmin=edge_vmin, edge_vmax=edge_vmax, edge_cmap=plt.get_cmap('coolwarm'))
 
     plt.colorbar(edges, label='Edge curvature')
@@ -114,9 +115,21 @@ def plot_graph(gc, t, node_size=100, edge_width=2, node_labels=False, cluster=Fa
 
     plt.axis('off')
 
+def plot_edge_curvature(gc):
+
+    plt.figure()
+    plt.plot(np.log10(gc.T), gc.Kappa.T, c='C0', lw=0.5)
+    plt.axhline(1, ls='--', c='k')
+    plt.axhline(0, ls='--', c='k')
+    plt.xlabel('log(time)')
+    plt.ylabel('edge OR curvature')
+    plt.savefig('edge_curvatures.png')
+
 
 def plot_graph_snapshots(gc, folder='images', node_size=100, node_labels=False, cluster=False):
     """plot the curvature on the graph for each time"""
+
+    plot_edge_curvature(gc)
 
     #create folder if not already there
     if not os.path.isdir(folder):
@@ -126,7 +139,7 @@ def plot_graph_snapshots(gc, folder='images', node_size=100, node_labels=False, 
     for i, t in enumerate(tqdm(gc.T)):  
         plot_graph(gc, i, node_size=node_size, node_labels=node_labels, cluster=cluster)
         plt.title(r'$log_{10}(t)=$'+str(np.around(np.log10(t),2)))
-        plt.savefig(folder + '/clustering_' + str(i) + '.svg', bbox_inches='tight')
+        plt.savefig(folder + '/clustering_' + str(i) + '.png', bbox_inches='tight')
         plt.close()
 
 # =============================================================================

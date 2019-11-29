@@ -2,7 +2,7 @@ barbell:
         m1: 7
         m2: 0
         t_min: -2.0
-        t_max: 3.0
+        t_max: 2.0
         n_t: 20
         
 barbell_asy:
@@ -48,9 +48,9 @@ email:
         n_t: 20        
                           
 karate:
-        t_min: -5.0
+        t_min: -2.0
         t_max: 2.0
-        n_t: 10
+        n_t: 20
 
 miserable:
         t_min: -2.0
