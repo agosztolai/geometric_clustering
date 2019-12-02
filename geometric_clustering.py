@@ -7,6 +7,7 @@ from multiprocessing import Pool
 from functools import partial
 from scipy.sparse.csgraph import laplacian, floyd_warshall
 import ot
+import spectral_embedding_signed as ses
 
 
 class Geometric_Clustering(object): 
@@ -46,7 +47,6 @@ class Geometric_Clustering(object):
         if self.laplacian_tpe == 'normalized':
             degree = np.array(self.A.sum(1)).flatten()
             self.L = sc.sparse.csr_matrix(nx.laplacian_matrix(self.G).toarray().dot(np.diag(1./degree))) 
-#            self.L = 1.*laplacian(A, normed=True, return_diag=False, use_out_degree=False)
 
         elif self.laplacian_tpe == 'combinatorial':
             self.L = 1.*laplacian(self.A, normed=False, return_diag=False, use_out_degree=False)
@@ -174,7 +174,25 @@ class Geometric_Clustering(object):
                     'number_of_communities' : nComms,
                     'community_id' : labels,
                     'MI' : MIs, 
-                    'ttprime': ttprime}     
+                    'ttprime': ttprime}
+
+    def run_embedding(self):
+        pos = nx.get_node_attributes(self.G, 'pos')
+        xyz = []
+        for i in range(len(pos)):
+            xyz.append(pos[i])
+        xyz = np.array(xyz)
+            
+        self.Y = []
+        for k in range(self.Kappa.shape[1]):            
+            A = np.zeros([self.n,self.n])
+            for i,edge in enumerate(self.G.edges):
+                A[edge] = self.Kappa[i,k]
+                A[edge[::-1]] = self.Kappa[i,k]
+                
+            se = ses.SpectralEmbedding(n_components=2,affinity='precomputed')
+            self.Y.append(se.fit_transform(A))
+
 
 '''
 =============================================================================

@@ -13,6 +13,8 @@ import numpy as np
 import networkx as nx
 import os
 from tqdm import tqdm
+from mpl_toolkits.mplot3d import Axes3D
+#import matplotlib.pyplot as plt
 
 # =============================================================================
 # Functions for plotting
@@ -113,7 +115,7 @@ def plot_graph(gc, t, node_size=100, edge_width=2, node_labels=False, cluster=Fa
         nx.draw_networkx_labels(gc.G, pos=pos, labels=labels_gt)
 
     plt.axis('off')
-
+    
 
 def plot_graph_snapshots(gc, folder='images', node_size=100, node_labels=False, cluster=False):
     """plot the curvature on the graph for each time"""
@@ -128,6 +130,96 @@ def plot_graph_snapshots(gc, folder='images', node_size=100, node_labels=False, 
         plt.title(r'$log_{10}(t)=$'+str(np.around(np.log10(t),2)))
         plt.savefig(folder + '/clustering_' + str(i) + '.svg', bbox_inches='tight')
         plt.close()
+        
+
+def plot_graph_3D(G, node_colors=[], edge_colors=[], params=None, save=False):
+ 
+    if params==None:
+        params = {'elev': 10, 'azim':290}
+    elif params!=None and 'elev' not in params.keys():
+        params['elev'] = 10
+        params['azim'] = 290
+    
+    n = G.number_of_nodes()
+    m = G.number_of_edges()
+    
+    if nx.get_node_attributes(G, 'pos') == {}:
+        pos = nx.spring_layout(G, dim=3)
+    else:
+        pos = nx.get_node_attributes(G, 'pos')   
+     
+    xyz = []
+    for i in range(len(pos)):
+        xyz.append(pos[i])
+        
+    xyz = np.array(xyz)
+        
+    #node colors
+    if node_colors=='degree':
+        edge_max = max([G.degree(i) for i in range(n)])
+        node_colors = [plt.cm.plasma(G.degree(i)/edge_max) for i in range(n)] 
+    elif nx.get_node_attributes(G, 'color')!={} and node_colors==[]:
+        node_colors = nx.get_node_attributes(G, 'color')
+        colors = []
+        for i in range(n):
+            colors.append(node_colors[i])
+        node_colors = np.array(colors)    
+    else:
+        node_colors = 'k'
+     
+    #edge colors
+    if edge_colors!=[]:
+        edge_color = plt.cm.cool(edge_colors) 
+        width = np.exp(-(edge_colors - np.min(np.min(edge_colors),0))) + 1
+        norm = mpl.colors.Normalize(vmin=np.min(edge_colors), vmax=np.max(edge_colors))
+        cmap = mpl.cm.ScalarMappable(norm=norm, cmap=mpl.cm.cool)
+        cmap.set_array([])    
+    else:
+        edge_color = ['b' for x in range(m)]
+        width = [1 for x in range(m)]
+        
+    # 3D network plot
+    with plt.style.context(('ggplot')):
+        
+        fig = plt.figure(figsize=(10,7))
+        ax = Axes3D(fig)
+                   
+        ax.scatter(xyz[:,0], xyz[:,1], xyz[:,2], c=node_colors, s=200, edgecolors='k', alpha=0.7)
+           
+        for i,j in enumerate(G.edges()): 
+            x = np.array((pos[j[0]][0], pos[j[1]][0]))
+            y = np.array((pos[j[0]][1], pos[j[1]][1]))
+            z = np.array((pos[j[0]][2], pos[j[1]][2]))
+                   
+            ax.plot(x, y, z, c=edge_color[i], alpha=0.5, linewidth = width[i])
+    
+    if edge_colors!=[]:    
+        fig.colorbar(cmap)        
+    ax.view_init(elev = params['elev'], azim=params['azim'])
+
+    ax.set_axis_off()
+ 
+    if save is not False:
+        if 'counter' in params.keys():
+            fname = G.name + str(params['counter']) + '.svg'
+        else:
+            fname = G.name + '.svg'
+        plt.savefig(fname)
+        plt.close('all')       
+
+def plot_embedding(gc):
+    
+    node_colors = nx.get_node_attributes(gc.G, 'color')
+    colors = []
+    for i in range(gc.n):
+        colors.append(node_colors[i])
+    node_colors = np.array(colors)
+    
+    for i in range(len(gc.Y)):
+        plt.figure(figsize=(10,7))
+        plt.scatter(gc.Y[i][:, 0], gc.Y[i][:, 1], c=colors)  
+        plt.axis('tight')
+        plt.savefig(gc.G.name +  str(i) + 'embedding.svg')
 
 # =============================================================================
 # Functions for saving and loading

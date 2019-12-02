@@ -8,6 +8,6 @@ import numpy as np
 setup(
         name = 'geometric_clustering',
         version = '1.0',
-        include_dirs = [np.get_include()], #Add Include path of numpy
+        include_dirs = ['utils',np.get_include()], #Add Include path of numpy
         packages=['.'],
       )

@@ -4,6 +4,7 @@ import scipy as sp
 from scipy.spatial.distance import pdist, squareform
 import sklearn.datasets as skd
 import sklearn.neighbors as skn
+from misc import plot_graph_3D
 
 '''
 # =============================================================================
@@ -41,7 +42,12 @@ tree
 tutte
     
 '''
-def generate_graph(tpe='SM', params= {}):
+
+def main():
+#    generate_graph('S',{'n': 300, 'seed': 0, 'similarity': 'knn', 'k': 10},save=True)
+    generate_graph('swiss-roll',{'n': 300, 'noise':1.0, 'similarity': 'knn', 'k': 10, 'elev': 10, 'azim': 280},save=True)
+
+def generate_graph(tpe='SM', params= {}, save=False):
 
     pos = None
     color = []
@@ -360,7 +366,11 @@ def generate_graph(tpe='SM', params= {}):
         
     attrs = {}
     for i in G.nodes:
-        attrs[i] = {'pos': pos[i]}    
+        if color==[]:
+            attrs[i] = {'pos': pos[i], 'color': 'k'}  
+        else:
+            attrs[i] = {'pos': pos[i], 'color': color[i]} 
+        
     nx.set_node_attributes(G, attrs)    
         
     if 'block' in G.node[0]:   
@@ -369,4 +379,11 @@ def generate_graph(tpe='SM', params= {}):
         
     G = nx.convert_node_labels_to_integers(G, label_attribute='old_label')    
             
+    if save:
+        plot_graph_3D(G, params=params, save=True)   
+
     return G
+
+         
+if __name__ == "__main__":
+	main()        
