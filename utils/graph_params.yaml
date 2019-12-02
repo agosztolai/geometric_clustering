@@ -2,9 +2,17 @@ barbell:
         m1: 7
         m2: 0
         t_min: -2.0
+        t_max: 2.0
+        n_t: 20
+
+barbell_noisy:
+        m1: 7
+        m2: 0
+        t_min: -2.0
         t_max: 3.0
         n_t: 20
-        
+        noise: 0.5
+               
 barbell_asy:
         m1: 7
         m2: 10
@@ -38,9 +46,9 @@ delaunay-nonunif:
         n_t: 20     
         
 dolphin:
-        t_min: -2.0
-        t_max: 2.0
-        n_t: 100   
+        t_min: -1.5
+        t_max: 2.5
+        n_t: 50  
         
 email:
         t_min: 0
@@ -48,14 +56,14 @@ email:
         n_t: 20        
                           
 karate:
-        t_min: -5.0
+        t_min: -3.0
         t_max: 2.0
-        n_t: 10
+        n_t: 100
 
 miserable:
         t_min: -2.0
         t_max: 2.0
-        n_t: 100  
+        n_t: 50  
 
 tree:
         r: 2
@@ -77,8 +85,8 @@ SBM:
         probs: [[10., 0.5,], 
                 [0.5, 10.,]]
         seed: 0
-        t_min: -0.5
-        t_max: 3.0
+        t_min: -1.5
+        t_max: 2.0
         n_t: 25
         
 SBM_2:
@@ -204,6 +212,7 @@ S:
         azim: 290
         
 swiss-roll:
+<<<<<<< HEAD
         n: 300 
         noise: 1.0   
         elev: 10
@@ -213,3 +222,7 @@ swiss-roll:
         t_min: 1.0
         t_max: 2.0
         n_t: 20
+=======
+        n: 100 
+        noise: 0.0       
+>>>>>>> b676661b99fc7fe8ab58d404c78cf04b2b80a5b8

@@ -22,9 +22,9 @@ class Geometric_Clustering(object):
         self.e = len(G.edges)
         self.laplacian_tpe = laplacian_tpe
         self.labels_gt = []
-        if 'block' in G.node[0]:
+        if 'block' in G.nodes[0]:
             for i in self.G:
-                self.labels_gt = np.append(self.labels_gt,self.G.node[i]['block'])
+                self.labels_gt = np.append(self.labels_gt,self.G.nodes[i]['block'])
 
         #time vector
         self.n_t = len(T)
@@ -142,7 +142,7 @@ class Geometric_Clustering(object):
             import pygenstability.pygenstability as pgs
 
             #parameters
-            stability = pgs.PyGenStability(self.G.copy(), cluster_tpe, louvain_runs=10, precision=1e-6)
+            stability = pgs.PyGenStability(self.G.copy(), cluster_tpe, louvain_runs=50)
             stability.all_mi = False #to compute MI between all Louvain runs
             stability.n_mi = 20  #if all_mi = False, number of top Louvain run to use for MI        
             stability.n_processes_louv = 2 #number of cpus 
@@ -156,11 +156,13 @@ class Geometric_Clustering(object):
                     for e, edge in enumerate(self.G.edges):
                         stability.G.edges[edge]['curvature'] = self.Kappa[e,i] 
                     stability.A = nx.adjacency_matrix(stability.G, weight='curvature')
+                    time = 1.
                 elif cluster_by == 'weight' :   
                     stability.A = nx.adjacency_matrix(stability.G, weight='weight')
+                    time = self.T[i]
 
                 #run stability and collect results
-                stability.run_single_stability(time = 1.)
+                stability.run_single_stability(time = time ) 
                 stabilities.append(stability.single_stability_result['stability'])
                 nComms.append(stability.single_stability_result['number_of_comms'])
                 MIs.append(stability.single_stability_result['MI'])
@@ -246,7 +248,9 @@ def K_ij(mx_all, dist, lamb, e):
         elif lamb == 0: #classical sparse OT
             W = ot.emd2(mx, my, dNxNy) 
             
-        K[it] = 1. - W/dist[i, j]  
+        #K[it] = 1. - W/dist[i, j]  
+        K[it] = dist[i, j]  - W
+         
 
     return K
 
@@ -261,7 +265,8 @@ def K_all(mx_all, dist, lamb, G):
         ind = [y[1] for y in G.edges if y[0] == i]              
 
         W = ot.sinkhorn(mx_all[:,i].tolist(), mx_all[:,ind].tolist(), dist.tolist(), lamb)    
-        Kt = np.append(Kt, 1. - W/dist[i][ind])
+        #Kt = np.append(Kt, 1. - W/dist[i][ind])
+        Kt = np.append(Kt, dist[i][ind] - W)
         
     return Kt
 

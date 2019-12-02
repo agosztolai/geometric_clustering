@@ -55,8 +55,16 @@ def generate_graph(tpe='SM', params= {}, save=False):
     if tpe == 'barbell':
         G = nx.barbell_graph(params['m1'], params['m2'])
         for i in G:
-            G.node[i]['block'] = np.mod(i,params['m1'])
+            G.nodes[i]['block'] = np.mod(i,params['m1'])
+     
+    if tpe == 'barbell_noisy':
+        G = nx.barbell_graph(params['m1'], params['m2'])
+        for i in G:
+            G.nodes[i]['block'] = np.mod(i,params['m1'])
+        for i,j in G.edges():
+            G[i][j]['weight'] = abs(np.random.normal(1,params['noise']))
             
+        
     elif tpe == 'barbell_asy':
         A = np.block([[np.ones([params['m1'], params['m1']]), np.zeros([params['m1'],params['m2']])],\
                        [np.zeros([params['m2'],params['m1']]), np.ones([params['m2'],params['m2']])]])
@@ -65,21 +73,21 @@ def generate_graph(tpe='SM', params= {}, save=False):
         A[params['m1'],params['m1']-1] = 1
         G = nx.from_numpy_matrix(A)   
         for i in G:
-            G.node[i]['block'] = np.mod(i,params['m1'])
+            G.nodes[i]['block'] = np.mod(i,params['m1'])
             
     elif tpe == 'celegans':
         from skd.celegans.create_graph import create_celegans 
         G, pos, labels, neuron_type, colors = create_celegans(location = '../../datasets/celegans/')
 
         for i in G:
-            G.node[i]['old_label'] = G.node[i]['labels']
+            G.nodes[i]['old_label'] = G.nodes[i]['labels']
 
     elif tpe == 'celegans_undirected':
         from skd.celegans.create_graph import create_celegans 
         G, pos, labels, neuron_type, colors = create_celegans(location = '../datasets/celegans/')
 
         for i in G:
-            G.node[i]['old_label'] = G.node[i]['labels']
+            G.nodes[i]['old_label'] = G.nodes[i]['labels']
 
         G = G.to_undirected()        
             
@@ -89,7 +97,7 @@ def generate_graph(tpe='SM', params= {}, save=False):
 
         pos = {}
         for i in G:
-            pos[i] = np.array(G.node[i]['old_label'])                  
+            pos[i] = np.array(G.nodes[i]['old_label'])                  
        
     elif tpe == '2grid':
 
@@ -98,13 +106,13 @@ def generate_graph(tpe='SM', params= {}, save=False):
 
         pos = {}
         for i in F:
-            pos[i] = np.array(F.node[i]['old_label'])
+            pos[i] = np.array(F.nodes[i]['old_label'])
             
         H = nx.grid_2d_graph(params['n'], params['n'], periodic = False)
         H = nx.convert_node_labels_to_integers(H, first_label=len(F), label_attribute='old_label')
 
         for i in H:
-            pos[i] = np.array(H.node[i]['old_label']) + np.array([params['n']+5, 0])
+            pos[i] = np.array(H.nodes[i]['old_label']) + np.array([params['n']+5, 0])
 
         G = nx.compose(F, H)
         G.add_edge(int(params['n']**2-params['n']/2+1), int(params['n']**2 +params['n']/2+1))
@@ -175,7 +183,7 @@ def generate_graph(tpe='SM', params= {}, save=False):
             
     elif tpe == 'dolphin':
         G = nx.read_gml('../../datasets/dolphins.gml')
-        
+        G = nx.convert_node_labels_to_integers(G)     
         for i,j in G.edges:
             G[i][j]['weight']= 1.
     
@@ -185,7 +193,7 @@ def generate_graph(tpe='SM', params= {}, save=False):
         G.add_edges_from(edges)
         labels = np.loadtxt('../../datasets/email-Eu-core-department-labels.txt').astype(int)
         for i in G:
-            G.node[i]['block'] = labels[i]
+            G.nodes[i]['block'] = labels[i]
         
         G = nx.convert_node_labels_to_integers(G)
         
@@ -196,7 +204,7 @@ def generate_graph(tpe='SM', params= {}, save=False):
         G = nx.planted_partition_graph(params['l'], params['g'], params['p_in'], params['p_out'], params['seed'])   
         
         for i,j in G.edges:
-            if G.node[i]['block'] == G.node[j]['block']:
+            if G.nodes[i]['block'] == G.nodes[j]['block']:
                 G[i][j]['weight'] = params['w_in']
             else:
                 G[i][j]['weight'] = 2 - params['w_in']
@@ -237,7 +245,7 @@ def generate_graph(tpe='SM', params= {}, save=False):
             G[i][j]['weight']= 1.
 
         for i in G:
-            G.node[i]['block'] =  str(i) + ' ' + G.node[i]['club']
+            G.nodes[i]['block'] =  str(i) + ' ' + G.nodes[i]['club']
      
     elif tpe == 'LFR':
         import os
@@ -297,7 +305,7 @@ def generate_graph(tpe='SM', params= {}, save=False):
 
         #create the position vector for plotting
         for i in G.nodes():
-            pos[i] = [posx[G.node[i]['old_label']-1],posy[G.node[i]['old_label']-1]]
+            pos[i] = [posx[G.nodes[i]['old_label']-1],posy[G.nodes[i]['old_label']-1]]
             #pos[i]= [posx[i-1],posy[i-1]]
 
     elif tpe == 'S':   
@@ -324,7 +332,7 @@ def generate_graph(tpe='SM', params= {}, save=False):
 
         pos = {}
         for i in G:
-            pos[i] = np.array(G.node[i]['old_label'])
+            pos[i] = np.array(G.nodes[i]['old_label'])
 
     elif tpe == 'tree':
         G = nx.balanced_tree(params['r'], params['h'])      
@@ -354,9 +362,9 @@ def generate_graph(tpe='SM', params= {}, save=False):
             
         G = nx.from_numpy_matrix(A)  
         for i in G:
-            G.node[i]['block'] = pos[i]
+            G.nodes[i]['block'] = pos[i]
             if color!=[]:
-                G.node[i]['color'] = color[i]
+                G.nodes[i]['color'] = color[i]
     
     assert nx.is_connected(G), 'Graph is disconnected!'
     G.graph['name'] = tpe
@@ -373,12 +381,13 @@ def generate_graph(tpe='SM', params= {}, save=False):
         
     nx.set_node_attributes(G, attrs)    
         
-    if 'block' in G.node[0]:   
+    if 'block' in G.nodes[0]:   
         for i in G:
-            G.node[i]['old_label'] = str(G.node[i]['block']) 
+            G.nodes[i]['old_label'] = str(G.nodes[i]['block']) 
         
     G = nx.convert_node_labels_to_integers(G, label_attribute='old_label')    
             
+<<<<<<< HEAD
     if save:
         plot_graph_3D(G, params=params, save=True)   
 
@@ -387,3 +396,6 @@ def generate_graph(tpe='SM', params= {}, save=False):
          
 if __name__ == "__main__":
 	main()        
+=======
+    return G
+>>>>>>> b676661b99fc7fe8ab58d404c78cf04b2b80a5b8

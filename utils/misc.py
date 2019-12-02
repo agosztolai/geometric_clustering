@@ -5,8 +5,8 @@ Created on Tue Oct 15 16:13:18 2019
 
 @author: adamgosztolai
 """
-import matplotlib as mpl
-mpl.use('Agg')
+#import matplotlib as mpl
+#mpl.use('Agg')
 import pickle
 import pylab as plt
 import numpy as np
@@ -68,7 +68,7 @@ def plot_clustering(gc):
         #plot the stability
         ax2 = plt.subplot(gs[1, 0])
         ax2.plot(T, gc.clustering_results['stability'], label=r'$Q$',c='C2')
-        ax2.set_yscale('log') 
+        #ax2.set_yscale('log') 
         ax2.tick_params('y', colors='C2')
         ax2.set_ylabel('Modularity', color='C2')
         ax2.yaxis.set_label_position('left')
@@ -89,9 +89,8 @@ def plot_clustering(gc):
 def plot_graph(gc, t, node_size=100, edge_width=2, node_labels=False, cluster=False):
     """plot the curvature on the graph for a given time t"""
     
-    plt.figure(figsize = (10,8))
         
-    if 'pos' in gc.G.node[0]:
+    if 'pos' in gc.G.nodes[0]:
         pos = list(nx.get_node_attributes(gc.G,'pos').values())
     else:
         pos = nx.spring_layout(gc.G)  
@@ -101,9 +100,13 @@ def plot_graph(gc, t, node_size=100, edge_width=2, node_labels=False, cluster=Fa
     else:
         _labels = [0] * gc.n
         
-    edge_vmin = -np.max(abs(gc.Kappa[:,t]))
-    edge_vmax = np.max(abs(gc.Kappa[:,t]))    
-    nx.draw_networkx_nodes(gc.G, pos=pos, node_size=node_size, node_color=_labels, cmap=plt.get_cmap("tab20"))
+    edge_vmin = -1. #-np.max(abs(gc.Kappa[:,t]))
+    edge_vmax = 1. #np.max(abs(gc.Kappa[:,t]))    
+    print(edge_vmin, edge_vmax)
+
+
+    plt.figure(figsize = (5,4))
+    nodes = nx.draw_networkx_nodes(gc.G, pos=pos, node_size=node_size, node_color=_labels, cmap=plt.get_cmap("tab20"))
     edges = nx.draw_networkx_edges(gc.G, pos=pos, width=edge_width, edge_color=gc.Kappa[:, t], edge_vmin=edge_vmin, edge_vmax=edge_vmax, edge_cmap=plt.get_cmap('coolwarm'))
 
     plt.colorbar(edges, label='Edge curvature')
@@ -111,14 +114,31 @@ def plot_graph(gc, t, node_size=100, edge_width=2, node_labels=False, cluster=Fa
     if node_labels:
         labels_gt={}
         for i in gc.G:
-            labels_gt[i] = str(i) + ' ' + str(gc.G.node[i]['old_label'])
+            labels_gt[i] = str(i) + ' ' + str(gc.G.nodes[i]['old_label'])
         nx.draw_networkx_labels(gc.G, pos=pos, labels=labels_gt)
 
     plt.axis('off')
+<<<<<<< HEAD
     
+=======
+
+def plot_edge_curvature(gc):
+
+    plt.figure()
+    plt.plot(np.log10(gc.T), gc.Kappa.T, c='C0', lw=0.5)
+    plt.axvline(np.log10(gc.T[np.argmax(np.std(gc.Kappa.T,1))]), c='r', ls='--')
+    plt.axhline(1, ls='--', c='k')
+    plt.axhline(0, ls='--', c='k')
+    plt.xlabel('log(time)')
+    plt.ylabel('edge OR curvature')
+    plt.savefig('edge_curvatures.png')
+
+>>>>>>> b676661b99fc7fe8ab58d404c78cf04b2b80a5b8
 
 def plot_graph_snapshots(gc, folder='images', node_size=100, node_labels=False, cluster=False):
     """plot the curvature on the graph for each time"""
+
+    plot_edge_curvature(gc)
 
     #create folder if not already there
     if not os.path.isdir(folder):
@@ -128,7 +148,7 @@ def plot_graph_snapshots(gc, folder='images', node_size=100, node_labels=False, 
     for i, t in enumerate(tqdm(gc.T)):  
         plot_graph(gc, i, node_size=node_size, node_labels=node_labels, cluster=cluster)
         plt.title(r'$log_{10}(t)=$'+str(np.around(np.log10(t),2)))
-        plt.savefig(folder + '/clustering_' + str(i) + '.svg', bbox_inches='tight')
+        plt.savefig(folder + '/clustering_' + str(i) + '.png', bbox_inches='tight')
         plt.close()
         
 
