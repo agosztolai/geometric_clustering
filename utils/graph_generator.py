@@ -387,7 +387,6 @@ def generate_graph(tpe='SM', params= {}, save=False):
         
     G = nx.convert_node_labels_to_integers(G, label_attribute='old_label')    
             
-<<<<<<< HEAD
     if save:
         plot_graph_3D(G, params=params, save=True)   
 
@@ -396,6 +395,3 @@ def generate_graph(tpe='SM', params= {}, save=False):
          
 if __name__ == "__main__":
 	main()        
-=======
-    return G
->>>>>>> b676661b99fc7fe8ab58d404c78cf04b2b80a5b8

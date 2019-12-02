@@ -212,7 +212,6 @@ S:
         azim: 290
         
 swiss-roll:
-<<<<<<< HEAD
         n: 300 
         noise: 1.0   
         elev: 10
@@ -222,7 +221,3 @@ swiss-roll:
         t_min: 1.0
         t_max: 2.0
         n_t: 20
-=======
-        n: 100 
-        noise: 0.0       
->>>>>>> b676661b99fc7fe8ab58d404c78cf04b2b80a5b8

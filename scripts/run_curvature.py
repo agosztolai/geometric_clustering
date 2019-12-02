@@ -25,11 +25,7 @@ G = generate_graph(tpe=graph_tpe, params=params, save=True)
          
 #Initialise the code with parameters and graph 
 T = np.logspace(params['t_min'], params['t_max'], params['n_t'])
-<<<<<<< HEAD
 gc = Geometric_Clustering(G, T=T, cutoff=0.99, workers=16, GPU=False, lamb=0.)
-=======
-gc = Geometric_Clustering(G, T=T, cutoff=1., workers=16, GPU=False, lamb=0., laplacian_tpe='normalized')
->>>>>>> b676661b99fc7fe8ab58d404c78cf04b2b80a5b8
 
 #Compute the OR curvatures
 gc.compute_OR_curvatures()

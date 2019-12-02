@@ -118,9 +118,7 @@ def plot_graph(gc, t, node_size=100, edge_width=2, node_labels=False, cluster=Fa
         nx.draw_networkx_labels(gc.G, pos=pos, labels=labels_gt)
 
     plt.axis('off')
-<<<<<<< HEAD
     
-=======
 
 def plot_edge_curvature(gc):
 
@@ -132,8 +130,6 @@ def plot_edge_curvature(gc):
     plt.xlabel('log(time)')
     plt.ylabel('edge OR curvature')
     plt.savefig('edge_curvatures.png')
-
->>>>>>> b676661b99fc7fe8ab58d404c78cf04b2b80a5b8
 
 def plot_graph_snapshots(gc, folder='images', node_size=100, node_labels=False, cluster=False):
     """plot the curvature on the graph for each time"""
