@@ -1,10 +1,5 @@
-"""Spectral Embedding"""
-
-# Author: Gael Varoquaux <gael.varoquaux@normalesup.org>
-#         Wei LI <kuantkid@gmail.com>
-# License: BSD 3 clause
-
-
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 import warnings
 import numpy as np
 from scipy import sparse
@@ -17,7 +12,28 @@ from sklearn.utils.extmath import _deterministic_vector_sign_flip
 from sklearn.metrics.pairwise import rbf_kernel
 from sklearn.neighbors import kneighbors_graph
 
+'''
+=============================================================================
+Laplacian eigenmaps
+=============================================================================
+'''
 
+def signed_laplacian(A, normed=True, return_diag=True):
+    A = np.array(A)
+    Aabs = np.abs(A)
+    np.fill_diagonal(A, 0)
+    dd = Aabs.sum(axis=0)
+    isolated_node_mask = (dd == 0)
+    dd = np.where(isolated_node_mask, 1, np.sqrt(dd))
+    A /= dd
+    A /= dd[:, np.newaxis]
+    A *= -1
+#    m += np.eye(m.shape[0])
+    if return_diag:
+        return A, dd
+    else:
+        return A
+    
 def _graph_connected_component(graph, node_id):
     """Find the largest graph connected components that contains one
     given node
@@ -555,4 +571,4 @@ class SpectralEmbedding(BaseEstimator):
         X_new : array-like, shape (n_samples, n_components)
         """
         self.fit(X)
-        return self.embedding_
+        return self.embedding_    

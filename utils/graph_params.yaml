@@ -213,11 +213,11 @@ S:
         
 swiss-roll:
         n: 300 
-        noise: 1.0   
+        noise: 0.0   
         elev: 10
         azim: 270   
         k: 10
         similarity: 'knn' 
         t_min: 1.0
         t_max: 2.0
-        n_t: 20
+        n_t: 20     

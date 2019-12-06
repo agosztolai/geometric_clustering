@@ -5,7 +5,7 @@ Created on Tue Oct 15 16:13:18 2019
 
 @author: adamgosztolai
 """
-#import matplotlib as mpl
+import matplotlib as mpl
 #mpl.use('Agg')
 import pickle
 import pylab as plt
@@ -102,8 +102,6 @@ def plot_graph(gc, t, node_size=100, edge_width=2, node_labels=False, cluster=Fa
         
     edge_vmin = -1. #-np.max(abs(gc.Kappa[:,t]))
     edge_vmax = 1. #np.max(abs(gc.Kappa[:,t]))    
-    print(edge_vmin, edge_vmax)
-
 
     plt.figure(figsize = (5,4))
     nodes = nx.draw_networkx_nodes(gc.G, pos=pos, node_size=node_size, node_color=_labels, cmap=plt.get_cmap("tab20"))
@@ -118,7 +116,7 @@ def plot_graph(gc, t, node_size=100, edge_width=2, node_labels=False, cluster=Fa
         nx.draw_networkx_labels(gc.G, pos=pos, labels=labels_gt)
 
     plt.axis('off')
-    
+
 
 def plot_edge_curvature(gc):
 
@@ -130,6 +128,7 @@ def plot_edge_curvature(gc):
     plt.xlabel('log(time)')
     plt.ylabel('edge OR curvature')
     plt.savefig('edge_curvatures.png')
+
 
 def plot_graph_snapshots(gc, folder='images', node_size=100, node_labels=False, cluster=False):
     """plot the curvature on the graph for each time"""
@@ -222,6 +221,7 @@ def plot_graph_3D(G, node_colors=[], edge_colors=[], params=None, save=False):
             fname = G.name + '.svg'
         plt.savefig(fname)
         plt.close('all')       
+
 
 def plot_embedding(gc):
     
