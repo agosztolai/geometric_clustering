@@ -6,9 +6,9 @@ from multiprocessing import Pool
 from functools import partial
 from scipy.sparse.csgraph import laplacian, floyd_warshall
 from sklearn.utils import check_symmetric
-from curvature_utils import mx_comp, K_ij, K_all, K_all_gpu
-from clustering_utils import cluster_threshold
-from embedding_utils import signed_laplacian, SpectralEmbedding
+from utils.curvature_utils import mx_comp, K_ij, K_all, K_all_gpu
+from utils.clustering_utils import cluster_threshold
+from utils.embedding_utils import signed_laplacian, SpectralEmbedding
 
 
 class Geometric_Clustering(object): 
