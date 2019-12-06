@@ -1,22 +1,31 @@
 import sys as sys
-sys.path.append('../utils')
-import os as os
-from geometric_clustering import Geometric_Clustering
+import os 
+
+from geometric_clustering import geometric_clustering 
+from geometric_clustering.utils import misc 
+import graph_library as gl
+
 import networkx as nx
-from misc import load_curvature, save_clustering, plot_clustering, plot_graph_snapshots
 
 #get the graph from terminal input 
 graph_tpe = sys.argv[-1]
 
-#load graph 
-os.chdir(graph_tpe)
-G = nx.read_gpickle(graph_tpe + ".gpickle")
+##load graph 
+#os.chdir(graph_tpe)
+#G = nx.read_gpickle(graph_tpe + ".gpickle")
+
+#Load graph 
+gg = gl.graph_generator()
+gg.generate()
+gg.whichgraph = graph_tpe
+gg.outfolder = '../results/'
+gg.paramsfile = '../utils/graph_params.yaml'
          
 # initialise the code with parameters and graph 
-gc = Geometric_Clustering(G)
+gc = geometric_clustering.Geometric_Clustering(gg.G)
 
 #load results
-load_curvature(gc)
+misc.load_curvature(gc)
 
 #cluster 
 #cluster_tpe: threshold, continuous_normalized (Markov stab), modularity_signed, linearized (Louvain))
@@ -25,6 +34,6 @@ gc.run_clustering(cluster_tpe='modularity_signed', cluster_by='curvature')
 #gc.run_clustering(cluster_tpe='continuous_normalized', cluster_by='weight')
 
 #save and plot
-save_clustering(gc)
-plot_clustering(gc)
-plot_graph_snapshots(gc, node_labels= False, cluster=True)
+misc.save_clustering(gc)
+misc.plot_clustering(gc)
+misc.plot_graph_snapshots(gc, node_labels= False, cluster=True)

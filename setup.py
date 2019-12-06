@@ -7,8 +7,7 @@ import numpy as np
 setup(
         name = 'geometric_clustering',
         version = '1.0',
-        include_dirs = ['utils',np.get_include()], #Add Include path of numpy
-        packages=['.'],
+        packages=['geometric_clustering'],
         install_requires=['numpy', 
                           'scipy', 
                           'networkx', 
