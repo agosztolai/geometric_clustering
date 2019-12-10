@@ -24,7 +24,7 @@ if postprocess != 1:
     # Main loop: repeat for all parameters and network realisations
     # =============================================================================
     for i in mu:
-        os.system('cd /data/AG/geocluster/LFR/mu' + str(mu))
+        os.chdir('/data/AG/geocluster/LFR/mu' + str(mu))
         
         for k in range(numGraphs):    
             params['filename'] = 'graph_'+str(k)+'_mu_'+str(mu[i])
