@@ -6,9 +6,9 @@ from multiprocessing import Pool
 from functools import partial
 from scipy.sparse.csgraph import laplacian, floyd_warshall
 from sklearn.utils import check_symmetric
-from .utils.curvature_utils import mx_comp, K_ij, K_all, K_all_gpu
-from .utils.clustering_utils import cluster_threshold
-from .utils.embedding_utils import signed_laplacian, SpectralEmbedding
+from utils.curvature_utils import mx_comp, K_ij, K_all, K_all_gpu
+from utils.clustering_utils import cluster_threshold
+from utils.embedding_utils import signed_laplacian, SpectralEmbedding
 
 
 class Geometric_Clustering(object): 
@@ -54,6 +54,7 @@ class Geometric_Clustering(object):
 
         elif self.laplacian_tpe == 'signed_normalized':
             self.L = signed_laplacian(self.A, normed=True, return_diag=True)
+
 
     def compute_distance_geodesic(self):
         """Geodesic distance matrix"""

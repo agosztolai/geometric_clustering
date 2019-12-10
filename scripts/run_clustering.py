@@ -1,28 +1,18 @@
 import sys as sys
 import os 
-
 from geometric_clustering import geometric_clustering 
 from geometric_clustering.utils import misc 
-import graph_library as gl
-
 import networkx as nx
 
 #get the graph from terminal input 
 graph_tpe = sys.argv[-1]
 
-##load graph 
-#os.chdir(graph_tpe)
-#G = nx.read_gpickle(graph_tpe + ".gpickle")
-
-#Load graph 
-gg = gl.graph_generator()
-gg.generate()
-gg.whichgraph = graph_tpe
-gg.outfolder = '../results/'
-gg.paramsfile = '../utils/graph_params.yaml'
+#load graph 
+os.chdir(graph_tpe)
+G = nx.read_gpickle(graph_tpe + ".gpickle")
          
 # initialise the code with parameters and graph 
-gc = geometric_clustering.Geometric_Clustering(gg.G)
+gc = geometric_clustering.Geometric_Clustering(G)
 
 #load results
 misc.load_curvature(gc)
