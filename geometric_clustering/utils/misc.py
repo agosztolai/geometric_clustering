@@ -245,7 +245,7 @@ def save_curvature(gc, filename = None):
     if not filename:
         filename = gc.G.graph.get('name')
     pickle.dump([gc.Kappa, gc.T], open(filename + '_curvature.pkl','wb'))  
-    nx.write_gpickle(gc.G, gc.G.graph.get('name') + ".gpickle")
+#    nx.write_gpickle(gc.G, gc.G.graph.get('name') + ".gpickle")
 
 def load_curvature(gc, filename = None):
     if not filename:
