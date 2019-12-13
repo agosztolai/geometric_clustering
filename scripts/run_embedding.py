@@ -1,24 +1,24 @@
 import sys as sys
 sys.path.append('../utils')
 import os as os
-from geometric_clustering import Geometric_Clustering
+from geometric_clustering import geometric_clustering 
 import networkx as nx
-from misc import load_curvature, plot_graph_3D, plot_embedding
+from geometric_clustering.utils import misc 
 import yaml as yaml
 
 #get the graph from terminal input 
-graph_tpe = 'swiss-roll'#sys.argv[-1]
-params = yaml.load(open('../utils/graph_params.yaml','rb'), Loader=yaml.FullLoader)[graph_tpe]
+graph_tpe = sys.argv[-1]
+params = yaml.load(open('graph_params.yaml','rb'), Loader=yaml.FullLoader)[graph_tpe]
 
 #load graph 
 os.chdir(graph_tpe)
 G = nx.read_gpickle(graph_tpe + ".gpickle")
          
 # initialise the code with parameters and graph 
-gc = Geometric_Clustering(G)
+gc = geometric_clustering.Geometric_Clustering(G)
  
 #load results
-load_curvature(gc)
+misc.load_curvature(gc)
 
 #plot 3D graph
 #for i in range(gc.Kappa.shape[1]):
@@ -32,9 +32,9 @@ load_curvature(gc)
 #plot_embedding(gc)
 
 #import sys
-sys.path.append("../../utils") # Adds higher directory to python modules path.
-#from embedding_utils import SpectralEmbedding
-from sklearn.manifold import SpectralEmbedding
+#sys.path.append("../../utils") # Adds higher directory to python modules path.
+from geometric_clustering.utils.embedding_utils import SpectralEmbedding
+#from sklearn.manifold import SpectralEmbedding
 import pylab as plt
 import numpy as np
 n = G.number_of_nodes()
@@ -56,12 +56,12 @@ for k in range(gc.Kappa.shape[1]):
     
     A = np.zeros([n,n])
     for i,edge in enumerate(G.edges):
-#        A[edge] = 1 
-#        A[edge[::-1]] =1
+        #A[edge] = 1 
+        #A[edge[::-1]] =1
         A[edge] = gc.Kappa[i,k]
         A[edge[::-1]] = gc.Kappa[i,k]
     
-    se = SpectralEmbedding(n_components=2,affinity='precomputed')
+    se = SpectralEmbedding(n_components=2, affinity='precomputed')
     Y = se.fit_transform(A)
 
     plt.figure(figsize=(10,7))
