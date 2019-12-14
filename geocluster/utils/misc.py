@@ -104,8 +104,10 @@ def plot_graph(gc, t, node_size=100, edge_width=2, node_labels=False, cluster=Fa
     edge_vmax = 1. #np.max(abs(gc.Kappa[:,t]))    
 
     plt.figure(figsize = (5,4))
-    nodes = nx.draw_networkx_nodes(gc.G, pos=pos, node_size=node_size, node_color=_labels, cmap=plt.get_cmap("tab20"))
-    edges = nx.draw_networkx_edges(gc.G, pos=pos, width=edge_width, edge_color=gc.Kappa[:, t], edge_vmin=edge_vmin, edge_vmax=edge_vmax, edge_cmap=plt.get_cmap('coolwarm'))
+    if len(pos[0])>2:
+        pos = np.asarray(pos)[:,[0,2]]
+    nodes = nx.draw_networkx_nodes(gc.G, pos=pos, node_size=node_size)#, node_color=_labels, cmap=plt.get_cmap("tab20"))
+    edges = nx.draw_networkx_edges(gc.G, pos=pos, width=edge_width, edge_color=gc.Kappa[:, t], edge_vmin=edge_vmin, edge_vmax=edge_vmax, edge_cmap=plt.cm.coolwarm, arrows=False)
 
     plt.colorbar(edges, label='Edge curvature')
 

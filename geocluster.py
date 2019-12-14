@@ -6,21 +6,22 @@ from multiprocessing import Pool
 from functools import partial
 from scipy.sparse.csgraph import laplacian, floyd_warshall
 from sklearn.utils import check_symmetric
-from utils.curvature_utils import mx_comp, K_ij, K_all, K_all_gpu
-from utils.clustering_utils import cluster_threshold
-from utils.embedding_utils import signed_laplacian, SpectralEmbedding
+from .utils.curvature_utils import mx_comp, K_ij, K_all, K_all_gpu
+from .utils.clustering_utils import cluster_threshold
+from .utils.embedding_utils import signed_laplacian, SpectralEmbedding
 
 
 class geocluster(object): 
 
     def __init__(self, G, T=np.logspace(0,1,10), laplacian_tpe='normalized',\
-                 cutoff=0.99, lamb=0, GPU=False, workers=2):
+                 cutoff=0.99, lamb=0, GPU=False, workers=2, use_spectral_gap = True):
 
         #set the graph
         self.G = G
         self.A = check_symmetric(nx.adjacency_matrix(self.G, weight='weight'))
         self.n = len(G.nodes)
         self.e = len(G.edges)
+        self.use_spectral_gap = use_spectral_gap
         self.laplacian_tpe = laplacian_tpe
         self.labels_gt = []
         if 'block' in G.nodes[0]:
@@ -55,6 +56,8 @@ class geocluster(object):
         elif self.laplacian_tpe == 'signed_normalized':
             self.L = signed_laplacian(self.A, normed=True, return_diag=True)
 
+        if self.use_spectral_gap:
+            self.L /= abs(sc.sparse.linalg.eigs(self.L, which='SM',k=2)[0][1])
 
     def compute_distance_geodesic(self):
         """Geodesic distance matrix"""
