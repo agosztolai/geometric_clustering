@@ -11,7 +11,7 @@ from .utils.clustering import cluster_threshold
 from .utils.embedding import signed_laplacian, SpectralEmbedding
 
 
-class geometric_clustering(object): 
+class GeoCluster(object): 
 
     def __init__(self, G, T=np.logspace(0,1,10), laplacian_tpe='normalized',\
                  cutoff=0.99, lamb=0, GPU=False, workers=2, use_spectral_gap = True):

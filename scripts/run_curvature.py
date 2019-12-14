@@ -1,6 +1,6 @@
 import sys as sys
 import numpy as np
-import geometric_clustering as gc
+from geocluster.geocluster import GeoCluster
 from geometric_clustering.utils import misc 
 import graph_library as gl 
 
@@ -13,7 +13,7 @@ gg.generate(similarity=gg.params['similarity'])
          
 #Initialise the code with parameters and graph 
 T = np.logspace(gg.params['t_min'], gg.params['t_max'], gg.params['n_t'])
-gc = gc(gg.G, T=T, cutoff=1., workers=1, GPU=True, lamb=0.0, laplacian_tpe='normalized')
+gc = GeoCluster(gg.G, T=T, cutoff=1., workers=1, GPU=True, lamb=0.0, laplacian_tpe='normalized')
 
 #Compute the OR curvatures
 gc.compute_OR_curvatures()

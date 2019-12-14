@@ -1,7 +1,6 @@
 import sys as sys
-sys.path.append('../utils')
 import os as os
-import geometric_clustering
+from geocluster.geocluster import GeoCluster
 import networkx as nx
 from geometric_clustering.utils import misc 
 import yaml as yaml
@@ -15,7 +14,7 @@ os.chdir(graph_tpe)
 G = nx.read_gpickle(graph_tpe + ".gpickle")
          
 # initialise the code with parameters and graph 
-gc = geometric_clustering(G)
+gc = GeoCluster(G)
  
 #load results
 misc.load_curvature(gc)
@@ -33,7 +32,7 @@ misc.load_curvature(gc)
 
 #import sys
 #sys.path.append("../../utils") # Adds higher directory to python modules path.
-from geometric_clustering.utils.embedding import SpectralEmbedding
+from geocluster.utils.embedding import SpectralEmbedding
 #from sklearn.manifold import SpectralEmbedding
 import pylab as plt
 import numpy as np

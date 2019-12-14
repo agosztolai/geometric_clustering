@@ -1,6 +1,0 @@
-numpy
-scipy
-networkx
-matplotlib
-cython
-POT

@@ -4,7 +4,7 @@
 from setuptools import setup, find_packages
 
 setup(
-        name = 'geometric_clustering',
+        name = 'geocluster',
         version = '1.0',
         install_requires=['numpy', 
                           'scipy', 
@@ -12,5 +12,5 @@ setup(
                           'matplotlib', 
                           'cython', 
                           'POT'],
-        packages = find_packages(exclude=('benchmark', 'scripts')),                       
+        packages = find_packages(),                       
       )
