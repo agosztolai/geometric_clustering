@@ -57,8 +57,8 @@ def K_ij(mx_all, dist, lamb, e):
         elif lamb == 0: #classical sparse OT
             W = ot.emd2(mx, my, dNxNy) 
             
-        K[it] = 1. - W / dist[i, j]  
-        #K[it] = dist[i, j] - W
+        #K[it] = 1. - W/dist[i, j]  
+        K[it] = dist[i, j]  - W
          
     return K
 

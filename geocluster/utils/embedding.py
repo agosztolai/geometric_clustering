@@ -249,6 +249,7 @@ def spectral_embedding(adjacency, n_components=8, eigen_solver=None,
                       " may not work as expected.")
 
     
+#    laplacian = np.abs(np.sum(np.abs(adjacency),axis=0)) - adjacency
     #normalised signed laplacian I - D^(-1/2)*A*D^(-1/2)
     m = np.array(adjacency)
     mabs = np.abs(m)
@@ -259,10 +260,8 @@ def spectral_embedding(adjacency, n_components=8, eigen_solver=None,
     m /= dd
     m /= dd[:, np.newaxis]
     m *= -1
-    m += np.eye(m.shape[0])
-
+#    m += np.eye(m.shape[0])
     laplacian=m
-    #laplacian = np.abs(np.sum(np.abs(adjacency),axis=0)) - adjacency
 #    laplacian, dd = csgraph_laplacian(adjacency, normed=norm_laplacian,
 #                                      return_diag=True)
     if (eigen_solver == 'arpack' or eigen_solver != 'lobpcg' and
