@@ -1,9 +1,9 @@
 import sys as sys
 sys.path.append('../utils')
 import os as os
-from geometric_clustering import Geometric_Clustering
+import geocluster
 import networkx as nx
-from misc import load_curvature, plot_graph_3D, plot_embedding
+from geocluster.utils.misc import load_curvature, plot_graph_3D, plot_embedding
 import yaml as yaml
 
 #get the graph from terminal input 
@@ -15,7 +15,7 @@ os.chdir(graph_tpe)
 G = nx.read_gpickle(graph_tpe + ".gpickle")
          
 # initialise the code with parameters and graph 
-gc = Geometric_Clustering(G)
+gc = geocluster(G)
  
 #load results
 load_curvature(gc)

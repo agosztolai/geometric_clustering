@@ -1,7 +1,7 @@
 import sys as sys
 import os 
-from geometric_clustering import geometric_clustering 
-from geometric_clustering.utils import misc 
+import geocluster
+from geocluster.utils import misc 
 import networkx as nx
 
 #get the graph from terminal input 
@@ -12,7 +12,7 @@ os.chdir(graph_tpe)
 G = nx.read_gpickle(graph_tpe + ".gpickle")
          
 # initialise the code with parameters and graph 
-gc = geometric_clustering.Geometric_Clustering(G)
+gc = geocluster(G)
 
 #load results
 misc.load_curvature(gc)
