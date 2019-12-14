@@ -3,7 +3,7 @@ import sys as sys
 sys.path.append('../utils')
 import os as os
 import yaml as yaml
-from geometric_clustering import Geometric_Clustering
+import geometric_clustering
 from graph_generator import generate_graph
 from misc import save_curvature, save_clustering, load_curvature
 import numpy as np
@@ -40,7 +40,7 @@ if postprocess != 1:
             
             # initialise the code with parameters and graph
             T = np.logspace(params['t_min'], params['t_max'], params['n_t'])
-            gc = Geometric_Clustering(G, T=T, workers=workers)
+            gc = geometric_clustering(G, T=T, workers=workers)
             
             #Compute the OR curvatures are all the times
             gc.compute_OR_curvatures()
@@ -56,7 +56,7 @@ if postprocess == 1:
             print(filename) 
       
             G = nx.read_gpickle(filename+".gpickle")
-            gc = Geometric_Clustering(G)      
+            gc = geometric_clustering(G)      
             load_curvature(gc)
             gc.run_lustering(cluster_tpe='modularity_signed', cluster_by='curvature')
             save_clustering(gc)

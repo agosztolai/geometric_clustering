@@ -1,9 +1,8 @@
 import sys as sys
 import numpy as np
-from geometric_clustering.geometric_clustering import Geometric_Clustering 
+import geometric_clustering as gc
 from geometric_clustering.utils import misc 
 import graph_library as gl 
-import os
 
 #get the graph from terminal input 
 graph_tpe = sys.argv[-1]     
@@ -14,7 +13,7 @@ gg.generate(similarity=gg.params['similarity'])
          
 #Initialise the code with parameters and graph 
 T = np.logspace(gg.params['t_min'], gg.params['t_max'], gg.params['n_t'])
-gc = Geometric_Clustering(gg.G, T=T, cutoff=1., workers=1, GPU=True, lamb=0.0, laplacian_tpe='normalized')
+gc = gc(gg.G, T=T, cutoff=1., workers=1, GPU=True, lamb=0.0, laplacian_tpe='normalized')
 
 #Compute the OR curvatures
 gc.compute_OR_curvatures()

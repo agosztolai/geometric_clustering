@@ -1,6 +1,6 @@
 import sys as sys
 import os 
-from geometric_clustering import geometric_clustering 
+import geometric_clustering
 from geometric_clustering.utils import misc 
 import networkx as nx
 
