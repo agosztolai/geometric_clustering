@@ -14,7 +14,7 @@ from .utils.embedding import signed_laplacian, SpectralEmbedding
 class GeoCluster(object): 
 
     def __init__(self, G, T=np.logspace(0,1,10), laplacian_tpe='normalized',\
-                 cutoff=0.99, lamb=0, GPU=False, workers=2, use_spectral_gap = True):
+                 cutoff=0.99, lamb=0, GPU=False, workers=2, use_spectral_gap=True):
 
         #set the graph
         self.G = G
@@ -97,8 +97,7 @@ class GeoCluster(object):
             n = nx.number_of_nodes(self.G)
             e = nx.Graph.size(self.G)
             Kappa = np.empty((e,self.n_t))
-            for it in range(self.n_t): 
-                print('    ... at Markov time ' + str(self.T[it]))
+            for it in tqdm(range(self.n_t)): 
                 mx_all_t = np.empty([n,n]) 
                 for i in range(len(mx_all)):
                     mx_all_t[:,[i]] = mx_all[i][0][it].toarray()
@@ -183,6 +182,7 @@ class GeoCluster(object):
                     'community_id' : labels,
                     'MI' : MIs, 
                     'ttprime': ttprime}
+
 
     def run_embedding(self):
         '''embedding based on curvature-signed Laplacian eigenmaps'''

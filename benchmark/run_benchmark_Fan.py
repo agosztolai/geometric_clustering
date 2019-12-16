@@ -1,9 +1,7 @@
 import networkx as nx
-import sys as sys
-sys.path.append('../utils')
 import os as os
-import geometric_clustering
-from graph_library import graph_generator as gg
+from geocluster.geocluster import GeoCluster
+from graph_library.graph_library import GraphGen
 from geometric_clustering.utils import misc
 import numpy as np
 import yaml
@@ -11,10 +9,8 @@ import yaml
 #Set parameters
 graph_tpe = 'Fan'
 workers = 16 # numbers of cpus
-folder = '/disk2/Adam/geocluster/' + graph_tpe
-#folder = '/data/gosztolai/geocluster/' + graph_tpe
 numGraphs = 100               # number of realisations
-w_in = np.round(np.concatenate((np.linspace(1.0,1.15,7),np.linspace(1.2,1.7,6))),3)[::-1] #edge weights inside clusters
+w_in = np.array([1.05 , 1.025, 1.])#np.round(np.concatenate((np.linspace(1.0,1.15,7),np.linspace(1.2,1.7,6))),3)[::-1] #edge weights inside clusters
 params = yaml.load(open('graph_params.yaml','rb'))[graph_tpe]
 
 #run postprocess? 
@@ -33,7 +29,7 @@ if postprocess != 1:
         
         print(folder)
         
-        G = gg(whichgraph='Fan')
+        G = GraphGen(whichgraph='Fan', paramsfile='/home/gosztolai/Dropbox/github/geometric_clustering/benchmark/graph_params.yaml')
         G.outfolder = folder
         G.nsamples = numGraphs
         G.params['seed'] = i
@@ -48,7 +44,7 @@ if postprocess != 1:
             
             # initialise the code with parameters and graph
             T = np.logspace(params['t_min'], params['t_max'], params['n_t'])
-            gc = geometric_clustering(G, T=T, workers=workers,cutoff=1.)
+            gc = GeoCluster(G, T=T, workers=workers,cutoff=1.)
                  
             #Compute the OR curvatures are all the times
             gc.compute_OR_curvatures()
@@ -67,13 +63,14 @@ if postprocess == 1:
         os.chdir(folder)
         
         for k in range(numGraphs):
-            filename = 'graph_'+str(k)+'_w_in_'+str(w_in[i])
+            filename = 'Fan_'+str(k)+'_'
             print(filename) 
         
             G = nx.read_gpickle(filename+".gpickle")
-            gc = geometric_clustering(G)        
-            misc.load_curvature(gc)
+            gc = GeoCluster(G)        
+            misc.load_curvature(gc, filename='Fan_' + str(k))
             gc.run_clustering(cluster_tpe='modularity_signed', cluster_by='curvature')
-            misc.save_clustering(gc)   
+            misc.save_clustering(gc, filename='Fan_' + str(k))  
+            misc.plot_graph_snapshots(gc, node_labels= False, cluster=True)
 
         os.system('cd ..')             
