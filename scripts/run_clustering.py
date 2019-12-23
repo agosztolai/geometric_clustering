@@ -1,15 +1,16 @@
 import sys as sys
 import os 
 from geocluster.geocluster import GeoCluster
-from geometric_clustering.utils import misc 
+from geocluster.utils import misc 
 import networkx as nx
 
 #get the graph from terminal input 
 graph_tpe = sys.argv[-1]
 
-#load graph 
 os.chdir(graph_tpe)
-G = nx.read_gpickle(graph_tpe + ".gpickle")
+
+#load graph 
+G = nx.read_gpickle(graph_tpe + "_0_.gpickle")
          
 # initialise the code with parameters and graph 
 gc = GeoCluster(G)

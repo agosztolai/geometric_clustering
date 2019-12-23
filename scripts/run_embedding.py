@@ -2,16 +2,17 @@ import sys as sys
 import os as os
 from geocluster.geocluster import GeoCluster
 import networkx as nx
-from geometric_clustering.utils import misc 
+from geocluster.utils import misc 
 import yaml as yaml
 
 #get the graph from terminal input 
 graph_tpe = sys.argv[-1]
+
 params = yaml.load(open('graph_params.yaml','rb'), Loader=yaml.FullLoader)[graph_tpe]
 
 #load graph 
 os.chdir(graph_tpe)
-G = nx.read_gpickle(graph_tpe + ".gpickle")
+G = nx.read_gpickle(graph_tpe + "_0_.gpickle")
          
 # initialise the code with parameters and graph 
 gc = GeoCluster(G)
@@ -49,6 +50,9 @@ for i in range(n):
     colors.append(node_colors[i])
 node_colors = np.array(colors)
 
+if not os.path.isdir('embedding'):
+    os.mkdir('embedding')
+
 for k in range(gc.Kappa.shape[1]):
 #    se = SpectralEmbedding(n_components=2,affinity='nearest_neighbors', n_neighbors=10)
 #    Y = se.fit_transform(xyz)
@@ -68,4 +72,5 @@ for k in range(gc.Kappa.shape[1]):
     plt.scatter(Y[:, 0], Y[:, 1], c=colors)
     
     plt.axis('tight')
-    plt.savefig(G.name +  str(k) + 'embedding.svg')
+    plt.savefig('embedding/' + 'embedding_' + str(k) + '.svg')
+    plt.close()

@@ -202,6 +202,7 @@ S:
         n: 70
         s: 1.2
         k: 5
+        counter: 0
         radius: 1.7
         seed: 1
         t_min: -2.0

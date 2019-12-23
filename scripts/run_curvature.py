@@ -1,14 +1,20 @@
 import sys as sys
+import os
 import numpy as np
 from geocluster.geocluster import GeoCluster
-from geometric_clustering.utils import misc 
-import graph_library as gl 
+from geocluster.utils import misc
+from graph_library import graph_library as gl
 
 #get the graph from terminal input 
 graph_tpe = sys.argv[-1]     
+gg = gl.GraphGen(whichgraph=graph_tpe, paramsfile='./graph_params.yaml')
+
+if not os.path.isdir(graph_tpe):
+    os.mkdir(graph_tpe)
+
+os.chdir(graph_tpe)
 
 #Load graph 
-gg = gl.graph_generator(whichgraph=graph_tpe, paramsfile='./graph_params.yaml')
 gg.generate(similarity=gg.params['similarity'])
          
 #Initialise the code with parameters and graph 

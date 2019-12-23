@@ -137,15 +137,11 @@ def plot_graph_snapshots(gc, folder='images', node_size=100, node_labels=False, 
 
     plot_edge_curvature(gc)
 
-    #create folder if not already there
-    if not os.path.isdir(folder):
-        os.mkdir(folder)
-
     print('plot images')
     for i, t in enumerate(tqdm(gc.T)):  
         plot_graph(gc, i, node_size=node_size, node_labels=node_labels, cluster=cluster)
         plt.title(r'$log_{10}(t)=$'+str(np.around(np.log10(t),2)))
-        plt.savefig(folder + '/clustering_' + str(i) + '.png', bbox_inches='tight')
+        plt.savefig(folder + '/image' + str(i) + '.png', bbox_inches='tight')
         plt.close()
         
 
