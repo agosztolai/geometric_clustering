@@ -16,7 +16,7 @@ params = yaml.load(open('graph_params.yaml','rb'))[graph_tpe]
 #run postprocess? 
 postprocess = 1
 
-if postprocess != 1:
+if postprocess == 0:
     # =============================================================================
     # Main loop: repeat for all parameters and network realisations
     # =============================================================================
@@ -32,7 +32,7 @@ if postprocess != 1:
             
             # initialise the code with parameters and graph
             T = np.logspace(params['t_min'], params['t_max'], params['n_t'])
-            gc = GeoCluster(G, T=T, workers=workers, cutoff=1., GPU=True, lamb=0.1,use_spectral_gap = False)
+            gc = GeoCluster(G, T=T, workers=workers, cutoff=1., GPU=True, lamb=0.1, use_spectral_gap = False)
 
             gc.compute_OR_curvatures()
             misc.save_curvature(gc)
