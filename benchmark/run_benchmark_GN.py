@@ -6,7 +6,6 @@ from geometric_clustering.utils import misc
 import numpy as np
 
 #Set parameters
-graph_tpe = 'Girvan_Newman'
 workers = 16 # numbers of cpus
 numGraphs = 100               # number of realisations
 p_in = np.round(np.concatenate((np.linspace(0.15,0.34,20),np.linspace(0.36,0.42,4))),2)
@@ -20,7 +19,7 @@ if postprocess == 0:
     # Main loop: repeat for all parameters and G-N realisations
     # =============================================================================
     for i in range(p_in.shape[0]):
-        folder = '/data/AG/geocluster/GN/p_in_' + str(p_in[i])
+        folder = '/data/AG/geocluster/GN/pin_' + str(p_in[i])
         #create a folder and move into it
         if not os.path.isdir(folder):
             os.mkdir(folder)
@@ -36,15 +35,16 @@ if postprocess == 0:
         G.params['p_out'] = p_out[i]
         G.generate()
         
+        print(G.params['t_min'])
         for k in range(numGraphs):   
             
             G.params['filename'] = 'GN_'+str(k)+'_'
             graph = nx.read_gpickle(G.params['filename'] + ".gpickle")
-            graph.graph['name'] = 'graph_'+str(k)+'_p_in_'+str(p_in[i])
+            graph.graph['name'] = 'GN_'+str(k)
             
             # initialise the code with parameters and graph
             T = np.logspace(G.params['t_min'], G.params['t_max'], G.params['n_t'])
-            gc = GeoCluster(graph, T=T, workers=workers,cutoff=1.,use_spectral_gap = False)
+            gc = GeoCluster(graph, T=T, workers=workers, cutoff=1., use_spectral_gap = False)
                  
             #Compute the OR curvatures are all the times
             gc.compute_OR_curvatures()
@@ -59,18 +59,18 @@ if postprocess == 1:
     # Postprocess
     # ============================================================================= 
     for i in range(p_in.shape[0]):
-        folder = '/data/AG/geocluster/GN/p_in_' + str(p_in[i])
+        folder = '/data/AG/geocluster/GN/pin_' + str(p_in[i])
         os.chdir(folder)
         
         for k in range(numGraphs):
             filename = 'GN_'+str(k)+'_'
-            print(filename) 
+            print(filename + str(p_in[i])) 
         
             G = nx.read_gpickle(filename+".gpickle")
             gc = GeoCluster(G)        
-            misc.load_curvature(gc, filename='graph_' + str(k) + '_p_in_' + str(p_in[i]))
-            gc.run_clustering(cluster_tpe='linearized', cluster_by='weight')
-            misc.save_clustering(gc, filename='Fan_' + str(k))  
-#            misc.plot_graph_snapshots(gc, node_labels= False, cluster=True)
+            misc.load_curvature(gc, filename='GN_' + str(k))
+            gc.run_clustering(cluster_tpe='threshold', cluster_by='curvature')
+            misc.save_clustering(gc, filename='GN_' + str(k))  
+            misc.plot_graph_snapshots(gc, node_labels= False, cluster=True)
             
         os.system('cd ..') 
