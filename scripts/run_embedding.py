@@ -1,76 +1,30 @@
 import sys as sys
 import os as os
-from geocluster.geocluster import GeoCluster
-import networkx as nx
-from geocluster.utils import misc 
-import yaml as yaml
+
+from geocluster import geocluster
+
+from graph_library import graph_library as gl
+
 
 #get the graph from terminal input 
 graph_tpe = sys.argv[-1]
 
-params = yaml.load(open('graph_params.yaml','rb'), Loader=yaml.FullLoader)[graph_tpe]
+#Load graph 
+gg = gl.GraphGen(whichgraph=graph_tpe, paramsfile='./graph_params.yaml')
+gg.generate()
 
 #load graph 
 os.chdir(graph_tpe)
-G = nx.read_gpickle(graph_tpe + "_0_.gpickle")
-         
+
 # initialise the code with parameters and graph 
-gc = GeoCluster(G)
+gc = geocluster.GeoCluster(gg.G)
  
 #load results
-misc.load_curvature(gc)
-
-#plot 3D graph
-#for i in range(gc.Kappa.shape[1]):
-#    params['counter']=i
-#    plot_graph_3D(G, edge_colors=gc.Kappa[:,i], params=params, save=True)
+gc.load_curvature()
 
 #run embedding
-#gc.run_embedding()
+gc.run_embedding()
 
 #plot embedding
-#plot_embedding(gc)
+gc.plot_embedding(folder='embedding_images')
 
-#import sys
-#sys.path.append("../../utils") # Adds higher directory to python modules path.
-from geocluster.utils.embedding import SpectralEmbedding
-#from sklearn.manifold import SpectralEmbedding
-import pylab as plt
-import numpy as np
-n = G.number_of_nodes()
-pos = nx.get_node_attributes(G, 'pos')
-xyz = []
-for i in range(len(pos)):
-    xyz.append(pos[i])
-xyz = np.array(xyz)
-   
-node_colors = nx.get_node_attributes(G, 'color')
-colors = []
-for i in range(n):
-    colors.append(node_colors[i])
-node_colors = np.array(colors)
-
-if not os.path.isdir('embedding'):
-    os.mkdir('embedding')
-
-for k in range(gc.Kappa.shape[1]):
-#    se = SpectralEmbedding(n_components=2,affinity='nearest_neighbors', n_neighbors=10)
-#    Y = se.fit_transform(xyz)
-    
-    A = np.zeros([n,n])
-    for i,edge in enumerate(G.edges):
-        #A[edge] = 1 
-        #A[edge[::-1]] =1
-        A[edge] = gc.Kappa[i,k]
-        A[edge[::-1]] = gc.Kappa[i,k]
-    
-    se = SpectralEmbedding(n_components=2, affinity='precomputed')
-    Y = se.fit_transform(A)
-
-    plt.figure(figsize=(10,7))
-    
-    plt.scatter(Y[:, 0], Y[:, 1], c=colors)
-    
-    plt.axis('tight')
-    plt.savefig('embedding/' + 'embedding_' + str(k) + '.svg')
-    plt.close()
