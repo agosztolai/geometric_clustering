@@ -14,7 +14,7 @@ from .utils.embedding import signed_laplacian, SpectralEmbedding
 class GeoCluster(object): 
 
     def __init__(self, G, T=np.logspace(0,1,10), laplacian_tpe='normalized',\
-                 cutoff=0.99, lamb=0, GPU=False, workers=2, use_spectral_gap=True):
+                 cutoff=1.0, lamb=0, GPU=False, workers=2, use_spectral_gap=True):
 
         #set the graph
         self.G = G
@@ -23,9 +23,9 @@ class GeoCluster(object):
         self.e = len(G.edges)
         self.use_spectral_gap = use_spectral_gap
         self.laplacian_tpe = laplacian_tpe
-        if 'block' in G.nodes[0]:
-            self.labels_gt = [int(self.G.nodes[i]['block']) for i in self.G.nodes]
-
+#        if 'block' in G.nodes[0]:
+        self.labels_gt = [int(self.G.nodes[i]['block']) for i in self.G.nodes if 'block' in self.G.nodes[i]]
+        
         #time vector
         self.n_t = len(T)
         self.T = T
@@ -56,6 +56,7 @@ class GeoCluster(object):
 
         if self.use_spectral_gap:
             self.L /= abs(sc.sparse.linalg.eigs(self.L, which='SM',k=2)[0][1])
+
 
     def compute_distance_geodesic(self):
         """Geodesic distance matrix"""
