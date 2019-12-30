@@ -103,18 +103,18 @@ SBM_2:
 Fan:       
         w_in: 1.5
         seed: 0
-        t_min: -0.5
-        t_max: 0.5
+        t_min: -2.0
+        t_max: -0.1
         n_t: 20
         l: 4
         g: 32 
         p_in: 0.125
         p_out: 0.125
         
-Girvan_Newman:       
+GN:       
         seed: 1
-        t_min: -0.5
-        t_max: 0.5
+        t_min: -2.0
+        t_max: 0.0
         n_t: 20   
         l: 4
         g: 32 
@@ -125,7 +125,7 @@ LFR:
         seed: 1
         t_min: -0.5
         t_max: 0.75
-        n_t: 6     
+        n_t: 10    
         tau1: 2
         tau2: 1
         mu: 0.5

@@ -31,10 +31,8 @@ class GeoCluster(object):
         self.e = len(G.edges)
         self.use_spectral_gap = use_spectral_gap
         self.laplacian_tpe = laplacian_tpe
-        self.labels_gt = []
         if 'block' in G.nodes[0]:
-            for i in self.G:
-                self.labels_gt = np.append(self.labels_gt,self.G.nodes[i]['block'])
+            self.labels_gt = [int(self.G.nodes[i]['block']) for i in self.G.nodes]
 
         #time vector
         self.n_t = len(T)

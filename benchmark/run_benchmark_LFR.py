@@ -14,25 +14,25 @@ mu = [0.1,0.2,0.3,0.4,0.5] #edge weights inside clusters
 params = yaml.load(open('graph_params.yaml','rb'))[graph_tpe]
 
 #run postprocess? 
-postprocess = 1
+postprocess = 0
 
-if postprocess != 1:
+if postprocess == 0:
     # =============================================================================
     # Main loop: repeat for all parameters and network realisations
     # =============================================================================
     for _,i in enumerate(mu):
-        os.chdir('/data/AG/geocluster/LFR/tau1_2_tau2_1/mu' + str(i))
+        os.chdir('/data/AG/geocluster/LFR/lambda_0.1/mu_' + str(i))
         print(i)
         
         for k in range(numGraphs):    
             params['filename'] = 'LFR_'+str(k)+'_'
                    
             G = nx.read_gpickle(params['filename'] + ".gpickle")
-            G.graph['name'] = 'graph_'+str(k)+'_mu_'+str(i)
+            G.graph['name'] = 'LFR_'+str(k)
             
             # initialise the code with parameters and graph
             T = np.logspace(params['t_min'], params['t_max'], params['n_t'])
-            gc = GeoCluster(G, T=T, workers=workers, cutoff=1., GPU=True, lamb=0.1,use_spectral_gap = False)
+            gc = GeoCluster(G, T=T, workers=workers, cutoff=1., GPU=True, lamb=0.1, use_spectral_gap = False)
 
             gc.compute_OR_curvatures()
             misc.save_curvature(gc)
@@ -44,7 +44,7 @@ if postprocess == 1:
     # Postprocess
     # ============================================================================= 
     for _,i in enumerate(mu):
-        os.chdir('/data/AG/geocluster/LFR/tau1_2_tau2_1/mu' + str(i))
+        os.chdir('/data/AG/geocluster/LFR/lambda_0.1/mu_' + str(i))
         for k in range(numGraphs):
             filename = 'LFR_'+str(k)+'_'
             print(filename) 
@@ -52,7 +52,7 @@ if postprocess == 1:
             G = nx.read_gpickle(filename+".gpickle")
             gc = GeoCluster(G)      
             misc.load_curvature(gc, filename='LFR_' + str(k))
-            gc.run_clustering(cluster_tpe='linearized', cluster_by='weight')
+            gc.run_clustering(cluster_tpe='threshold', cluster_by='curvature')
             misc.save_clustering(gc, filename='LFR_' + str(k))    
             misc.plot_clustering(gc)  
 #            misc.plot_graph_snapshots(gc, node_labels= False, cluster=True)
