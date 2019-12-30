@@ -1,22 +1,24 @@
 import sys as sys
 import os 
-from geocluster.geocluster import GeoCluster
-from geocluster.utils import misc 
-import networkx as nx
+
+from geocluster import geocluster
+
+from graph_library import graph_library as gl
 
 #get the graph from terminal input 
 graph_tpe = sys.argv[-1]
 
+#Load graph 
+gg = gl.GraphGen(whichgraph=graph_tpe, paramsfile='./graph_params.yaml')
+gg.generate()
+
 os.chdir(graph_tpe)
 
-#load graph 
-G = nx.read_gpickle(graph_tpe + "_0_.gpickle")
-         
 # initialise the code with parameters and graph 
-gc = GeoCluster(G)
+gc = geocluster.GeoCluster(gg.G)
 
 #load results
-misc.load_curvature(gc)
+gc.load_curvature()
 
 #cluster 
 #cluster_tpe: threshold, continuous_normalized (Markov stab), modularity_signed, linearized (Louvain))
@@ -25,6 +27,6 @@ gc.run_clustering(cluster_tpe='modularity_signed', cluster_by='curvature')
 #gc.run_clustering(cluster_tpe='continuous_normalized', cluster_by='weight')
 
 #save and plot
-misc.save_clustering(gc)
-misc.plot_clustering(gc)
-misc.plot_graph_snapshots(gc, node_labels= False, cluster=True)
+gc.save_clustering()
+gc.plot_clustering()
+gc.plot_graph_snapshots(folder='clustering_images', node_labels= False, cluster=True)

@@ -57,7 +57,7 @@ email:
                           
 karate:
         t_min: -3.0
-        t_max: 2.0
+        t_max: 1.0
         n_t: 100
 
 miserable:
