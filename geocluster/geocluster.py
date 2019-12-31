@@ -130,7 +130,6 @@ class GeoCluster(object):
         """Clustering of curvature weigthed graphs"""
         
         self.cluster_tpe = cluster_tpe
-        self.n_t = len(self.T)
 
         if cluster_tpe == 'threshold':
             
@@ -191,24 +190,24 @@ class GeoCluster(object):
                     'ttprime': ttprime}
 
 
-    def run_embedding(self):
+    def run_embedding(self, weight='curvature'):
         '''embedding based on curvature-signed Laplacian eigenmaps'''
-        
-#        pos = nx.get_node_attributes(self.G, 'pos')
-#        xyz = []
-#        for i in range(len(pos)):
-#            xyz.append(pos[i])
-#        xyz = np.array(xyz)
-            
+
+        se = SpectralEmbedding(n_components=2, affinity='precomputed')
+        A = se.fit_transform(nx.adjacency_matrix(self.G, weight=weight).toarray())
+
+        return A 
+
+    def run_embeddings(self, weight='curvature'):
+        '''embedding based on curvature-signed Laplacian eigenmaps for all times'''
+           
         self.Y = []
         for t in tqdm(range(self.n_t)):
 
             for e, edge in enumerate(self.G.edges):
                 self.G.edges[edge]['curvature'] = self.Kappa[e,t]   
                 
-            se = SpectralEmbedding(n_components=2, affinity='precomputed')
-            A = se.fit_transform(nx.adjacency_matrix(self.G, weight='curvature').toarray())
-            self.Y.append(A)
+            self.Y.append(self.run_embedding(weight=weight))
 
 
     # =============================================================================
@@ -335,11 +334,14 @@ class GeoCluster(object):
     def plot_graph_snapshots(self, folder='images', node_size=100, node_labels=False, cluster=False, ext='.png'):
         """plot the curvature on the graph for each time"""
 
+        if not os.path.isdir(folder):
+            os.mkdir(folder)
+
         print('plot images')
         for i, t in enumerate(tqdm(self.T)):  
             self.plot_graph(i, node_size=node_size, node_labels=node_labels, cluster=cluster)
             plt.title(r'$log_{10}(t)=$'+str(np.around(np.log10(t),2)))
-            plt.savefig(folder + '/image' + str(i) + ext, bbox_inches='tight')
+            plt.savefig(folder + '/image_' + str(i) + ext, bbox_inches='tight')
             plt.close()
             
 
@@ -419,17 +421,26 @@ class GeoCluster(object):
             plt.close('all')       
 
 
-    def plot_embedding(self, folder='images', ext='.svg'):
+    def plot_embedding(self, folder='images', ext='.png'):
+
+        if not os.path.isdir(folder):
+            os.mkdir(folder)
         
-        node_colors = nx.get_node_attributes(self.G, 'color')
-        colors = []
-        for i in tqdm(range(self.n)):
-            colors.append(node_colors[i])
-        node_colors = np.array(colors)
+        if not os.path.isdir(folder):
+            os.mkdir(folder)
         
+        node_colors = list(nx.get_node_attributes(self.G, 'color').values())
+       
+        A_weight = self.run_embedding(weight='weight')
+
         for i in range(len(self.Y)):
             plt.figure(figsize=(10,7))
-            plt.scatter(self.Y[i][:, 0], self.Y[i][:, 1], c=colors)  
+            if len(node_colors)>0:
+                plt.scatter(self.Y[i][:, 0], self.Y[i][:, 1], c=node_colors)  
+                plt.scatter(A_weight[:, 0], A_weight[:, 1], c=node_colors, alpha=0.5, marker ='+')  
+            else:
+                plt.scatter(self.Y[i][:, 0], self.Y[i][:, 1])  
+                plt.scatter(A_weight[:, 0], A_weight[:, 1], alpha=0.5, marker ='+')  
             plt.axis('tight')
             plt.savefig(os.path.join(folder, 'images_'+str(i) + ext))
 

@@ -23,7 +23,7 @@ gc = geocluster.GeoCluster(gg.G)
 gc.load_curvature()
 
 #run embedding
-gc.run_embedding()
+gc.run_embeddings()
 
 #plot embedding
 gc.plot_embedding(folder='embedding_images')

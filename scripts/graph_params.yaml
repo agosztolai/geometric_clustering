@@ -82,12 +82,12 @@ ER:
 
 SBM:
         sizes: [20, 15] 
-        probs: [[10., 0.5,], 
-                [0.5, 10.,]]
+        probs: [[5., 1.0,], 
+                [1.0, 5.,]]
         seed: 0
-        t_min: -1.5
-        t_max: 2.0
-        n_t: 25
+        t_min: -3.0
+        t_max: 1.0
+        n_t: 50
         
 SBM_2:
         sizes: [50, 50, 50, 50]
@@ -213,7 +213,8 @@ S:
         azim: 290
         
 swiss-roll:
-        n: 110 
+        seed: 0
+        n: 200 
         counter: 0
         noise: 0.0   
         elev: 10
