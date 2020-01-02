@@ -3,7 +3,7 @@ import os as os
 
 from geocluster import geocluster
 
-from graph_library import graph_library as gl
+import graph_library as gl
 
 
 #get the graph from terminal input 
@@ -23,7 +23,7 @@ gc = geocluster.GeoCluster(gg.G)
 gc.load_curvature()
 
 #run embedding
-gc.run_embedding()
+gc.run_embeddings()
 
 #plot embedding
 gc.plot_embedding(folder='embedding_images')

@@ -29,16 +29,16 @@ def mx_comp(L, T, cutoff, i):
     for i in range(len((T))-1): 
         #compute exponential by increments (faster than from 0)
         mx_tmp = sc.sparse.linalg.expm_multiply(-(T[i+1]-T[i])*L, mx_tmp)
-
         Nx = np.argwhere(mx_tmp >= (1-cutoff)*np.max(mx_tmp))
         mx_all.append(sc.sparse.lil_matrix(mx_tmp[Nx]/np.sum(mx_tmp[Nx])))
         Nx_all.append(Nx)
-
+    
     return mx_all, Nx_all
 
 
 # compute curvature for an edge ij
-def K_ij(mx_all, dist, lamb, e):
+def K_ij(mx_all, dist, lamb, with_weights, e):
+
     i = e[0]
     j = e[1]
 
@@ -58,14 +58,16 @@ def K_ij(mx_all, dist, lamb, e):
         elif lamb == 0: #classical sparse OT
             W = ot.emd2(mx, my, dNxNy) 
             
-        K[it] = 1. - W / dist[i, j]  
-        #K[it] = dist[i, j] - W
+        if with_weights:
+            K[it] = dist[i, j] - W
+        else:
+            K[it] = 1. - W / dist[i, j]  
          
     return K
 
 
-def K_all(mx_all, dist, lamb, G):     
-       
+def K_all(mx_all, dist, lamb, G, with_weights=False):     
+
     dist = dist.astype(float)
     
     Kt = []
@@ -74,13 +76,15 @@ def K_all(mx_all, dist, lamb, G):
         ind = [y[1] for y in G.edges if y[0] == i]              
 
         W = ot.sinkhorn(mx_all[:,i].tolist(), mx_all[:,ind].tolist(), dist.tolist(), lamb)    
-        #Kt = np.append(Kt, 1. - W/dist[i][ind])
-        Kt = np.append(Kt, dist[i][ind] - W)
+        if with_weights:
+            Kt = np.append(Kt, dist[i][ind] - W)
+        else:
+            Kt = np.append(Kt, 1. - W/dist[i][ind])
         
     return Kt
 
 
-def K_all_gpu(mx_all, dist, lamb, G):   
+def K_all_gpu(mx_all, dist, lamb, G, with_weights=False):   
     import ot.gpu    
        
     mx_all = ot.gpu.to_gpu(mx_all) 
@@ -95,6 +99,9 @@ def K_all_gpu(mx_all, dist, lamb, G):
         ind = [y[1] for y in G.edges if y[0] == i]              
 
         W = ot.gpu.sinkhorn(mx_all[:,i].tolist(), mx_all[:,ind].tolist(), dist.tolist(), lamb)    
-        Kt = np.append(Kt, 1. - W/ot.gpu.to_np(dist[i][ind]))
+        if with_weights:
+            Kt = np.append(Kt, ot.gpu.to_np(dist[i][ind] - W))
+        else:
+            Kt = np.append(Kt, 1. - W/ot.gpu.to_np(dist[i][ind]))
         
     return Kt
