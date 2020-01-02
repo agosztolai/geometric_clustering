@@ -14,7 +14,7 @@ mu = [0.1,0.2,0.3,0.4,0.5] #edge weights inside clusters
 params = yaml.load(open('graph_params.yaml','rb'))[graph_tpe]
 
 #run postprocess? 
-postprocess = 0
+postprocess = 1
 
 if postprocess == 0:
     # =============================================================================
@@ -52,9 +52,21 @@ if postprocess == 1:
             G = nx.read_gpickle(filename+".gpickle")
             gc = GeoCluster(G)      
             misc.load_curvature(gc, filename='LFR_' + str(k))
-            gc.run_clustering(cluster_tpe='threshold', cluster_by='curvature')
+            gc.run_clustering(cluster_tpe='modularity_signed', cluster_by='curvature')
             misc.save_clustering(gc, filename='LFR_' + str(k))    
             misc.plot_clustering(gc)  
+            
+            gc.run_clustering(cluster_tpe='threshold', cluster_by='curvature')
+            misc.save_clustering(gc, filename='LFR_' + str(k))    
+            misc.plot_clustering(gc)
+            
+            gc.run_clustering(cluster_tpe='continuous_normalized', cluster_by='weight')
+            misc.save_clustering(gc, filename='LFR_' + str(k))    
+            misc.plot_clustering(gc)
+            
+            gc.run_clustering(cluster_tpe='linearized', cluster_by='weight')
+            misc.save_clustering(gc, filename='LFR_' + str(k))    
+            misc.plot_clustering(gc)
 #            misc.plot_graph_snapshots(gc, node_labels= False, cluster=True)
             
         os.system('cd ..')     

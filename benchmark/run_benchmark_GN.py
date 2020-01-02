@@ -69,8 +69,17 @@ if postprocess == 1:
             G = nx.read_gpickle(filename+".gpickle")
             gc = GeoCluster(G)        
             misc.load_curvature(gc, filename='GN_' + str(k))
+            gc.run_clustering(cluster_tpe='modularity_signed', cluster_by='curvature')
+            misc.save_clustering(gc, filename='GN_' + str(k)) 
+            
             gc.run_clustering(cluster_tpe='threshold', cluster_by='curvature')
-            misc.save_clustering(gc, filename='GN_' + str(k))  
-            misc.plot_graph_snapshots(gc, node_labels= False, cluster=True)
+            misc.save_clustering(gc, filename='GN_' + str(k))
+            
+            gc.run_clustering(cluster_tpe='continuous_normalized', cluster_by='weight')
+            misc.save_clustering(gc, filename='GN_' + str(k))
+            
+            gc.run_clustering(cluster_tpe='linearized', cluster_by='weight')
+            misc.save_clustering(gc, filename='GN_' + str(k))
+#            misc.plot_graph_snapshots(gc, node_labels= False, cluster=True)
             
         os.system('cd ..') 

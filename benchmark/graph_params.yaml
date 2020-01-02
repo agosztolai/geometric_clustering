@@ -221,4 +221,4 @@ swiss-roll:
         similarity: 'knn' 
         t_min: 1.0
         t_max: 2.0
-        n_t: 20     
+        n_t: 10     

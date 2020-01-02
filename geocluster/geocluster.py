@@ -32,7 +32,7 @@ class GeoCluster(object):
         self.use_spectral_gap = use_spectral_gap
         self.laplacian_tpe = laplacian_tpe
 #        if 'block' in G.nodes[0]:
-        self.labels_gt = [int(self.G.nodes[i]['block']) for i in self.G.nodes if 'block' in self.G.nodes[i]]
+        self.labels_gt = [int(G.nodes[i]['block']) for i in G.nodes if 'block' in G.nodes[0]]
         
         #time vector
         self.n_t = len(T)
