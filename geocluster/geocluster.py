@@ -54,10 +54,10 @@ class GeoCluster(object):
         
         if self.laplacian_tpe == 'normalized':
             degree = np.array(self.A.sum(1)).flatten()
-            self.L = sc.sparse.csr_matrix(nx.laplacian_matrix(self.G).toarray().dot(np.diag(1./degree))) 
+            self.L = nx.laplacian_matrix(self.G).toarray().dot(np.diag(1./degree))
 
         elif self.laplacian_tpe == 'combinatorial':
-            self.L = 1.*laplacian(self.A, normed=False, return_diag=False, use_out_degree=False)
+            self.L = sc.sparse.csr_matrix(1.*nx.laplacian_matrix(self.G)) #combinatorial Laplacian
 
         elif self.laplacian_tpe == 'signed_normalized':
             self.L = signed_laplacian(self.A, normed=True, return_diag=True)
@@ -74,7 +74,7 @@ class GeoCluster(object):
         self.dist = floyd_warshall(self.A, directed=True, unweighted=False)
 
        
-    def compute_OR_curvatures(self):
+    def compute_OR_curvatures(self, with_weights=False):
         """Edge curvature matrix"""    
         
         print('\nGraph: ' + self.G.graph['name'])
@@ -91,7 +91,7 @@ class GeoCluster(object):
             print('\nCompute edge curvatures')
 
             with Pool(processes = self.workers) as p_kappa:  
-                Kappa = list(tqdm(p_kappa.imap(partial(K_ij, mx_all, self.dist, self.lamb), self.G.edges()), total = self.e))
+                Kappa = list(tqdm(p_kappa.imap(partial(K_ij, mx_all, self.dist, self.lamb, with_weights), self.G.edges()), total = self.e))
             
             #curvature matrix of size (edges x time) 
             Kappa = np.transpose(np.stack(Kappa, axis=1))
@@ -110,9 +110,9 @@ class GeoCluster(object):
                     mx_all_t[:,[i]] = mx_all[i][0][it].toarray()
                 
                 if self.GPU:
-                    Kappa[:,it] = K_all_gpu(mx_all_t,self.dist,self.lamb,self.G)  
+                    Kappa[:,it] = K_all_gpu(mx_all_t,self.dist,self.lamb,self.G, with_weights=with_weights)  
                 else:
-                    Kappa[:,it] = K_all(mx_all_t,self.dist,self.lamb,self.G)  
+                    Kappa[:,it] = K_all(mx_all_t,self.dist,self.lamb,self.G, with_weights=with_weights)  
 
         self.Kappa = Kappa
 
@@ -323,6 +323,9 @@ class GeoCluster(object):
 
         plt.figure()
         plt.plot(np.log10(self.T), self.Kappa.T, c='C0', lw=0.5)
+        plt.plot(np.log10(self.T), np.mean(self.Kappa, axis=0), c='C1')
+        plt.plot(np.log10(self.T), np.mean(self.Kappa, axis=0)-np.std(self.Kappa, axis=0), c='C1', ls='--')
+        plt.plot(np.log10(self.T), np.mean(self.Kappa, axis=0)+np.std(self.Kappa, axis=0), c='C1', ls='--')
         plt.axvline(np.log10(self.T[np.argmax(np.std(self.Kappa.T,1))]), c='r', ls='--')
         plt.axhline(1, ls='--', c='k')
         plt.axhline(0, ls='--', c='k')

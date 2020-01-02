@@ -2,14 +2,14 @@ barbell:
         m1: 7
         m2: 0
         t_min: -2.0
-        t_max: 2.0
+        t_max: 1.5
         n_t: 20
 
 barbell_noisy:
         m1: 7
         m2: 0
         t_min: -2.0
-        t_max: 3.0
+        t_max: 1.5
         n_t: 20
         noise: 0.5
                
@@ -19,7 +19,11 @@ barbell_asy:
         t_min: -2.0
         t_max: 3.0
         n_t: 20     
-    
+complete:
+        n: 15
+        t_min: -2.0
+        t_max: 1.5
+        n_t: 20     
 grid:
         n: 10
         m: 10
