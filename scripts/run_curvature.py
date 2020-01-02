@@ -4,7 +4,7 @@ import numpy as np
 
 from geocluster import geocluster
 
-from graph_library import graph_library as gl
+import graph_library as gl
 
 #get the graph from terminal input 
 graph_tpe = sys.argv[-1]     
