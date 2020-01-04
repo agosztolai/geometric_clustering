@@ -8,10 +8,10 @@ import numpy as np
 #Set parameters
 workers = 16 # numbers of cpus
 numGraphs = 100               # number of realisations
-w_in = np.round(np.concatenate((np.linspace(1.0,1.15,7),np.linspace(1.2,1.3,2))),3)[::-1] #edge weights inside clusters
+w_in = np.round(np.concatenate((np.linspace(1.0,1.15,7),np.linspace(1.2,1.7,6))),3)[::-1] #edge weights inside clusters
 
 #run postprocess? 
-postprocess = 0
+postprocess = 1
 
 if postprocess == 0:
     # =============================================================================
@@ -21,18 +21,20 @@ if postprocess == 0:
         
         #create a folder and move into it
         folder = '/data/AG/geocluster/Fan/win_' + str(w_in[i])
-        print(folder)
         if not os.path.isdir(folder):
             os.mkdir(folder)
         os.chdir(folder)
         
+        print(folder)
+        
         #Generate graphs
-        G = GraphGen(whichgraph='Fan', paramsfile='/home/gosztolai/Dropbox/github/geometric_clustering/benchmark/graph_params.yaml')
-        G.outfolder = folder
-        G.nsamples = numGraphs
-        G.params['seed'] = i #change seed every time
-        G.params['w_in'] = w_in[i]
-        G.generate()
+        G = GraphGen(whichgraph='Fan', paramsfile='/home/gosztolai/Dropbox/github/geometric_clustering/benchmark/graph_params.yaml',plot=False)
+        if not os.path.isfile('Fan_0_.gpickle'):
+            G.outfolder = folder
+            G.nsamples = numGraphs
+            G.params['seed'] = i #change seed every time
+            G.params['w_in'] = w_in[i]
+            G.generate()
         
         for k in range(numGraphs):
             

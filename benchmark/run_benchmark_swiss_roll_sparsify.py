@@ -8,7 +8,7 @@ import numpy as np
 #Set parameters
 workers = 16 # numbers of cpus
 numGraphs = 30               # number of realisations
-noise = np.linspace(.0,2.0,11)
+n = np.linspace(100,500,5).astype(int)
 
 #run postprocess? 
 postprocess = 0
@@ -17,8 +17,8 @@ if postprocess == 0:
     # =============================================================================
     # Main loop: repeat for all parameters and G-N realisations
     # =============================================================================
-    for i in range(noise.shape[0]):
-        folder = '/data/AG/geocluster/swiss-roll/noise_' + str(noise[i])
+    for i in range(n.shape[0]):
+        folder = '/data/AG/geocluster/swiss-roll_sparsify/Nnodes_' + str(n[i])
         #create a folder and move into it
         if not os.path.isdir(folder):
             os.mkdir(folder)
@@ -26,15 +26,19 @@ if postprocess == 0:
         
         print(folder)
         
-        G = GraphGen(whichgraph='swiss-roll', paramsfile='/home/gosztolai/Dropbox/github/geometric_clustering/benchmark/graph_params.yaml')
-        G.outfolder = folder
-        G.nsamples = numGraphs
-        G.params['seed'] = i
-        G.params['noise'] = noise[i]
-        G.generate(similarity = 'knn')
+        #generate graphs
+        G = GraphGen(whichgraph='swiss-roll', paramsfile='/home/gosztolai/Dropbox/github/geometric_clustering/benchmark/graph_params.yaml',plot=False)
+        if not os.path.isfile('swiss-roll_0_.gpickle'):
+            G.outfolder = folder
+            G.nsamples = numGraphs
+            G.params['n'] = n[i]
+            G.params['seed'] = 0
+            G.generate(similarity = 'knn')
         
-        print(G.params['t_min'])
         for k in range(numGraphs):   
+            
+            if os.path.isfile('swiss-roll_'+str(k)+'_curvature.pkl'):
+                continue
             
             G.params['filename'] = 'swiss-roll_'+str(k)+'_'
             graph = nx.read_gpickle(G.params['filename'] + ".gpickle")
@@ -56,13 +60,13 @@ if postprocess == 1:
     # =============================================================================
     # Postprocess
     # ============================================================================= 
-    for i in range(noise.shape[0]):
-        folder = '/data/AG/geocluster/swiss-roll/noise_' + str(noise[i])
+    for i in range(n.shape[0]):
+        folder = '/data/AG/geocluster/swiss-roll_sparsify/Nnodes_' + str(n[i])
         os.chdir(folder)
         
         for k in range(numGraphs):
             filename = 'swiss-roll_'+str(k)+'_'
-            print(filename + str(noise[i])) 
+            print(filename + str(n[i])) 
         
             G = nx.read_gpickle(filename+".gpickle")
             gc = GeoCluster(G)        

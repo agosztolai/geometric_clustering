@@ -26,17 +26,21 @@ if postprocess == 0:
         os.chdir(folder)
         
         print(folder)
-        
+        #Generate graphs
         G = GraphGen(whichgraph='GN', paramsfile='/home/gosztolai/Dropbox/github/geometric_clustering/benchmark/graph_params.yaml')
-        G.outfolder = folder
-        G.nsamples = numGraphs
-        G.params['seed'] = i
-        G.params['p_in'] = p_in[i]
-        G.params['p_out'] = p_out[i]
-        G.generate()
+        if not os.path.isfile('GN_0_.gpickle'):
+            G.outfolder = folder
+            G.nsamples = numGraphs
+            G.params['seed'] = i
+            G.params['p_in'] = p_in[i]
+            G.params['p_out'] = p_out[i]
+            G.generate()
         
         print(G.params['t_min'])
         for k in range(numGraphs):   
+            
+            if os.path.isfile('GN_'+str(k)+'_curvature.pkl'):
+                continue
             
             G.params['filename'] = 'GN_'+str(k)+'_'
             graph = nx.read_gpickle(G.params['filename'] + ".gpickle")
