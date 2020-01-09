@@ -8,10 +8,12 @@ from tqdm import tqdm
 import networkx as nx
 import pickle as pickle
 import pylab as plt
+import matplotlib as mpl
+from mpl_toolkits.mplot3d import Axes3D
 
 from multiprocessing import Pool
 from functools import partial
-from scipy.sparse.csgraph import laplacian, floyd_warshall
+from scipy.sparse.csgraph import floyd_warshall
 from sklearn.utils import check_symmetric
 
 from .curvature import mx_comp, K_ij, K_all, K_all_gpu
@@ -364,11 +366,7 @@ class GeoCluster(object):
         else:
             pos = nx.get_node_attributes(G, 'pos')   
          
-        xyz = []
-        for i in range(len(pos)):
-            xyz.append(pos[i])
-            
-        xyz = np.array(xyz)
+        xyz = np.array([pos[i] for i in range(len(pos))])
             
         #node colors
         if node_colors=='degree':

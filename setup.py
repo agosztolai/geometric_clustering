@@ -4,7 +4,7 @@
 from setuptools import setup, find_packages
 
 setup(
-        name = 'geocluster',
+        name = 'geometric_clustering',
         version = '1.0',
         install_requires=['numpy', 
                           'scipy', 
