@@ -11,7 +11,7 @@ numGraphs = 100               # number of realisations
 w_in = np.round(np.concatenate((np.linspace(1.0,1.15,7),np.linspace(1.2,1.7,6))),3)[::-1] #edge weights inside clusters
 
 #run postprocess? 
-postprocess = 1
+postprocess = 0
 
 if postprocess == 0:
     # =============================================================================

@@ -46,8 +46,12 @@ if postprocess == 0:
             
             # initialise the code with parameters and graph
             T = np.logspace(G.params['t_min'], G.params['t_max'], G.params['n_t'])
-            gc = GeoCluster(graph, T=T, workers=workers, cutoff=1., GPU=True, lamb=0.1, use_spectral_gap = False)
-                 
+            
+            if n[i] > 300:
+                gc = GeoCluster(graph, T=T, workers=workers, cutoff=1., GPU=True, lamb=0.1, use_spectral_gap = False)
+            else:
+                gc = GeoCluster(graph, T=T, workers=workers, cutoff=1., GPU=False, lamb=0.0, use_spectral_gap = False)
+     
             #Compute the OR curvatures are all the times
             gc.compute_OR_curvatures()
 

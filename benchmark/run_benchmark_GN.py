@@ -8,7 +8,7 @@ import numpy as np
 #Set parameters
 workers = 16 # numbers of cpus
 numGraphs = 100               # number of realisations
-p_in = np.round(np.concatenate((np.linspace(0.15,0.34,20),np.linspace(0.36,0.42,4))),2)
+p_in = np.array([0.38,0.4,0.42])#np.round(np.concatenate((np.linspace(0.15,0.34,20),np.linspace(0.36,0.42,4))),2)
 p_out = (0.5-p_in)/3         # edge between clusters
 
 #run postprocess? 
@@ -36,7 +36,6 @@ if postprocess == 0:
             G.params['p_out'] = p_out[i]
             G.generate()
         
-        print(G.params['t_min'])
         for k in range(numGraphs):   
             
             if os.path.isfile('GN_'+str(k)+'_curvature.pkl'):
