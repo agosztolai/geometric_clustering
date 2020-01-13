@@ -1,139 +1,69 @@
 barbell:
         m1: 7
         m2: 0
-        t_min: -3.0
-        t_max: 1.
-        n_t: 50
+        t_min: -2.0
+        t_max: 2.0
+        n_t: 20
 
 barbell_noisy:
         m1: 7
         m2: 0
+        t_min: -2.0
+        t_max: 3.0
+        n_t: 20
         noise: 0.5
-        t_min: -3.0
-        t_max: 1.
-        n_t: 50
                
 barbell_asy:
         m1: 7
         m2: 10
-        t_min: -3.0
-        t_max: 1.0
-        n_t: 50     
-
-complete:
-        n: 5
-        t_min: -3.0
-        t_max: 1.
-        n_t: 50     
-        
-dolphin:
-        t_min: -3.0
-        t_max: 1.
-        n_t: 50  
-karate:
-        t_min: -3.0
-        t_max: 1.0
-        n_t: 50
-
-miserable:
-        t_min: -3.0
-        t_max: 1.0
-        n_t: 50  
-
+        t_min: -2.0
+        t_max: 3.0
+        n_t: 20     
+    
 grid:
-        n: 8
-        m: 8
-        t_min: -3.0
-        t_max: 1.0
-        n_t: 50          
-
-delaunay-grid:
         n: 10
-        t_min: -3.0
-        t_max: 1.0
-        n_t: 50
-
-SBM:
-        sizes: [20, 15] 
-        probs: [[5., 1.0,], 
-                [1.0, 5.,]]
-        seed: 0
-        t_min: -3.0
-        t_max: 1.0
-        n_t: 50
-        
-football:
-        t_min: -3.0
-        t_max: 1.
-        n_t: 50
-        
-netscience:
-        t_min: -3.0
-        t_max: 1.
-        n_t: 50
-
-powergrid:
-        t_min: -3.0
-        t_max: 1.
-        n_t: 50
-
-celegans_undirected:
-        t_min: -3.
-        t_max: 1.
-        n_t: 50
-
-S: 
-        seed: 0
-        n: 70
-        s: 1.2
-        k: 5
-        counter: 0
-        radius: 1.7
-        elev: 10
-        azim: 290
-        similarity: 'radius'
-        t_min: -3.0
-        t_max: 1.0
-        n_t: 50
-        
-swiss-roll:
-        seed: 0
-        n: 200 
-        counter: 0
-        noise: 0.0   
-        elev: 10
-        azim: 270   
-        k: 5
-        radius: 6.5
-        similarity: 'knn' 
-        t_min: -3.0
-        t_max: 1.0
-        n_t: 50 
-
-
-
-
-
-
-
-#untested below
-
+        m: 10
+        t_min: -2.0
+        t_max: 3.0
+        n_t: 20          
+              
 2grid:
         n: 10
         t_min: -1.0
         t_max: 2.0
         n_t: 20        
         
+delaunay-grid:
+        n: 10
+        t_min: -2.0
+        t_max: 3.0
+        n_t: 20
+
 delaunay-nonunif:
         n: 10
         t_min: -2.0
         t_max: 3.0
         n_t: 20     
-       
+        
+dolphin:
+        t_min: -1.5
+        t_max: 2.5
+        n_t: 50  
+        
 email:
         t_min: 0
         t_max: 5
         n_t: 20        
+                          
+karate:
+        t_min: -3.0
+        t_max: 2.0
+        n_t: 10
+
+miserable:
+        t_min: -2.0
+        t_max: 2.0
+        n_t: 50  
 
 tree:
         r: 2
@@ -150,6 +80,15 @@ ER:
         t_max: 3.0
         n_t: 20
 
+SBM:
+        sizes: [20, 15] 
+        probs: [[10., 0.5,], 
+                [0.5, 10.,]]
+        seed: 0
+        t_min: -1.5
+        t_max: 2.0
+        n_t: 25
+        
 SBM_2:
         sizes: [50, 50, 50, 50]
         probs: [[ 10., 1.0, 0.0, 0.5],
@@ -189,12 +128,33 @@ LFR:
         n_t: 6     
         tau1: 2
         tau2: 2
-        mu: 0.2
+        mu: 0.5
         n: 1000
         k: 20
-        minc: 20
+        minc: 10
         maxc: 50
-        scriptfolder: '/home/gosztolai/Dropbox/github/geometric_clustering/datasets/LFR-Benchmark/lfrbench_udwov'
+        scriptfolder: './datasets/LFR-Benchmark/lfrbench_udwov'
+        outfolder: '/data/AG/geocluster/LFR/'
+
+football:
+        t_min: -1.5
+        t_max: 1.5
+        n_t: 200
+        
+netscience:
+        t_min: -3.5
+        t_max: 1.0
+        n_t: 200
+
+powergrid:
+        t_min: -5.0
+        t_max: 0.7
+        n_t: 50
+
+celegans_undirected:
+        t_min: -1.8
+        t_max: 1.5
+        n_t: 200
 
 celegans:
         t_min: -1.2
@@ -233,9 +193,65 @@ frucht:
         n_t: 200
 
 scale-free:
-        n: 30
+        n: 100
+        t_min: -2.0
+        t_max: 0.
+        n_t: 10
         
 gnr:
         n: 20
         p: 0.2
-           
+        
+S: 
+        n: 300
+        s: 1.2
+        k: 10
+        radius: 1.
+        seed: 1
+        t_min: -2.0
+        t_max: -0.0
+        n_t: 10
+        similarity: 'knn'
+        elev: 10
+        azim: 290
+        
+swiss-roll:
+        n: 300 
+        noise: 0.0   
+        elev: 10
+        azim: 270   
+        k: 10
+        similarity: 'knn' 
+        t_min: 1.0
+        t_max: 2.0
+        n_t: 20     
+
+star:
+        n: 10
+        t_min: -2.0
+        t_max: 0.
+        n_t: 10
+        
+dumbbell_of_stars:
+        m: 10
+        n: 15
+        t_min: -2.0
+        t_max: 1.
+        n_t: 20 
+        
+star_of_circles:
+        m: 10
+        n: 5
+        t_min: -2.0
+        t_max: 1.
+        n_t: 20
+        
+triangle_of_triangles:
+        t_min: -4.0
+        t_max: 0.
+        n_t: 20        
+        
+ring_of_cliques:
+        t_min: -2.0
+        t_max: 1.
+        n_t: 20        

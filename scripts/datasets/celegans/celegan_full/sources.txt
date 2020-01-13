@@ -1,4 +1,0 @@
-http://mit.edu/lrv/www/elegans/
-
-XLS files
-http://www.wormatlas.org/neuronalwiring.html
