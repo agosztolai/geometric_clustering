@@ -1,23 +1,19 @@
 import sys as sys
 import os as os
-
-from geocluster import geocluster
-
-import graph_library as gl
-
+from geocluster import GeoCluster
+import networkx as nx
 
 #get the graph from terminal input 
-graph_tpe = sys.argv[-1]
+whichgraph = sys.argv[-1]
 
 #Load graph 
-gg = gl.GraphGen(whichgraph=graph_tpe, paramsfile='./graph_params.yaml')
-gg.generate()
+G = nx.read_gpickle(whichgraph + "_0_.gpickle")
 
 #load graph 
-os.chdir(graph_tpe)
+os.chdir(whichgraph)
 
 # initialise the code with parameters and graph 
-gc = geocluster.GeoCluster(gg.G)
+gc = GeoCluster(G)
  
 #load results
 gc.load_curvature()

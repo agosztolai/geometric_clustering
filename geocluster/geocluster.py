@@ -34,7 +34,6 @@ class GeoCluster(object):
         self.e = len(G.edges)
         self.use_spectral_gap = use_spectral_gap
         self.laplacian_tpe = laplacian_tpe
-#        if 'block' in G.nodes[0]:
         self.labels_gt = [int(G.nodes[i]['block']) for i in G.nodes if 'block' in G.nodes[0]]
         
         #time vector
@@ -483,7 +482,7 @@ class GeoCluster(object):
                 plt.scatter(self.Y[i][:, 0], self.Y[i][:, 1])  
                 plt.scatter(A_weight[:, 0], A_weight[:, 1], alpha=0.5, marker ='+')  
             plt.axis('tight')
-            plt.savefig(os.path.join(folder, 'images_'+str(i) + ext))
+            plt.savefig(os.path.join(folder, 'images_' + str(i) + ext))
 
     # =============================================================================
     # Functions for saving and loading

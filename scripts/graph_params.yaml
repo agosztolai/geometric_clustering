@@ -111,7 +111,7 @@ Fan:
         p_in: 0.125
         p_out: 0.125
         
-Girvan_Newman:       
+GN:       
         seed: 1
         t_min: -0.5
         t_max: 0.5
