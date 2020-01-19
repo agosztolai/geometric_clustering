@@ -15,17 +15,18 @@ if not os.path.isdir(graph_tpe):
 #Load graph 
 gg = gl.GraphGen(whichgraph=graph_tpe, 
                  paramsfile='./graph_params.yaml')
-gg.generate()
+G = gg.generate()
          
 #Initialise the code with parameters and graph 
 os.chdir(graph_tpe)
 T = np.logspace(gg.params['t_min'], 
                 gg.params['t_max'], 
                 gg.params['n_t'])
-gc = geocluster.GeoCluster(gg.G, T=T, cutoff=1., workers=5, GPU=False, lamb=0.0, laplacian_tpe='normalized')
+
+gc = geocluster.GeoCluster(G, T=T, cutoff=1., workers=5, GPU=False, lamb=0.0, laplacian_tpe='normalized')
 
 #Compute the OR curvatures
-gc.compute_OR_curvatures(with_weights=True)
+gc.compute_OR_curvatures(with_weights=False)
 
 #Save results for later analysis
 gc.save_curvature()

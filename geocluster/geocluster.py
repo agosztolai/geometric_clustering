@@ -9,6 +9,7 @@ import networkx as nx
 import pickle as pickle
 import pylab as plt
 import matplotlib as mpl
+mpl.use('Agg') # this is not to display figures in the console and save memory
 from mpl_toolkits.mplot3d import Axes3D
 
 from multiprocessing import Pool
@@ -56,24 +57,25 @@ class GeoCluster(object):
         
         if self.laplacian_tpe == 'normalized':
             degree = np.array(self.A.sum(1)).flatten()
-            self.L = nx.laplacian_matrix(self.G).toarray().dot(np.diag(1./degree))
+            L = nx.laplacian_matrix(self.G).toarray().dot(np.diag(1./degree))
 
         elif self.laplacian_tpe == 'combinatorial':
-            self.L = sc.sparse.csr_matrix(1.*nx.laplacian_matrix(self.G)) #combinatorial Laplacian
+            L = sc.sparse.csr_matrix(1.*nx.laplacian_matrix(self.G)) #combinatorial Laplacian
 
         elif self.laplacian_tpe == 'signed_normalized':
-            self.L = signed_laplacian(self.A, normed=True, return_diag=True)
+            L = signed_laplacian(self.A, normed=True, return_diag=True)
 
         if self.use_spectral_gap:
-            self.L /= abs(sc.sparse.linalg.eigs(self.L, which='SM',k=2)[0][1])
+            L /= abs(sc.sparse.linalg.eigs(L, which='SM',k=2)[0][1])
 
+        return L
 
     def compute_distance_geodesic(self):
         """Geodesic distance matrix"""
         
         print('\nCompute geodesic distance matrix')
 
-        self.dist = floyd_warshall(self.A, directed=True, unweighted=False)
+        return floyd_warshall(self.A, directed=True, unweighted=False)
 
        
     def compute_OR_curvatures(self, with_weights=False):
@@ -81,19 +83,19 @@ class GeoCluster(object):
         
         print('\nGraph: ' + self.G.graph['name'])
         
-        self.construct_laplacian() #Laplacian matrix 
-        self.compute_distance_geodesic() #Geodesic distance matrix
+        L = self.construct_laplacian() #Laplacian matrix 
+        dist = self.compute_distance_geodesic() #Geodesic distance matrix
         
         print('\nCompute measures')
 
         with Pool(processes = self.workers) as p_mx: 
-            mx_all = list(tqdm(p_mx.imap(partial(mx_comp, self.L, self.T, self.cutoff), self.G.nodes()), total = self.n))
+            mx_all = list(tqdm(p_mx.imap(partial(mx_comp, L, self.T, self.cutoff), self.G.nodes()), total = self.n))
         
         if self.cutoff < 1. or self.lamb == 0:
             print('\nCompute edge curvatures')
 
             with Pool(processes = self.workers) as p_kappa:  
-                Kappa = list(tqdm(p_kappa.imap(partial(K_ij, mx_all, self.dist, self.lamb, with_weights), self.G.edges()), total = self.e))
+                Kappa = list(tqdm(p_kappa.imap(partial(K_ij, mx_all, dist, self.lamb, with_weights), self.G.edges()), total = self.e))
             
             #curvature matrix of size (edges x time) 
             Kappa = np.transpose(np.stack(Kappa, axis=1))
@@ -112,9 +114,9 @@ class GeoCluster(object):
                     mx_all_t[:,[i]] = mx_all[i][0][it].toarray()
                 
                 if self.GPU:
-                    Kappa[:,it] = K_all_gpu(mx_all_t,self.dist,self.lamb,self.G, with_weights=with_weights)  
+                    Kappa[:,it] = K_all_gpu(mx_all_t, dist, self.lamb, self.G, with_weights=with_weights)  
                 else:
-                    Kappa[:,it] = K_all(mx_all_t,self.dist,self.lamb,self.G, with_weights=with_weights)  
+                    Kappa[:,it] = K_all(mx_all_t, dist, self.lamb, self.G, with_weights=with_weights)  
 
         self.Kappa = Kappa
 
@@ -282,7 +284,7 @@ class GeoCluster(object):
         plt.savefig('clustering'+ext, bbox_inches = 'tight')
         
         
-    def plot_graph(self, t, node_size=100, edge_width=2, node_labels=False, cluster=False):
+    def plot_graph(self, t, node_size=20, edge_width=1, node_labels=False, cluster=False):
         """plot the curvature on the graph for a given time t"""
         
             
@@ -304,7 +306,7 @@ class GeoCluster(object):
             pos = np.asarray(pos)[:,[0,2]]
 
         nx.draw_networkx_nodes(self.G, pos=pos, node_size=node_size, node_color=_labels, cmap=plt.get_cmap("tab20"))
-        nx.draw_networkx_edges(self.G, pos=pos, width=edge_width, edge_color=self.Kappa[:, t], edge_vmin=edge_vmin, edge_vmax=edge_vmax, edge_cmap=plt.cm.coolwarm, arrows=False)
+        nx.draw_networkx_edges(self.G, pos=pos, width=edge_width, edge_color=self.Kappa[:, t], edge_vmin=edge_vmin, edge_vmax=edge_vmax, edge_cmap=plt.cm.coolwarm, alpha=0.5, arrows=False)
 
         edges = plt.cm.ScalarMappable(
             norm = plt.cm.colors.Normalize(edge_vmin, edge_vmax),
@@ -321,22 +323,59 @@ class GeoCluster(object):
         plt.axis('off')
 
 
-    def plot_edge_curvature(self, ext='.png'):
-
+    def plot_edge_curvature(self, ext='.svg', density=True):
+        
         plt.figure()
-        plt.plot(np.log10(self.T), self.Kappa.T, c='C0', lw=0.5)
-        plt.plot(np.log10(self.T), np.mean(self.Kappa, axis=0), c='C1')
-        plt.plot(np.log10(self.T), np.mean(self.Kappa, axis=0)-np.std(self.Kappa, axis=0), c='C1', ls='--')
-        plt.plot(np.log10(self.T), np.mean(self.Kappa, axis=0)+np.std(self.Kappa, axis=0), c='C1', ls='--')
-        plt.axvline(np.log10(self.T[np.argmax(np.std(self.Kappa.T,1))]), c='r', ls='--')
-        plt.axhline(1, ls='--', c='k')
-        plt.axhline(0, ls='--', c='k')
-        plt.xlabel('log(time)')
-        plt.ylabel('edge OR curvature')
+        fig = plt.figure(constrained_layout=True)
+        gs = fig.add_gridspec(ncols=2, nrows=2, width_ratios=[3, 1], height_ratios=[3, 1])
+        gs.update(wspace=0.00)
+        gs.update(hspace=0)
+        
+        ax1 = fig.add_subplot(gs[0, 0])
+        ax1.plot(np.log10(self.T), self.Kappa.T, c='C0', lw=0.5)
+        ax1.plot(np.log10(self.T), np.mean(self.Kappa, axis=0), c='C1')
+        ax1.plot(np.log10(self.T), np.mean(self.Kappa, axis=0)-np.std(self.Kappa, axis=0), c='C1', ls='--')
+        ax1.plot(np.log10(self.T), np.mean(self.Kappa, axis=0)+np.std(self.Kappa, axis=0), c='C1', ls='--')
+        ax1.axvline(np.log10(self.T[np.argmax(np.std(self.Kappa.T,1))]), c='r', ls='--')
+        ax1.axhline(1, ls='--', c='k')
+        ax1.axhline(0, ls='--', c='k')
+        ax1.set_yscale('symlog')
+        ax1.set_xlabel('log(time)')
+        ax1.set_ylabel('log(edge OR curvature)')
+        
+        if density:
+            
+            from sklearn.neighbors import KernelDensity
+            
+            #find minima
+            mins = [ np.min(self.Kappa[i]) for i in range(self.Kappa.shape[0]) ]
+            mins = np.array(mins)
+            inds =  np.array([ np.argmin(self.Kappa[i]) for i in range(self.Kappa.shape[0]) ])
+            inds = inds[mins<0]
+            mins = mins[mins<0][:, np.newaxis]
+    
+            ax2 = fig.add_subplot(gs[1, 0])
+            
+            bw = self.Kappa.shape[0]**(-1./(1+4)) #Scott's rule
+            kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(np.log10(self.T[inds])[:, np.newaxis])
+            Tind = np.linspace(np.log10(self.T[0]),np.log10(self.T[-1]),100)[:, np.newaxis]
+            log_dens = kde.score_samples(Tind)
+            #ax2.fill(Tind[:, 0], np.exp(log_dens), fc='#AAAAFF')
+            ax2.plot(Tind[:, 0], np.exp(log_dens), color='navy', linestyle='-')
+    
+            ax2.scatter(np.log10(self.T[inds]), np.zeros_like(inds))
+            ax2.tick_params(axis='x', which='both', left=False, top=False, labelleft=False)
+            ax2.set_ylim([-0.1,1])
+            ax2.set_xlabel('log(time)')
+        
+            kde = KernelDensity(kernel='gaussian', bandwidth=0.3).fit(mins)
+            minind = np.linspace(np.min(self.Kappa),1,100)[:, np.newaxis]
+            log_dens = kde.score_samples(minind) 
+        
         plt.savefig('edge_curvatures'+ext)
 
 
-    def plot_graph_snapshots(self, folder='images', node_size=100, node_labels=False, cluster=False, ext='.png'):
+    def plot_graph_snapshots(self, folder='images', node_size=30, node_labels=False, cluster=False, ext='.svg'):
         """plot the curvature on the graph for each time"""
 
         if not os.path.isdir(folder):
