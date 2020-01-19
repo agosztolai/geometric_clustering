@@ -333,15 +333,16 @@ class GeoCluster(object):
         
         ax1 = fig.add_subplot(gs[0, 0])
         ax1.plot(np.log10(self.T), self.Kappa.T, c='C0', lw=0.5)
-        ax1.plot(np.log10(self.T), np.mean(self.Kappa, axis=0), c='C1')
-        ax1.plot(np.log10(self.T), np.mean(self.Kappa, axis=0)-np.std(self.Kappa, axis=0), c='C1', ls='--')
-        ax1.plot(np.log10(self.T), np.mean(self.Kappa, axis=0)+np.std(self.Kappa, axis=0), c='C1', ls='--')
+#        ax1.plot(np.log10(self.T), np.mean(self.Kappa, axis=0), c='C1')
+#        ax1.plot(np.log10(self.T), np.mean(self.Kappa, axis=0)-np.std(self.Kappa, axis=0), c='C1', ls='--')
+#        ax1.plot(np.log10(self.T), np.mean(self.Kappa, axis=0)+np.std(self.Kappa, axis=0), c='C1', ls='--')
         ax1.axvline(np.log10(self.T[np.argmax(np.std(self.Kappa.T,1))]), c='r', ls='--')
         ax1.axhline(1, ls='--', c='k')
         ax1.axhline(0, ls='--', c='k')
         ax1.set_yscale('symlog')
-        ax1.set_xlabel('log(time)')
         ax1.set_ylabel('log(edge OR curvature)')
+        ax1.set_ylim([np.min(self.Kappa),1])
+        ax1.get_xaxis().set_visible(False)
         
         if density:
             
