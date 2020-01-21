@@ -19,7 +19,15 @@ barbell_asy:
         t_min: -2.0
         t_max: 3.0
         n_t: 20     
-    
+
+clique_of_cliques:    
+        m: 5
+        n: 3
+        L: 1
+        t_min: -7.0
+        t_max: 1.0
+        n_t: 100          
+        
 grid:
         n: 10
         m: 10
@@ -57,8 +65,8 @@ email:
                           
 karate:
         t_min: -3.0
-        t_max: 2.0
-        n_t: 10
+        t_max: 1.0
+        n_t: 100
 
 miserable:
         t_min: -2.0
@@ -147,9 +155,9 @@ netscience:
         n_t: 200
 
 powergrid:
-        t_min: -5.0
-        t_max: 0.7
-        n_t: 50
+        t_min: -8.0
+        t_max: -3.0
+        n_t: 10
 
 celegans_undirected:
         t_min: -1.8
@@ -253,6 +261,9 @@ triangle_of_triangles:
         n_t: 20        
         
 ring_of_cliques:
+        m: 5
+        n: 5
+        L: 500  
         t_min: -2.0
         t_max: 1.
         n_t: 20   
@@ -261,7 +272,7 @@ clique_of_cliques:
         m: 5
         n: 3
         L: 500  
+        seed: 0
         t_min: -7.0
         t_max: 1.
         n_t: 40
-                     

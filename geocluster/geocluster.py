@@ -56,25 +56,23 @@ class GeoCluster(object):
         
         if self.laplacian_tpe == 'normalized':
             degree = np.array(self.A.sum(1)).flatten()
-            L = nx.laplacian_matrix(self.G).toarray().dot(np.diag(1./degree))
+            self.L = nx.laplacian_matrix(self.G).toarray().dot(np.diag(1./degree))
 
         elif self.laplacian_tpe == 'combinatorial':
-            L = sc.sparse.csr_matrix(1.*nx.laplacian_matrix(self.G)) #combinatorial Laplacian
+            self.L = sc.sparse.csr_matrix(1.*nx.laplacian_matrix(self.G)) #combinatorial Laplacian
 
         elif self.laplacian_tpe == 'signed_normalized':
-            L = signed_laplacian(self.A, normed=True, return_diag=True)
+            self.L = signed_laplacian(self.A, normed=True, return_diag=True)
 
         if self.use_spectral_gap:
-            L /= abs(sc.sparse.linalg.eigs(L, which='SM',k=2)[0][1])
-
-        return L
+            self.L /= abs(sc.sparse.linalg.eigs(self.L, which='SM',k=2)[0][1])
 
     def compute_distance_geodesic(self):
         """Geodesic distance matrix"""
         
         print('\nCompute geodesic distance matrix')
 
-        return floyd_warshall(self.A, directed=True, unweighted=False)
+        self.dist = floyd_warshall(self.A, directed=True, unweighted=False)
 
        
     def compute_OR_curvatures(self, with_weights=False):
@@ -82,19 +80,18 @@ class GeoCluster(object):
         
         print('\nGraph: ' + self.G.graph['name'])
         
-        L = self.construct_laplacian() #Laplacian matrix 
-        dist = self.compute_distance_geodesic() #Geodesic distance matrix
+        self.construct_laplacian() #Laplacian matrix 
+        self.compute_distance_geodesic() #Geodesic distance matrix
         
-        print('\nCompute measures')
-
+        print('\nCompute ' + str(self.n) + ' measures')
         with Pool(processes = self.workers) as p_mx: 
-            mx_all = list(tqdm(p_mx.imap(partial(mx_comp, L, self.T, self.cutoff), self.G.nodes()), total = self.n))
-        
+            mx_all = list(tqdm(p_mx.imap(partial(mx_comp, self.L, self.T, self.cutoff), self.G.nodes()), total = self.n))
+
         if self.cutoff < 1. or self.lamb == 0:
-            print('\nCompute edge curvatures')
+            print('\nCompute ' + str(self.e) + ' edge curvatures')
 
             with Pool(processes = self.workers) as p_kappa:  
-                Kappa = list(tqdm(p_kappa.imap(partial(K_ij, mx_all, dist, self.lamb, with_weights), self.G.edges()), total = self.e))
+                Kappa = p_kappa.map_async(partial(K_ij, mx_all, self.dist, self.lamb, with_weights, list(self.G.edges())), range(self.e)).get()
             
             #curvature matrix of size (edges x time) 
             Kappa = np.transpose(np.stack(Kappa, axis=1))
@@ -324,7 +321,6 @@ class GeoCluster(object):
 
     def plot_edge_curvature(self, ext='.svg', density=True):
         
-        plt.figure()
         fig = plt.figure(constrained_layout=True)
         gs = fig.add_gridspec(ncols=2, nrows=2, width_ratios=[3, 1], height_ratios=[3, 1])
         gs.update(wspace=0.00)

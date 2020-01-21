@@ -14,6 +14,7 @@ Functions for computing the curvature
 
 # compute all neighbourhood densities
 def mx_comp(L, T, cutoff, i):
+    #print("\rstep "+str(i))
     N = np.shape(L)[0]
 
     def delta(i, n):
@@ -26,9 +27,9 @@ def mx_comp(L, T, cutoff, i):
 
     mx_tmp = delta(i, N) #set initial condition
     T = [0,] + list(T) #add time 0
-    for i in range(len((T))-1): 
+    for t in range(len((T))-1): 
         #compute exponential by increments (faster than from 0)
-        mx_tmp = sc.sparse.linalg.expm_multiply(-(T[i+1]-T[i])*L, mx_tmp)
+        mx_tmp = sc.sparse.linalg.expm_multiply(-(T[t+1]-T[t])*L, mx_tmp)
         Nx = np.argwhere(mx_tmp >= (1-cutoff)*np.max(mx_tmp))
         mx_all.append(sc.sparse.lil_matrix(mx_tmp[Nx]/np.sum(mx_tmp[Nx])))
         Nx_all.append(Nx)
@@ -37,7 +38,10 @@ def mx_comp(L, T, cutoff, i):
 
 
 # compute curvature for an edge ij
-def K_ij(mx_all, dist, lamb, with_weights, e):
+def K_ij(mx_all, dist, lamb, with_weights, edges, i):
+    print("step "+ str(i))
+
+    e = edges[i]
 
     i = e[0]
     j = e[1]
@@ -56,7 +60,7 @@ def K_ij(mx_all, dist, lamb, with_weights, e):
         if lamb != 0: #entropy regularized OT
             W = ot.sinkhorn2(mx, my, dNxNy, lamb)
         elif lamb == 0: #classical sparse OT
-            W = ot.emd2(mx, my, dNxNy) 
+            W = ot.emd2(mx, my, dNxNy, processes=1)
             
         if with_weights:
             K[it] = dist[i, j] - W

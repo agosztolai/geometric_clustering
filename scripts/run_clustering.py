@@ -26,4 +26,4 @@ gc.run_clustering(cluster_tpe='modularity_signed', cluster_by='curvature')
 #save and plot
 gc.save_clustering()
 gc.plot_clustering()
-gc.plot_graph_snapshots(folder='clustering_images', node_labels= False, cluster=True)
+gc.plot_graph_snapshots(folder='clustering_images', node_labels= False, cluster=True, node_size=10)
