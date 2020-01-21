@@ -13,60 +13,48 @@ Functions for computing the curvature
 '''
 
 # compute all neighbourhood densities
-def mx_comp(L, T, cutoff, i):
-    #print("\rstep "+str(i))
-    N = np.shape(L)[0]
+def mx_comp(L, dt, mx):
+    """ compute matrix exponential """
 
-    def delta(i, n):
-        p0 = np.zeros(n)
-        p0[i] = 1.
-        return p0
-
-    mx_all = []
-    Nx_all = []
-
-    mx_tmp = delta(i, N) #set initial condition
-    T = [0,] + list(T) #add time 0
-    for t in range(len((T))-1): 
-        #compute exponential by increments (faster than from 0)
-        mx_tmp = sc.sparse.linalg.expm_multiply(-(T[t+1]-T[t])*L, mx_tmp)
-        Nx = np.argwhere(mx_tmp >= (1-cutoff)*np.max(mx_tmp))
-        mx_all.append(sc.sparse.lil_matrix(mx_tmp[Nx]/np.sum(mx_tmp[Nx])))
-        Nx_all.append(Nx)
-    
-    return mx_all, Nx_all
-
+    return sc.sparse.linalg.expm_multiply(-dt*L, mx)
 
 # compute curvature for an edge ij
-def K_ij(mx_all, dist, lamb, with_weights, edges, i):
-    print("step "+ str(i))
+def K_ij(mxs, dist, lamb, cutoff, with_weights, edges, e):
+    #print("step "+ str(e))
 
-    e = edges[i]
+    # get the edge/nodes ids
+    edge = edges[e]
+    i = edge[0]
+    j = edge[1]
 
-    i = e[0]
-    j = e[1]
+    #get the measures
+    mx = mxs[i]
+    my = mxs[j]
+    
+    #set reduce the sized with cutoffs
+    Nx = np.where(mx >= (1. - cutoff) * np.max(mx))[0]
+    Ny = np.where(my >= (1. - cutoff) * np.max(my))[0]
 
-    nt = len(mx_all[0][0])
-    K = np.zeros(nt)
-    for it in range(nt):
+    dNxNy = dist[np.ix_(Nx, Ny)]
 
-        Nx = np.array(mx_all[i][1][it]).flatten()
-        Ny = np.array(mx_all[j][1][it]).flatten()
-        mx = mx_all[i][0][it].toarray().flatten()
-        my = mx_all[j][0][it].toarray().flatten()
+    mx = mx[Nx]
+    my = my[Ny]
 
-        dNxNy = dist[Nx,:][:,Ny].copy(order='C')
+    mx /=mx.sum()
+    my /=my.sum()
 
-        if lamb != 0: #entropy regularized OT
-            W = ot.sinkhorn2(mx, my, dNxNy, lamb)
-        elif lamb == 0: #classical sparse OT
-            W = ot.emd2(mx, my, dNxNy, processes=1)
-            
-        if with_weights:
-            K[it] = dist[i, j] - W
-        else:
-            K[it] = 1. - W / dist[i, j]  
-         
+    #compute K
+    if lamb != 0: #entropy regularized OT
+        W = ot.sinkhorn2(mx, my, dNxNy, lamb)
+
+    elif lamb == 0: #classical sparse OT
+        W = ot.emd2(mx, my, dNxNy)
+        
+    if with_weights:
+        K = dist[i, j] - W
+    else:
+        K = 1. - W / dist[i, j]  
+     
     return K
 
 

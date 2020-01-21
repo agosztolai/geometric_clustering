@@ -22,7 +22,7 @@ G = generate(whichgraph=whichgraph, params=params)
          
 #Initialise the code with parameters and graph 
 T = np.logspace(params['t_min'], params['t_max'], params['n_t'])
-gc = GeoCluster(G, T=T, cutoff=1., workers=16, GPU=False, lamb=0., laplacian_tpe='normalized')
+gc = GeoCluster(G, T=T, cutoff=1.-1e-5, workers=10, GPU=False, lamb=0.0, laplacian_tpe='normalized')
 
 #Compute the OR curvatures
 gc.compute_OR_curvatures(with_weights=False)

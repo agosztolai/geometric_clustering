@@ -65,7 +65,7 @@ email:
                           
 karate:
         t_min: -3.0
-        t_max: 1.0
+        t_max: 2.0
         n_t: 100
 
 miserable:
@@ -155,9 +155,9 @@ netscience:
         n_t: 200
 
 powergrid:
-        t_min: -8.0
-        t_max: -3.0
-        n_t: 10
+        t_min: -5.0
+        t_max: 2.0
+        n_t: 50
 
 celegans_undirected:
         t_min: -1.8

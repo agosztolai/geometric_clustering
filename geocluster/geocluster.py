@@ -56,7 +56,7 @@ class GeoCluster(object):
         
         if self.laplacian_tpe == 'normalized':
             degree = np.array(self.A.sum(1)).flatten()
-            self.L = nx.laplacian_matrix(self.G).toarray().dot(np.diag(1./degree))
+            self.L = sc.sparse.csr_matrix(nx.laplacian_matrix(self.G).toarray().dot(np.diag(1./degree)))
 
         elif self.laplacian_tpe == 'combinatorial':
             self.L = sc.sparse.csr_matrix(1.*nx.laplacian_matrix(self.G)) #combinatorial Laplacian
@@ -65,7 +65,7 @@ class GeoCluster(object):
             self.L = signed_laplacian(self.A, normed=True, return_diag=True)
 
         if self.use_spectral_gap:
-            self.L /= abs(sc.sparse.linalg.eigs(self.L, which='SM',k=2)[0][1])
+            self.L /= abs(sc.sparse.linalg.eigs(self.L, which='SM', k=2)[0][1])
 
     def compute_distance_geodesic(self):
         """Geodesic distance matrix"""
@@ -82,40 +82,26 @@ class GeoCluster(object):
         
         self.construct_laplacian() #Laplacian matrix 
         self.compute_distance_geodesic() #Geodesic distance matrix
-        
-        print('\nCompute ' + str(self.n) + ' measures')
-        with Pool(processes = self.workers) as p_mx: 
-            mx_all = list(tqdm(p_mx.imap(partial(mx_comp, self.L, self.T, self.cutoff), self.G.nodes()), total = self.n))
+       
+        self.Kappa = np.zeros([self.e, len(self.T)])
+        print('\n Compute curvature at each markov time')
+        for it in tqdm(range(len((self.T))-1)): 
 
-        if self.cutoff < 1. or self.lamb == 0:
-            print('\nCompute ' + str(self.e) + ' edge curvatures')
-
-            with Pool(processes = self.workers) as p_kappa:  
-                Kappa = p_kappa.map_async(partial(K_ij, mx_all, self.dist, self.lamb, with_weights, list(self.G.edges())), range(self.e)).get()
+            mxs = list(np.eye(self.n))  # create delta at each node
+            print('compute mx')
             
-            #curvature matrix of size (edges x time) 
-            Kappa = np.transpose(np.stack(Kappa, axis=1))
+            with Pool(processes = self.workers) as p_mx: 
+                mxs = p_mx.map_async(partial(mx_comp, self.L, self.T[it+1] - self.T[it]), mxs).get()
             
-        elif self.cutoff == 1. and self.lamb > 0:
-            assert self.lamb > 0, 'Lambda must be greater than zero'
-               
-            print('\nCompute the edge curvatures')
-            
-            n = nx.number_of_nodes(self.G)
-            e = nx.Graph.size(self.G)
-            Kappa = np.empty((e,self.n_t))
-            for it in tqdm(range(self.n_t)): 
-                mx_all_t = np.empty([n,n]) 
-                for i in range(len(mx_all)):
-                    mx_all_t[:,[i]] = mx_all[i][0][it].toarray()
-                
-                if self.GPU:
-                    Kappa[:,it] = K_all_gpu(mx_all_t, dist, self.lamb, self.G, with_weights=with_weights)  
-                else:
-                    Kappa[:,it] = K_all(mx_all_t, dist, self.lamb, self.G, with_weights=with_weights)  
-
-        self.Kappa = Kappa
-
+            print('compute K')
+            if not self.GPU:
+                with Pool(processes = self.workers) as p_kappa:  
+                    self.Kappa[:, it] = p_kappa.map_async(partial(K_ij, mxs, self.dist, self.lamb, self.cutoff,  with_weights, list(self.G.edges())), range(self.e)).get()
+            else: 
+                for i in range(len(mxs)):
+                    self.Kappa[:,it] = K_all_gpu(mxs, self.dist, self.lamb, self.G, with_weights=with_weights)  
+            print('save')
+            self.save_curvature(t_max = it)
 
     def compute_node_curvature(self):
         """Node curvatures from the adjacent edge curvatures"""
@@ -484,10 +470,13 @@ class GeoCluster(object):
     # Functions for saving and loading
     # =============================================================================
 
-    def save_curvature(self, filename = None):
+    def save_curvature(self, t_max = None, filename = None):
         if not filename:
             filename = self.G.graph.get('name')
-        pickle.dump([self.Kappa, self.T], open(filename + '_curvature.pkl','wb'))  
+        if not t_max:
+            pickle.dump([self.Kappa, self.T], open(filename + '_curvature.pkl','wb'))  
+        else:
+            pickle.dump([self.Kappa[:, :t_max], self.T[:t_max]], open(filename + '_curvature.pkl','wb'))  
 
     def load_curvature(self, filename = None):
         if not filename:
