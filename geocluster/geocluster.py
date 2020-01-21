@@ -461,18 +461,15 @@ class GeoCluster(object):
             plt.close('all')       
 
 
-    def plot_embedding(self, folder='images', ext='.png'):
+    def plot_embedding(self, folder='embedding_images', ext='.svg'):
 
-        if not os.path.isdir(folder):
-            os.mkdir(folder)
-        
         if not os.path.isdir(folder):
             os.mkdir(folder)
         
         node_colors = list(nx.get_node_attributes(self.G, 'color').values())
        
         A_weight = self.run_embedding(weight='weight')
-
+        
         for i in range(len(self.Y)):
             plt.figure(figsize=(10,7))
             if len(node_colors)>0:
@@ -481,7 +478,8 @@ class GeoCluster(object):
             else:
                 plt.scatter(self.Y[i][:, 0], self.Y[i][:, 1])  
                 plt.scatter(A_weight[:, 0], A_weight[:, 1], alpha=0.5, marker ='+')  
-            plt.axis('tight')
+            plt.axis('tight')         
+            
             plt.savefig(os.path.join(folder, 'images_' + str(i) + ext))
 
     # =============================================================================
@@ -503,3 +501,6 @@ class GeoCluster(object):
         if not filename:
             filename = self.G.graph.get('name')
         pickle.dump([self.G, self.clustering_results, self.labels_gt], open(filename + '_cluster_' + self.cluster_tpe + '.pkl','wb'))
+
+    def save_embedding(self, filename = None):
+        pickle.dump([self.G, self.Y], open(filename + '_embed.pkl','wb'))

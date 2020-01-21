@@ -251,9 +251,9 @@ def spectral_embedding(adjacency, n_components=8, eigen_solver=None,
 
     
     #normalised signed laplacian I - D^(-1/2)*A*D^(-1/2)
-    m = np.array(adjacency)
+    m = np.array(adjacency).astype(float)
     mabs = np.abs(m)
-    np.fill_diagonal(m, 0)
+    np.fill_diagonal(m, 0.)
     dd = mabs.sum(axis=0)
     isolated_node_mask = (dd == 0)
     dd = np.where(isolated_node_mask, 1, np.sqrt(dd))

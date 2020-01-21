@@ -215,7 +215,7 @@ S:
         elev: 10
         azim: 290
         
-swiss-roll:
+swiss_roll:
         n: 300 
         noise: 0.0   
         elev: 10
@@ -225,6 +225,7 @@ swiss-roll:
         t_min: 1.0
         t_max: 2.0
         n_t: 20     
+        seed: 0
 
 star:
         n: 10

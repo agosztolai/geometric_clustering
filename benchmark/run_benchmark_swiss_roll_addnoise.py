@@ -1,19 +1,19 @@
 import networkx as nx
 import os as os
-from geocluster.geocluster import GeoCluster
+from geocluster import GeoCluster
 from graph_library import generate_swiss_roll
 import numpy as np
 import yaml
 
 #Set parameters
 workers = 16 # numbers of cpus
-numGraphs = 30               # number of realisations
+numGraphs = 30 # number of realisations
 noise = np.linspace(.0,2.0,11)
 paramsfile='/home/gosztolai/Dropbox/github/geometric_clustering/benchmark/graph_params.yaml'
 params = yaml.load(open(paramsfile,'rb'), Loader=yaml.FullLoader)['swiss_roll']
 
 #run postprocess? 
-postprocess = 0
+postprocess = 1
 
 if postprocess == 0:
     # =============================================================================
@@ -74,11 +74,12 @@ if postprocess == 1:
             filename = 'swiss-roll_'+str(k)+'_'
             print(filename + str(noise[i])) 
         
-            G = nx.read_gpickle(filename+".gpickle")
+            G = nx.read_gpickle(filename + ".gpickle")
             gc = GeoCluster(G)        
-            gc.load_curvature(gc, filename='swiss-roll_' + str(k))
-            gc.run_embedding()
-            gc.save_clustering(gc, filename='swiss-roll_' + str(k))  
-            gc.plot_graph_snapshots(gc, node_labels= False, cluster=True)
+            gc.load_curvature(filename='swiss-roll_' + str(k))
+            gc.run_embeddings()
+            gc.save_embedding(filename='swiss-roll_' + str(k)) 
+            if not os.path.isfile(os.path.join(folder, 'images_' + str(i) + '.svg')):
+                gc.plot_embedding(folder=folder)
             
         os.system('cd ..') 

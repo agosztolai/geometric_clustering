@@ -6,7 +6,7 @@ from geocluster import GeoCluster
 from graph_library import generate
 
 #get the graph from terminal input 
-whichgraph = 'karate'#sys.argv[-1]     
+whichgraph = sys.argv[-1]     
 
 #load parameters
 paramsfile='graph_params.yaml'
