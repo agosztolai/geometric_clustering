@@ -6,11 +6,11 @@ import networkx as nx
 #get the graph from terminal input 
 whichgraph = sys.argv[-1]
 
-#Load graph 
-G = nx.read_gpickle(whichgraph + "_0_.gpickle")
-
 #load graph 
 os.chdir(whichgraph)
+
+#Load graph 
+G = nx.read_gpickle(whichgraph + ".gpickle")
 
 # initialise the code with parameters and graph 
 gc = GeoCluster(G)

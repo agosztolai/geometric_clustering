@@ -331,7 +331,7 @@ class GeoCluster(object):
 #        ax1.plot(np.log10(self.T), np.mean(self.Kappa, axis=0), c='C1')
 #        ax1.plot(np.log10(self.T), np.mean(self.Kappa, axis=0)-np.std(self.Kappa, axis=0), c='C1', ls='--')
 #        ax1.plot(np.log10(self.T), np.mean(self.Kappa, axis=0)+np.std(self.Kappa, axis=0), c='C1', ls='--')
-        ax1.axvline(np.log10(self.T[np.argmax(np.std(self.Kappa.T,1))]), c='r', ls='--')
+#        ax1.axvline(np.log10(self.T[np.argmax(np.std(self.Kappa.T,1))]), c='r', ls='--')
         ax1.axhline(1, ls='--', c='k')
         ax1.axhline(0, ls='--', c='k')
         ax1.set_yscale('symlog')
@@ -350,23 +350,25 @@ class GeoCluster(object):
             inds = inds[mins<0]
             mins = mins[mins<0][:, np.newaxis]
     
-            ax2 = fig.add_subplot(gs[1, 0])
+            if len(inds)>0:
             
-            bw = self.Kappa.shape[0]**(-1./(1+4)) #Scott's rule
-            kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(np.log10(self.T[inds])[:, np.newaxis])
-            Tind = np.linspace(np.log10(self.T[0]),np.log10(self.T[-1]),100)[:, np.newaxis]
-            log_dens = kde.score_samples(Tind)
-            #ax2.fill(Tind[:, 0], np.exp(log_dens), fc='#AAAAFF')
-            ax2.plot(Tind[:, 0], np.exp(log_dens), color='navy', linestyle='-')
-    
-            ax2.scatter(np.log10(self.T[inds]), np.zeros_like(inds))
-            ax2.tick_params(axis='x', which='both', left=False, top=False, labelleft=False)
-            ax2.set_ylim([-0.1,1])
-            ax2.set_xlabel('log(time)')
+                ax2 = fig.add_subplot(gs[1, 0])
+            
+                bw = self.Kappa.shape[0]**(-1./(1+4)) #Scott's rule
+                kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(np.log10(self.T[inds])[:, np.newaxis])
+                Tind = np.linspace(np.log10(self.T[0]),np.log10(self.T[-1]),100)[:, np.newaxis]
+                log_dens = kde.score_samples(Tind)
+                #ax2.fill(Tind[:, 0], np.exp(log_dens), fc='#AAAAFF')
+                ax2.plot(Tind[:, 0], np.exp(log_dens), color='navy', linestyle='-')
+                
+                ax2.scatter(np.log10(self.T[inds]), np.zeros_like(inds))
+                ax2.tick_params(axis='x', which='both', left=False, top=False, labelleft=False)
+                ax2.set_ylim([-0.1,1])
+                ax2.set_xlabel('log(time)')
         
-            kde = KernelDensity(kernel='gaussian', bandwidth=0.3).fit(mins)
-            minind = np.linspace(np.min(self.Kappa),1,100)[:, np.newaxis]
-            log_dens = kde.score_samples(minind) 
+                kde = KernelDensity(kernel='gaussian', bandwidth=0.3).fit(mins)
+                minind = np.linspace(np.min(self.Kappa),1,100)[:, np.newaxis]
+                log_dens = kde.score_samples(minind) 
         
         plt.savefig('edge_curvatures'+ext)
 

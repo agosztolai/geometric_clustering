@@ -213,7 +213,7 @@ gnr:
 S: 
         n: 300
         s: 1.2
-        k: 10
+        k: 15
         radius: 1.
         seed: 1
         t_min: -2.0
@@ -230,8 +230,8 @@ swiss_roll:
         azim: 270   
         k: 10
         similarity: 'knn' 
-        t_min: 1.0
-        t_max: 2.0
+        t_min: -1.0
+        t_max: 1.0
         n_t: 20     
         seed: 0
 
