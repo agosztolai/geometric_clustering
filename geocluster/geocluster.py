@@ -266,28 +266,33 @@ class GeoCluster(object):
         plt.savefig('clustering'+ext, bbox_inches = 'tight')
         
         
-    def plot_graph(self, t, node_size=20, edge_width=1, node_labels=False, cluster=False):
+    def plot_graph(self, t, node_size=20, edge_width=1, node_labels=False, node_colors=None, cluster=False):
         """plot the curvature on the graph for a given time t"""
         
             
-        if 'pos' in self.G.nodes[0]:
+        if 'pos' in self.G.nodes[1]:
             pos = list(nx.get_node_attributes(self.G,'pos').values())
         else:
             pos = nx.spring_layout(self.G)  
         
-        if cluster:
-            _labels = self.clustering_results['community_id'][t]
-        else:
-            _labels = [0] * self.n
-            
-        edge_vmin = -1. #-np.max(abs(self.Kappa[:,t]))
-        edge_vmax = 1. #np.max(abs(self.Kappa[:,t]))    
-
-        plt.figure(figsize = (5,4))
         if len(pos[0])>2:
             pos = np.asarray(pos)[:,[0,2]]
-
-        nx.draw_networkx_nodes(self.G, pos=pos, node_size=node_size, node_color=_labels, cmap=plt.get_cmap("tab20"))
+            
+        plt.figure(figsize = (5,4))
+        
+        if cluster:
+            _labels = self.clustering_results['community_id'][t]
+            nx.draw_networkx_nodes(self.G, pos=pos, node_size=node_size, node_color=_labels, cmap=plt.get_cmap("tab20"))
+        elif node_labels is not None:
+            nx.draw_networkx_nodes(self.G, pos=pos, node_size=node_size, node_color=node_colors, cmap=plt.cm.coolwarm)
+        else:
+            _labels = [0] * self.n
+            nx.draw_networkx_nodes(self.G, pos=pos, node_size=node_size, node_color=_labels, cmap=plt.get_cmap("tab20"))
+            
+            
+        edge_vmin = -1. #-np.max(abs(self.Kappa[:,t]))
+        edge_vmax = 1. #np.max(abs(self.Kappa[:,t]))         
+       
         nx.draw_networkx_edges(self.G, pos=pos, width=edge_width, edge_color=self.Kappa[:, t], edge_vmin=edge_vmin, edge_vmax=edge_vmax, edge_cmap=plt.cm.coolwarm, alpha=0.5, arrows=False)
 
         edges = plt.cm.ScalarMappable(
