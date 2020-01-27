@@ -1,20 +1,27 @@
 import sys as sys
 import os 
-import networkx as nx
-
+import yaml
+import numpy as np
 from geocluster import GeoCluster
+from graph_library import generate
 
 #get the graph from terminal input 
-graph_tpe = sys.argv[-1]
+whichgraph = sys.argv[-1]     
+
+#load parameters
+paramsfile='graph_params.yaml'
+params = yaml.load(open(paramsfile,'rb'), Loader=yaml.FullLoader)[whichgraph]
+
+os.chdir(whichgraph)
 
 #Load graph 
-os.chdir(graph_tpe)
-G = nx.read_gpickle(graph_tpe + "_0_.gpickle")
+G = generate(whichgraph=whichgraph, params=params)
+         
+#Initialise the code with parameters and graph 
+T = np.logspace(params['t_min'], params['t_max'], params['n_t'])
+gc = GeoCluster(G, T=T, cutoff=1.-1e-5, workers=1, GPU=False, lamb=0.0, laplacian_tpe='normalized')
 
-# initialise the code with parameters and graph 
-gc = GeoCluster(G)
-
-#load results
+#Compute the OR curvatures
 gc.load_curvature()
 
 #cluster 
@@ -26,4 +33,4 @@ gc.run_clustering(cluster_tpe='modularity_signed', cluster_by='curvature')
 #save and plot
 gc.save_clustering()
 gc.plot_clustering()
-gc.plot_graph_snapshots(folder='clustering_images', node_labels= False, cluster=True, node_size=10)
+gc.plot_graph_snapshots(folder='clustering_images', node_labels=False, cluster=True, node_size=50)

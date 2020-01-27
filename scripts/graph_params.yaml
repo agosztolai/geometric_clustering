@@ -24,9 +24,10 @@ clique_of_cliques:
         m: 5
         n: 3
         L: 1
+        seed: 1
         t_min: -7.0
-        t_max: 1.0
-        n_t: 100          
+        t_max: 2.0
+        n_t: 200          
         
 grid:
         n: 10
@@ -155,9 +156,9 @@ netscience:
         n_t: 200
 
 powergrid:
-        t_min: -5.0
-        t_max: 2.0
-        n_t: 50
+        t_min: -4.0
+        t_max: 1.5
+        n_t: 200
 
 celegans_undirected:
         t_min: -1.8
@@ -267,12 +268,3 @@ ring_of_cliques:
         t_min: -2.0
         t_max: 1.
         n_t: 20   
-
-clique_of_cliques:
-        m: 5
-        n: 3
-        L: 500  
-        seed: 0
-        t_min: -7.0
-        t_max: 1.
-        n_t: 40
