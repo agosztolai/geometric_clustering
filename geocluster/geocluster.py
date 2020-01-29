@@ -37,7 +37,7 @@ class GeoCluster(object):
         self.labels_gt = [int(G.nodes[i]['block']) for i in G.nodes if 'block' in G.nodes[0]]
         
         #time vector
-        self.n_t = len(T)
+        self.n_t = len(T) - 1
         self.T = T
 
         #precision parameters
@@ -67,6 +67,7 @@ class GeoCluster(object):
         if self.use_spectral_gap:
             self.L /= abs(sc.sparse.linalg.eigs(self.L, which='SM', k=2)[0][1])
 
+
     def compute_distance_geodesic(self):
         """Geodesic distance matrix"""
         
@@ -75,7 +76,7 @@ class GeoCluster(object):
         self.dist = floyd_warshall(self.A, directed=True, unweighted=False)
 
        
-    def compute_OR_curvatures(self, with_weights=False):
+    def compute_OR_curvatures(self, with_weights=False, save=True):
         """Edge curvature matrix"""    
         
         print('\nGraph: ' + self.G.graph['name'])
@@ -83,25 +84,30 @@ class GeoCluster(object):
         self.construct_laplacian() #Laplacian matrix 
         self.compute_distance_geodesic() #Geodesic distance matrix
        
-        self.Kappa = np.zeros([self.e, len(self.T)])
-        print('\n Compute curvature at each markov time')
-        for it in tqdm(range(len((self.T))-1)): 
+        
+        print('\nCompute curvature at each markov time')
+        self.Kappa = np.zeros([self.e, self.n_t])
+        for it in tqdm(range(self.n_t)): 
 
             mxs = list(np.eye(self.n))  # create delta at each node
-            print('compute mx')
+            #print('compute mx')
             
             with Pool(processes = self.workers) as p_mx: 
                 mxs = p_mx.map_async(partial(mx_comp, self.L, self.T[it+1] - self.T[it]), mxs).get()
             
-            print('compute K')
+            #print('compute K')
+            
             if not self.GPU:
                 with Pool(processes = self.workers) as p_kappa:  
                     self.Kappa[:, it] = p_kappa.map_async(partial(K_ij, mxs, self.dist, self.lamb, self.cutoff,  with_weights, list(self.G.edges())), range(self.e)).get()
             else: 
                 for i in range(len(mxs)):
                     self.Kappa[:,it] = K_all_gpu(mxs, self.dist, self.lamb, self.G, with_weights=with_weights)  
-            print('save')
-            self.save_curvature(t_max = it)
+            
+            #print('save')
+            if save:
+                self.save_curvature(t_max = it)
+
 
     def compute_node_curvature(self):
         """Node curvatures from the adjacent edge curvatures"""
@@ -145,7 +151,7 @@ class GeoCluster(object):
             stability.n_processes_louv = 2 #number of cpus 
             stability.n_processes_mi = 2 #number of cpus
 
-            stabilities = []; nComms = []; MIs = []; labels = []
+            stabilities, nComms, MIs, labels = [], [], [], []
             for i in tqdm(range(self.n_t)):
 
                 #set adjacency matrix
@@ -183,6 +189,7 @@ class GeoCluster(object):
         A = se.fit_transform(nx.adjacency_matrix(self.G, weight=weight).toarray())
 
         return A 
+
 
     def run_embeddings(self, weight='curvature'):
         '''embedding based on curvature-signed Laplacian eigenmaps for all times'''
@@ -310,7 +317,7 @@ class GeoCluster(object):
         plt.axis('off')
 
 
-    def plot_edge_curvature(self, ext='.svg', density=True):
+    def plot_edge_curvature(self, ext='.svg', density=True, filename = None, log=True, save=True):
         
         fig = plt.figure(constrained_layout=True)
         gs = fig.add_gridspec(ncols=2, nrows=2, width_ratios=[3, 1], height_ratios=[3, 1])
@@ -318,14 +325,15 @@ class GeoCluster(object):
         gs.update(hspace=0)
         
         ax1 = fig.add_subplot(gs[0, 0])
-        ax1.plot(np.log10(self.T), self.Kappa.T, c='C0', lw=0.5)
+        ax1.plot(np.log10(self.T[:self.n_t]), self.Kappa.T, c='C0', lw=0.5)
 #        ax1.plot(np.log10(self.T), np.mean(self.Kappa, axis=0), c='C1')
 #        ax1.plot(np.log10(self.T), np.mean(self.Kappa, axis=0)-np.std(self.Kappa, axis=0), c='C1', ls='--')
 #        ax1.plot(np.log10(self.T), np.mean(self.Kappa, axis=0)+np.std(self.Kappa, axis=0), c='C1', ls='--')
 #        ax1.axvline(np.log10(self.T[np.argmax(np.std(self.Kappa.T,1))]), c='r', ls='--')
         ax1.axhline(1, ls='--', c='k')
         ax1.axhline(0, ls='--', c='k')
-        ax1.set_yscale('symlog')
+        if log:
+            ax1.set_yscale('symlog')
         ax1.set_ylabel('log(edge OR curvature)')
         ax1.set_ylim([np.min(self.Kappa),1])
         ax1.get_xaxis().set_visible(False)
@@ -347,7 +355,7 @@ class GeoCluster(object):
             
                 bw = self.Kappa.shape[0]**(-1./(1+4)) #Scott's rule
                 kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(np.log10(self.T[inds])[:, np.newaxis])
-                Tind = np.linspace(np.log10(self.T[0]),np.log10(self.T[-1]),100)[:, np.newaxis]
+                Tind = np.linspace(np.log10(self.T[0]), np.log10(self.T[-2]), 100)[:, np.newaxis]
                 log_dens = kde.score_samples(Tind)
                 #ax2.fill(Tind[:, 0], np.exp(log_dens), fc='#AAAAFF')
                 ax2.plot(Tind[:, 0], np.exp(log_dens), color='navy', linestyle='-')
@@ -361,7 +369,13 @@ class GeoCluster(object):
                 minind = np.linspace(np.min(self.Kappa),1,100)[:, np.newaxis]
                 log_dens = kde.score_samples(minind) 
         
-        plt.savefig('edge_curvatures'+ext)
+        if filename is None:
+            filename = ''
+        
+        if save:
+            plt.savefig(filename + 'edge_curvatures' + ext)
+        
+        return fig
 
 
     def plot_graph_snapshots(self, folder='images', node_size=30, node_labels=False, cluster=False, ext='.svg'):
@@ -371,9 +385,9 @@ class GeoCluster(object):
             os.mkdir(folder)
 
         print('plot images')
-        for i, t in enumerate(tqdm(self.T)):  
+        for i in tqdm(len(self.n_t)):
             self.plot_graph(i, node_size=node_size, node_labels=node_labels, cluster=cluster)
-            plt.title(r'$log_{10}(t)=$'+str(np.around(np.log10(t),2)))
+            plt.title(r'$log_{10}(t)=$'+str(np.around(np.log10(self.T[i]),2)))
             plt.savefig(folder + '/image_' + str(i) + ext, bbox_inches='tight')
             plt.close()
             
@@ -386,8 +400,7 @@ class GeoCluster(object):
             params['elev'] = 10
             params['azim'] = 290
         
-        n = G.number_of_nodes()
-        m = G.number_of_edges()
+        n, m = G.number_of_nodes(), G.number_of_edges() 
         
         if nx.get_node_attributes(G, 'pos') == {}:
             pos = nx.spring_layout(G, dim=3)
@@ -476,12 +489,13 @@ class GeoCluster(object):
     # =============================================================================
 
     def save_curvature(self, t_max = None, filename = None):
-        if not filename:
+        if filename is None:
             filename = self.G.graph.get('name')
-        if not t_max:
+        if t_max is None:
             pickle.dump([self.Kappa, self.T], open(filename + '_curvature.pkl','wb'))  
         else:
             pickle.dump([self.Kappa[:, :t_max], self.T[:t_max]], open(filename + '_curvature.pkl','wb'))  
+
 
     def load_curvature(self, filename = None):
         if not filename:
@@ -489,10 +503,12 @@ class GeoCluster(object):
         self.Kappa, self.T = pickle.load(open(filename + '_curvature.pkl','rb'))
         self.n_t = len(self.T)
 
+
     def save_clustering(self, filename = None):
         if not filename:
             filename = self.G.graph.get('name')
         pickle.dump([self.G, self.clustering_results, self.labels_gt], open(filename + '_cluster_' + self.cluster_tpe + '.pkl','wb'))
+
 
     def save_embedding(self, filename = None):
         pickle.dump([self.G, self.Y], open(filename + '_embed.pkl','wb'))
