@@ -4,6 +4,7 @@
 import warnings
 import numpy as np
 from scipy import sparse
+import networkx as nx
 from scipy.linalg import eigh
 from scipy.sparse.linalg import eigsh, lobpcg
 from scipy.sparse.csgraph import connected_components
@@ -19,8 +20,9 @@ Laplacian eigenmaps
 =============================================================================
 '''
 
-def signed_laplacian(A, normed=True, return_diag=True):
-    A = np.array(A)
+def signed_laplacian(G, normed=True, return_diag=True):
+    A = nx.adjacency_matrix(G)    
+    
     Aabs = np.abs(A)
     np.fill_diagonal(A, 0)
     dd = Aabs.sum(axis=0)

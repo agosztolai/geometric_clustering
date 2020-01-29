@@ -24,87 +24,49 @@ from .embedding import signed_laplacian, SpectralEmbedding
 
 class GeoCluster(object): 
 
-    def __init__(self, G, T=np.logspace(0,1,10), laplacian_tpe='normalized',\
-                 cutoff=1.0, lamb=0, GPU=False, workers=2, use_spectral_gap=True):
+    def __init__(self, G, T=np.logspace(0,1,10), laplacian_tpe='normalized',
+                 use_spectral_gap=True):
 
-        #set the graph
         self.G = G
         self.A = check_symmetric(nx.adjacency_matrix(self.G, weight='weight'))
         self.n = len(G.nodes)
         self.e = len(G.edges)
         self.use_spectral_gap = use_spectral_gap
         self.laplacian_tpe = laplacian_tpe
-        self.labels_gt = [int(G.nodes[i]['block']) for i in G.nodes if 'block' in G.nodes[0]]
         
         #time vector
         self.n_t = len(T) - 1
-        self.T = T
-
-        #precision parameters
-        self.cutoff = cutoff
-        self.lamb = lamb
-
-        #GPU and cpu parameters
-        self.GPU = GPU
-        self.workers = workers
+        self.T = T   
 
 
-    def construct_laplacian(self): 
-        """Laplacian matrix"""
-        
-        print('\nConstruct ' + self.laplacian_tpe + ' Laplacian')
-        
-        if self.laplacian_tpe == 'normalized':
-            degree = np.array(self.A.sum(1)).flatten()
-            self.L = sc.sparse.csr_matrix(nx.laplacian_matrix(self.G).toarray().dot(np.diag(1./degree)))
-
-        elif self.laplacian_tpe == 'combinatorial':
-            self.L = sc.sparse.csr_matrix(1.*nx.laplacian_matrix(self.G)) #combinatorial Laplacian
-
-        elif self.laplacian_tpe == 'signed_normalized':
-            self.L = signed_laplacian(self.A, normed=True, return_diag=True)
-
-        if self.use_spectral_gap:
-            self.L /= abs(sc.sparse.linalg.eigs(self.L, which='SM', k=2)[0][1])
-
-
-    def compute_distance_geodesic(self):
-        """Geodesic distance matrix"""
-        
-        print('\nCompute geodesic distance matrix')
-
-        self.dist = floyd_warshall(self.A, directed=True, unweighted=False)
-
-       
-    def compute_OR_curvatures(self, with_weights=False, save=True):
+    def compute_OR_curvatures(self, with_weights=False, GPU=False, workers=2, 
+                              cutoff=1.0, lamb=0, save=True):
         """Edge curvature matrix"""    
         
         print('\nGraph: ' + self.G.graph['name'])
         
-        self.construct_laplacian() #Laplacian matrix 
-        self.compute_distance_geodesic() #Geodesic distance matrix
+        L = construct_laplacian(self.G, self.laplacian_tpe, self.use_spectral_gap) #Laplacian matrix 
+        dist = compute_distance_geodesic(self.A) #Geodesic distance matrix
        
-
         print('\nCompute curvature at each markov time')
         self.Kappa = np.zeros([self.e, self.n_t])
         for it in tqdm(range(self.n_t)): 
 
             mxs = list(np.eye(self.n))  # create delta at each node
             
-            with Pool(processes = self.workers) as p_mx: 
-                mxs = p_mx.map_async(partial(mx_comp, self.L, self.T[it+1] - self.T[it]), mxs).get()
+            with Pool(processes = workers) as p_mx: 
+                mxs = p_mx.map_async(partial(mx_comp, L, self.T[it+1] - self.T[it]), mxs).get()
             
-            if not self.GPU:
-                with Pool(processes = self.workers) as p_kappa:  
-                    self.Kappa[:, it] = p_kappa.map_async(partial(K_ij, mxs, self.dist, self.lamb, self.cutoff,  with_weights, list(self.G.edges())), range(self.e)).get()
+            if not GPU:
+                with Pool(processes = workers) as p_kappa:  
+                    self.Kappa[:, it] = p_kappa.map_async(partial(K_ij, mxs, dist, lamb, cutoff,  with_weights, list(self.G.edges())), range(self.e)).get()
             else: 
                 for i in range(len(mxs)):
-                    self.Kappa[:,it] = K_all_gpu(mxs, self.dist, self.lamb, self.G, with_weights=with_weights)  
+                    self.Kappa[:,it] = K_all_gpu(mxs, dist, lamb, self.G, with_weights=with_weights)  
 
             if all(self.Kappa[:,it]>0):
                 print('All edges have positive curvatures, so you could stop the computations')
 
-            # print('save')
             if save:
                 self.save_curvature(t_max = it)
 
@@ -121,6 +83,7 @@ class GeoCluster(object):
         """Clustering of curvature weigthed graphs"""
         
         self.cluster_tpe = cluster_tpe
+        self.labels_gt = [int(self.G.nodes[i]['block']) for i in self.G.nodes if 'block' in self.G.nodes[0]]
 
         if cluster_tpe == 'threshold':
             
@@ -252,6 +215,7 @@ class GeoCluster(object):
             ax1.yaxis.set_label_position('right')
             ax1.set_ylabel('Number of clusters', color='C0')
             ax1.set_ylim(0,500) 
+            
             #plot the stability
             ax2 = plt.subplot(gs[1, 0])
             ax2.plot(T, self.clustering_results['stability'], label=r'$Q$',c='C2')
@@ -274,7 +238,8 @@ class GeoCluster(object):
         plt.savefig('clustering'+ext, bbox_inches = 'tight')
         
         
-    def plot_graph(self, t, node_size=20, edge_width=1, node_labels=False, cluster=False, node_colors=None, figsize=(10, 7)):
+    def plot_graph(self, t, node_size=20, edge_width=1, node_labels=False, 
+                   cluster=False, node_colors=None, figsize=(10, 7)):
         """plot the curvature on the graph for a given time t"""
         
             
@@ -365,7 +330,6 @@ class GeoCluster(object):
                 kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(np.log10(self.T[inds])[:, np.newaxis])
                 Tind = np.linspace(np.log10(self.T[0]), np.log10(self.T[-2]), 100)[:, np.newaxis]
                 log_dens = kde.score_samples(Tind)
-                #ax2.fill(Tind[:, 0], np.exp(log_dens), fc='#AAAAFF')
                 ax2.plot(Tind[:, 0], np.exp(log_dens), color='navy', linestyle='-')
                 
                 ax2.scatter(np.log10(self.T[inds]), np.zeros_like(inds))
@@ -536,3 +500,35 @@ class GeoCluster(object):
 
     def save_embedding(self, filename = None):
         pickle.dump([self.G, self.Y], open(filename + '_embed.pkl','wb'))
+
+
+def compute_distance_geodesic(A):
+        """Geodesic distance matrix"""
+        
+        print('\nCompute geodesic distance matrix')
+
+        dist = floyd_warshall(A, directed=True, unweighted=False)
+        
+        return dist
+  
+    
+def construct_laplacian(G, laplacian_tpe='normalized', use_spectral_gap=False): 
+    """Laplacian matrix"""
+        
+    print('\nConstruct ' + laplacian_tpe + ' Laplacian')
+        
+    if laplacian_tpe == 'normalized':
+        # degrees = np.array(self.A.sum(1)).flatten()
+        degrees = np.array([G.degree[i] for i in G.nodes])
+        L = sc.sparse.csr_matrix(nx.laplacian_matrix(G).toarray().dot(np.diag(1./degrees)))
+
+    elif laplacian_tpe == 'combinatorial':
+        L = sc.sparse.csr_matrix(1.*nx.laplacian_matrix(G)) #combinatorial Laplacian
+
+    elif laplacian_tpe == 'signed_normalized':
+        L = signed_laplacian(G, normed=True, return_diag=True)
+
+    if use_spectral_gap:
+        L /= abs(sc.sparse.linalg.eigs(L, which='SM', k=2)[0][1])
+            
+    return L     
