@@ -70,14 +70,6 @@ class GeoCluster(object):
             if save:
                 self.save_curvature(t_max = it)
 
-    def compute_node_curvature(self):
-        """Node curvatures from the adjacent edge curvatures"""
-
-        B = nx.incidence_matrix(self.G).toarray() #incidence matrix with only ones (no negative values)
-        Dinv = np.diag(1./B.sum(1)) # inverse degree matrix
-
-        self.Kappa_node = Dinv.dot(B).dot(self.Kappa)
-
 
     def run_clustering(self,cluster_tpe='threshold', cluster_by='curvature'):
         """Clustering of curvature weigthed graphs"""
@@ -502,14 +494,25 @@ class GeoCluster(object):
         pickle.dump([self.G, self.Y], open(filename + '_embed.pkl','wb'))
 
 
-def compute_distance_geodesic(A):
-        """Geodesic distance matrix"""
-        
-        print('\nCompute geodesic distance matrix')
+def compute_node_curvature(G, Kappa):
+    """Node curvatures from the adjacent edge curvatures"""
 
-        dist = floyd_warshall(A, directed=True, unweighted=False)
+    B = nx.incidence_matrix(G).toarray() #incidence matrix with only ones (no negative values)
+    Dinv = np.diag(1./B.sum(1)) # inverse degree matrix
+
+    Kappa_node = Dinv.dot(B).dot(Kappa)
+    
+    return Kappa_node
+
+
+def compute_distance_geodesic(A):
+    """Geodesic distance matrix"""
         
-        return dist
+    print('\nCompute geodesic distance matrix')
+
+    dist = floyd_warshall(A, directed=True, unweighted=False)
+        
+    return dist
   
     
 def construct_laplacian(G, laplacian_tpe='normalized', use_spectral_gap=False): 
