@@ -9,7 +9,6 @@ import networkx as nx
 import pickle as pickle
 import pylab as plt
 import matplotlib as mpl
-mpl.use('Agg') # this is not to display figures in the console and save memory
 from mpl_toolkits.mplot3d import Axes3D
 
 from multiprocessing import Pool
@@ -49,7 +48,7 @@ class GeoCluster(object):
         dist = compute_distance_geodesic(self.A) #Geodesic distance matrix
        
         print('\nCompute curvature at each markov time')
-        self.Kappa = np.zeros([self.e, self.n_t])
+        self.Kappa = np.ones([self.e, self.n_t])
         for it in tqdm(range(self.n_t)): 
 
             mxs = list(np.eye(self.n))  # create delta at each node
@@ -65,8 +64,9 @@ class GeoCluster(object):
                     self.Kappa[:,it] = K_all_gpu(mxs, dist, lamb, self.G, with_weights=with_weights)  
 
             if all(self.Kappa[:,it]>0):
-                print('All edges have positive curvatures, so you could stop the computations')
-
+                print('All edges have positive curvatures, so stopping the computations')
+                break
+    
             if save:
                 self.save_curvature(t_max = it)
 
@@ -350,7 +350,9 @@ class GeoCluster(object):
         return fig
 
 
-    def plot_graph_snapshots(self, folder='images', node_size=30, edge_width=10, node_labels=False, cluster=False, ext='.svg', figsize=(5,4)):
+    def plot_graph_snapshots(self, folder='images', filename = 'image', 
+                             node_size=30, edge_width=10, node_labels=False, 
+                             cluster=False, ext='.svg', figsize=(5,4)):
         """plot the curvature on the graph for each time"""
 
         if not os.path.isdir(folder):
@@ -358,10 +360,10 @@ class GeoCluster(object):
 
         print('plot images')
 
-        for i in tqdm(len(self.n_t)):
+        for i in tqdm(range(self.n_t)):
             self.plot_graph(i, node_size=node_size, node_labels=node_labels, cluster=cluster, edge_width=edge_width, figsize=figsize)
             plt.title(r'$log_{10}(t)=$' + str(np.around(np.log10(self.T[i]),2)))
-            plt.savefig(folder + '/image_%03d' % i + ext, bbox_inches='tight')
+            plt.savefig(folder + '/' +  filename + '%03d' % i + ext, bbox_inches='tight')
             plt.close()
             
 
@@ -508,8 +510,6 @@ def compute_node_curvature(G, Kappa):
 def compute_distance_geodesic(A):
     """Geodesic distance matrix"""
         
-    print('\nCompute geodesic distance matrix')
-
     dist = floyd_warshall(A, directed=True, unweighted=False)
         
     return dist
@@ -517,9 +517,7 @@ def compute_distance_geodesic(A):
     
 def construct_laplacian(G, laplacian_tpe='normalized', use_spectral_gap=False): 
     """Laplacian matrix"""
-        
-    print('\nConstruct ' + laplacian_tpe + ' Laplacian')
-        
+                
     if laplacian_tpe == 'normalized':
         # degrees = np.array(self.A.sum(1)).flatten()
         degrees = np.array([G.degree[i] for i in G.nodes])
