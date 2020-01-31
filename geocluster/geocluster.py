@@ -27,7 +27,6 @@ class GeoCluster(object):
                  use_spectral_gap=True):
 
         self.G = G
-        self.A = check_symmetric(nx.adjacency_matrix(self.G, weight='weight'))
         self.n = len(G.nodes)
         self.e = len(G.edges)
         self.use_spectral_gap = use_spectral_gap
@@ -44,10 +43,12 @@ class GeoCluster(object):
         
         print('\nGraph: ' + self.G.graph['name'])
         
-        L = construct_laplacian(self.G, self.laplacian_tpe, self.use_spectral_gap) #Laplacian matrix 
-        dist = compute_distance_geodesic(self.A) #Geodesic distance matrix
+        L = construct_laplacian(self.G, self.laplacian_tpe, self.use_spectral_gap) 
+        
+        dist = compute_distance_geodesic(self.G) 
        
         print('\nCompute curvature at each markov time')
+        
         self.Kappa = np.ones([self.e, self.n_t])
         for it in tqdm(range(self.n_t)): 
 
@@ -71,7 +72,7 @@ class GeoCluster(object):
                 self.save_curvature(t_max = it)
 
 
-    def run_clustering(self,cluster_tpe='threshold', cluster_by='curvature'):
+    def run_clustering(self, cluster_tpe='threshold', cluster_by='curvature'):
         """Clustering of curvature weigthed graphs"""
         
         self.cluster_tpe = cluster_tpe
@@ -79,9 +80,7 @@ class GeoCluster(object):
 
         if cluster_tpe == 'threshold':
             
-            nComms = np.zeros(self.n_t) 
-            MIs = np.zeros(self.n_t) 
-            labels = np.zeros([self.n_t, self.n])
+            nComms, MIs, labels = np.zeros(self.n_t), np.zeros(self.n_t), np.zeros([self.n_t, self.n])
 
             for t in tqdm(range(self.n_t)):
                 # update edge curvatures                    
@@ -178,6 +177,7 @@ class GeoCluster(object):
             ax2 = ax1.twinx()
             ax2.semilogx(T, self.clustering_results['MI'], 'C1')
             ax2.set_ylabel('Average mutual information', color='C1')
+        
         else:
             #get the times paramters
             n_t = len(self.clustering_results['ttprime'])
@@ -280,8 +280,9 @@ class GeoCluster(object):
         plt.axis('off')
 
 
-    def plot_edge_curvature(self, ext='.svg', density=False, zeros=True, 
-                            log=True, shift_origin=0.4, save=True, filename=''):
+    def plot_edge_curvature(self, density=False, zeros=True, 
+                            log=False, shift_origin=0.4, 
+                            save=True, filename='', ext='.svg'):
         
         fig = plt.figure(constrained_layout=True)
         gs = fig.add_gridspec(ncols=2, nrows=2, width_ratios=[3, 1], height_ratios=[3, 1])
@@ -291,7 +292,18 @@ class GeoCluster(object):
         gs.update(wspace=0.00)
         gs.update(hspace=0)
 
-        ax1.plot(np.log10(self.T[:-1]), self.Kappa.T, c='C0', lw=0.5)
+        w = list(nx.get_edge_attributes(self.G, 'weight').values())
+        
+        import matplotlib.cm as cmx
+        import matplotlib.colors as colors
+        cmap = plt.get_cmap('rainbow') 
+        cNorm  = colors.Normalize(vmin=np.min(w), vmax=np.max(w))
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cmap)
+        
+        for i in range(self.Kappa.shape[1]):
+            edge_col = scalarMap.to_rgba(w[i])
+            ax1.plot(np.log10(self.T[:-1]), self.Kappa[i], c=edge_col, lw=0.5)
+        
         ax1.axhline(1, ls='--', c='k')
         ax1.axhline(0, ls='--', c='k')
         
@@ -299,40 +311,47 @@ class GeoCluster(object):
             ax1.set_yscale('symlog')
             
         ax1.set_ylabel('log(edge OR curvature)')
-        ax1.set_ylim([np.min(self.Kappa),1])
+        ax1.set_ylim([np.min(self.Kappa), 1.1])
         ax1.set_xlim([np.log10(self.T[0]), np.log10(self.T[-1])])
         #ax1.get_xaxis().set_visible(False)
         
         if density:
-            
-            from sklearn.neighbors import KernelDensity
-            
+            from scipy.interpolate import InterpolatedUnivariateSpline
+                        
             #find minima
-            mins = [ np.min(self.Kappa[i]) for i in range(self.Kappa.shape[0]) ]
-            mins = np.array(mins)
-            inds =  np.array([ np.argmin(self.Kappa[i]) for i in range(self.Kappa.shape[0]) ])
-            inds = inds[mins<0]
-            mins = mins[mins<0][:, np.newaxis]
+#            mins = [ np.min(self.Kappa[i]) for i in range(self.Kappa.shape[0]) ]
+#            mins = np.array(mins)
+#            inds =  np.array([ np.argmin(self.Kappa[i]) for i in range(self.Kappa.shape[0]) ])
+            
+            mins_ = []
+            inds_ = []
+            for j in range(len(self.Kappa)):
+                f = InterpolatedUnivariateSpline(self.T[:-1], self.Kappa[j], k=4)
+                cr_pts = f.derivative().roots()
+                cr_vals = f(cr_pts)
+                ind = np.argmin(cr_vals)
+                inds_.append(cr_pts[ind])
+                mins_.append(cr_vals[ind])
+    
+#            mins = [ np.min(gc.Kappa[i]) for i in range(gc.Kappa.shape[0]) ]
+            mins = np.array(mins_)
+            inds = np.array(inds_)
+            
+            inds = inds[mins<1.e-2]
+            mins = mins[mins<1.e-2]            
     
             if len(inds)>0:
             
-                ax2 = fig.add_subplot(gs[1, 0])
-            
-                bw = self.Kappa.shape[0]**(-1./(1+4)) #Scott's rule
-                kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(np.log10(self.T[inds])[:, np.newaxis])
-                Tind = np.linspace(np.log10(self.T[0]), np.log10(self.T[-2]), 100)[:, np.newaxis]
-                log_dens = kde.score_samples(Tind)
-                ax2.plot(Tind[:, 0], np.exp(log_dens), color='navy', linestyle='-')
+                Tind = np.linspace(np.log10(self.T[0]), np.log10(self.T[-2]), 100)              
+                pdf = gaussian_kde(np.log10(inds), weights=np.abs(mins))
                 
-                ax2.scatter(np.log10(self.T[inds]), np.zeros_like(inds))
+                ax2 = fig.add_subplot(gs[1, 0])
+                ax2.plot(Tind, pdf(Tind), color='navy', linestyle='-')            
+                ax2.scatter(np.log10(inds), np.zeros_like(inds), 
+                            marker='x', color='k', alpha=.1)
                 ax2.tick_params(axis='x', which='both', left=False, top=False, labelleft=False)
                 ax2.set_ylim([-0.1,1])
                 ax2.set_xlabel('log(time)')
-        
-                kde = KernelDensity(kernel='gaussian', bandwidth=0.3).fit(mins)
-                minind = np.linspace(np.min(self.Kappa),1,100)[:, np.newaxis]
-
-                log_dens = kde.score_samples(minind) 
 
         elif zeros:
             shift = int(shift_origin*len(self.T))
@@ -346,8 +365,6 @@ class GeoCluster(object):
 
         if save:
             plt.savefig(filename + 'edge_curvatures' + ext)
-            
-        return fig
 
 
     def plot_graph_snapshots(self, folder='images', filename = 'image', 
@@ -507,9 +524,10 @@ def compute_node_curvature(G, Kappa):
     return Kappa_node
 
 
-def compute_distance_geodesic(A):
+def compute_distance_geodesic(G):
     """Geodesic distance matrix"""
         
+    A = check_symmetric(nx.adjacency_matrix(G, weight='weight'))
     dist = floyd_warshall(A, directed=True, unweighted=False)
         
     return dist
@@ -532,4 +550,180 @@ def construct_laplacian(G, laplacian_tpe='normalized', use_spectral_gap=False):
     if use_spectral_gap:
         L /= abs(sc.sparse.linalg.eigs(L, which='SM', k=2)[0][1])
             
-    return L     
+    return L 
+
+
+from scipy.spatial.distance import cdist
+
+class gaussian_kde(object):
+    """Representation of a kernel-density estimate using Gaussian kernels.
+
+    Kernel density estimation is a way to estimate the probability density
+    function (PDF) of a random variable in a non-parametric way.
+    `gaussian_kde` works for both uni-variate and multi-variate data.   It
+    includes automatic bandwidth determination.  The estimation works best for
+    a unimodal distribution; bimodal or multi-modal distributions tend to be
+    oversmoothed.
+
+    Parameters
+    ----------
+    dataset : array_like
+        Datapoints to estimate from. In case of univariate data this is a 1-D
+        array, otherwise a 2-D array with shape (# of dims, # of data).
+    bw_method : str, scalar or callable, optional
+        The method used to calculate the estimator bandwidth.  This can be
+        'scott', 'silverman', a scalar constant or a callable.  If a scalar,
+        this will be used directly as `kde.factor`.  If a callable, it should
+        take a `gaussian_kde` instance as only parameter and return a scalar.
+        If None (default), 'scott' is used.  See Notes for more details.
+    weights : array_like, shape (n, ), optional, default: None
+        An array of weights, of the same shape as `x`.  Each value in `x`
+        only contributes its associated weight towards the bin count
+        (instead of 1).
+
+    Attributes
+    ----------
+    dataset : ndarray
+        The dataset with which `gaussian_kde` was initialized.
+    d : int
+        Number of dimensions.
+    n : int
+        Number of datapoints.
+    neff : float
+        Effective sample size using Kish's approximation.
+    factor : float
+        The bandwidth factor, obtained from `kde.covariance_factor`, with which
+        the covariance matrix is multiplied.
+    covariance : ndarray
+        The covariance matrix of `dataset`, scaled by the calculated bandwidth
+        (`kde.factor`).
+    inv_cov : ndarray
+        The inverse of `covariance`.
+
+    Methods
+    -------
+    kde.evaluate(points) : ndarray
+        Evaluate the estimated pdf on a provided set of points.
+    kde(points) : ndarray
+        Same as kde.evaluate(points)
+    kde.pdf(points) : ndarray
+        Alias for ``kde.evaluate(points)``.
+    kde.set_bandwidth(bw_method='scott') : None
+        Computes the bandwidth, i.e. the coefficient that multiplies the data
+        covariance matrix to obtain the kernel covariance matrix.
+        .. versionadded:: 0.11.0
+    kde.covariance_factor : float
+        Computes the coefficient (`kde.factor`) that multiplies the data
+        covariance matrix to obtain the kernel covariance matrix.
+        The default is `scotts_factor`.  A subclass can overwrite this method
+        to provide a different method, or set it through a call to
+        `kde.set_bandwidth`.
+
+    """
+    def __init__(self, dataset, bw_method=None, weights=None):
+        self.dataset = np.atleast_2d(dataset)
+        if not self.dataset.size > 1:
+            raise ValueError("`dataset` input should have multiple elements.")
+        self.d, self.n = self.dataset.shape
+            
+        if weights is not None:
+            self.weights = weights / np.sum(weights)
+        else:
+            self.weights = np.ones(self.n) / self.n
+            
+        # Compute the effective sample size 
+        # http://surveyanalysis.org/wiki/Design_Effects_and_Effective_Sample_Size#Kish.27s_approximate_formula_for_computing_effective_sample_size
+        self.neff = 1.0 / np.sum(self.weights ** 2)
+
+        self.set_bandwidth(bw_method=bw_method)
+
+    def evaluate(self, points):
+        """Evaluate the estimated pdf on a set of points.
+
+        """
+        points = np.atleast_2d(points)
+
+        d, m = points.shape
+        if d != self.d:
+            if d == 1 and m == self.d:
+                # points was passed in as a row vector
+                points = np.reshape(points, (self.d, 1))
+                m = 1
+            else:
+                msg = "points have dimension %s, dataset has dimension %s" % (d,
+                    self.d)
+                raise ValueError(msg)
+
+        # compute the normalised residuals
+        chi2 = cdist(points.T, self.dataset.T, 'mahalanobis', VI=self.inv_cov) ** 2
+        # compute the pdf
+        result = np.sum(np.exp(-.5 * chi2) * self.weights, axis=1) / self._norm_factor
+
+        return result
+
+    __call__ = evaluate
+
+    def scotts_factor(self):
+        return np.power(self.neff, -1./(self.d+4))
+
+    def silverman_factor(self):
+        return np.power(self.neff*(self.d+2.0)/4.0, -1./(self.d+4))
+
+    #  Default method to calculate bandwidth, can be overwritten by subclass
+    covariance_factor = scotts_factor
+
+    def set_bandwidth(self, bw_method=None):
+        """Compute the estimator bandwidth with given method.
+
+        The new bandwidth calculated after a call to `set_bandwidth` is used
+        for subsequent evaluations of the estimated density.
+
+        Parameters
+        ----------
+        bw_method : str, scalar or callable, optional
+            The method used to calculate the estimator bandwidth.  This can be
+            'scott', 'silverman', a scalar constant or a callable.  If a
+            scalar, this will be used directly as `kde.factor`.  If a callable,
+            it should take a `gaussian_kde` instance as only parameter and
+            return a scalar.  If None (default), nothing happens; the current
+            `kde.covariance_factor` method is kept.
+        """
+
+        if bw_method is None:
+            pass
+        elif bw_method == 'scott':
+            self.covariance_factor = self.scotts_factor
+        elif bw_method == 'silverman':
+            self.covariance_factor = self.silverman_factor
+        elif np.isscalar(bw_method) and not isinstance(bw_method, string_types):
+            self._bw_method = 'use constant'
+            self.covariance_factor = lambda: bw_method
+        elif callable(bw_method):
+            self._bw_method = bw_method
+            self.covariance_factor = lambda: self._bw_method(self)
+        else:
+            msg = "`bw_method` should be 'scott', 'silverman', a scalar " \
+                  "or a callable."
+            raise ValueError(msg)
+
+        self._compute_covariance()
+
+    def _compute_covariance(self):
+        """Computes the covariance matrix for each Gaussian kernel using
+        covariance_factor().
+        """
+        self.factor = self.covariance_factor()
+        # Cache covariance and inverse covariance of the data
+        if not hasattr(self, '_data_inv_cov'):
+            # Compute the mean and residuals
+            _mean = np.sum(self.weights * self.dataset, axis=1)
+            _residual = (self.dataset - _mean[:, None])
+            # Compute the biased covariance
+            self._data_covariance = np.atleast_2d(np.dot(_residual * self.weights, _residual.T))
+            # Correct for bias (http://en.wikipedia.org/wiki/Weighted_arithmetic_mean#Weighted_sample_covariance)
+            self._data_covariance /= (1 - np.sum(self.weights ** 2))
+            self._data_inv_cov = np.linalg.inv(self._data_covariance)
+
+        self.covariance = self._data_covariance * self.factor**2
+        self.inv_cov = self._data_inv_cov / self.factor**2
+        self._norm_factor = np.sqrt(np.linalg.det(2*np.pi*self.covariance)) #* self.n    

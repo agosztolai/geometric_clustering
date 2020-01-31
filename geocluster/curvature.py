@@ -18,6 +18,7 @@ def mx_comp(L, dt, mx):
 
     return sc.sparse.linalg.expm_multiply(-dt*L, mx)
 
+
 # compute curvature for an edge ij
 def K_ij(mxs, dist, lamb, cutoff, with_weights, edges, e):
     #print("step "+ str(e))
