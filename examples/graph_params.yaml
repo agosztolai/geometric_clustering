@@ -1,8 +1,8 @@
 barbell:
         m1: 7
         m2: 0
-        t_min: -2.0
-        t_max: 2.0
+        t_min: -4.0
+        t_max: 1.0
         n_t: 20
 
 barbell_noisy:

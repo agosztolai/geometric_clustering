@@ -2,15 +2,15 @@
 import pickle as pickle
 
 
-def save_curvatures(times, curvatures, filename = 'curvature'):
+def save_curvatures(times, kappas, filename = 'curvature'):
     '''save curvatures in a pickle'''
-    pickle.dump([times, curvatures], open(filename + '.pkl', 'wb'))
+    pickle.dump([times, kappas], open(filename + '.pkl', 'wb'))
 
 
 def load_curvature(filename = 'curvature'):
     '''load curvatures from a pickle'''
-    times, curvatures = pickle.load(open(filename + '.pkl', 'rb'))
-    return times, curvatures
+    times, kappas = pickle.load(open(filename + '.pkl', 'rb'))
+    return times, kappas 
 
 
 

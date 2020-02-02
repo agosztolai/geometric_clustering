@@ -22,7 +22,7 @@ os.chdir(whichgraph)
 graph = generate(whichgraph=whichgraph, params=params)
          
 #Initialise the code with parameters and graph 
-times = np.logspace(params['t_min'], params['t_max'], params['n_t'])
+times = np.logspace(params['t_min'], params['t_max'], params['n_t'] + 1)
 
 params = {}
 params['n_workers'] = 1

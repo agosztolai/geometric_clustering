@@ -19,8 +19,9 @@ os.chdir(whichgraph)
 graph = generate(whichgraph=whichgraph, params=params)
          
 #Compute the OR curvatures
-times, curvatures = io.load_curvature()
+times, kappas = io.load_curvature()
 
 #Save results for later analysis
-plotting.plot_edge_curvatures(times, curvatures, ylog=True)
-plotting.plot_graph_snapshots(graph, times, curvatures, folder='curvature_images', ext='.png')
+plotting.plot_edge_curvatures(times, kappas, ylog=True)
+plotting.plot_scales(graph, times, kappas)
+plotting.plot_graph_snapshots(graph, times, kappas, folder='curvature_images', ext='.png')
