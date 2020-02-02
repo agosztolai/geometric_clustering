@@ -1,16 +1,11 @@
 
+*.DS_store
+*._.DS_store
 *.edj
-
 images/
-
 __pycache__/
-
 *.swp
-
 data/
-
 build/
-
 test/\.ipynb_checkpoints/
-
 *.swo

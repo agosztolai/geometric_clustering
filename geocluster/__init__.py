@@ -1,1 +1,1 @@
-from .geocluster import *
+from .main import compute_curvatures 

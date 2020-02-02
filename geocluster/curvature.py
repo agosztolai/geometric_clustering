@@ -1,83 +1,85 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
+'''Functions for computing the curvature'''
 import numpy as np
 import scipy as sc
 import ot
 from tqdm import tqdm
+import networkx as nx
+from scipy.sparse.csgraph import floyd_warshall
+from sklearn.utils import check_symmetric
 
-'''
-=============================================================================
-Functions for computing the curvature
-=============================================================================
-'''
+
+def construct_laplacian(graph, laplacian_tpe='normalized', use_spectral_gap=True): 
+    """Laplacian matrix"""
+                
+    if laplacian_tpe == 'normalized':
+        degrees = np.array([graph.degree[i] for i in graph.nodes])
+        laplacian = sc.sparse.csr_matrix(nx.laplacian_matrix(graph).toarray().dot(np.diag(1. / degrees)))
+
+    elif laplacian_tpe == 'combinatorial':
+        laplacian = sc.sparse.csr_matrix(1.*nx.laplacian_matrix(graph))
+
+    elif laplacian_tpe == 'signed_normalized':
+        laplacian = signed_laplacian(graph, normed=True, return_diag=True)
+
+    if use_spectral_gap:
+        laplacian /= abs(sc.sparse.linalg.eigs(laplacian, which='SM', k=2)[0][1])
+            
+    return laplacian 
+
+def compute_distance_geodesic(G):
+    """Geodesic distance matrix"""
+        
+    A = check_symmetric(nx.adjacency_matrix(G, weight='weight'))
+    dist = floyd_warshall(A, directed=True, unweighted=False)
+        
+    return dist
+
 
 # compute all neighbourhood densities
-def mx_comp(L, dt, mx):
-    """ compute matrix exponential """
+def heat_kernel(laplacian, timestep, measure):
+    """compute matrix exponential on a measure"""
+    return sc.sparse.linalg.expm_multiply(-timestep * laplacian, measure)
 
-    return sc.sparse.linalg.expm_multiply(-dt*L, mx)
 
-
-# compute curvature for an edge ij
-def K_ij(mxs, dist, lamb, cutoff, with_weights, edges, e):
-    #print("step "+ str(e))
+def edge_curvature(measures, geodesic_distances, params, edge):
+    '''compute curvature for an edge ij'''
 
     # get the edge/nodes ids
-    edge = edges[e]
     i = edge[0]
     j = edge[1]
 
     #get the measures
-    mx = mxs[i]
-    my = mxs[j]
+    m_x = measures[i]
+    m_y = measures[j]
     
     #set reduce the sized with cutoffs
-    Nx = np.where(mx >= (1. - cutoff) * np.max(mx))[0]
-    Ny = np.where(my >= (1. - cutoff) * np.max(my))[0]
+    Nx = np.where(m_x >= (1. - params['cutoff']) * np.max(m_x))[0]
+    Ny = np.where(m_y >= (1. - params['cutoff']) * np.max(m_y))[0]
 
-    dNxNy = dist[np.ix_(Nx, Ny)]
+    distances_xy = geodesic_distances[np.ix_(Nx, Ny)]
 
-    mx = mx[Nx]
-    my = my[Ny]
+    m_x = m_x[Nx]
+    m_y = m_y[Ny]
 
-    mx /=mx.sum()
-    my /=my.sum()
+    m_x /= m_x.sum()
+    m_y /= m_y.sum()
 
     #compute K
-    if lamb != 0: #entropy regularized OT
-        W = ot.sinkhorn2(mx, my, dNxNy, lamb)
+    if params['lambda'] != 0: #entropy regularized OT
+        wasserstein_distance = ot.sinkhorn2(m_x, m_y, distances_xy, params['lambda'])
 
-    elif lamb == 0: #classical sparse OT
-        W = ot.emd2(mx, my, dNxNy)
+    elif params['lambda'] == 0: #classical sparse OT
+        wasserstein_distance = ot.emd2(m_x, m_y, distances_xy)
         
-    if with_weights:
-        K = dist[i, j] - W
+    if params['with_weights']:
+        kappa = geodesic_distances[i, j] - wasserstein_distance
     else:
-        K = 1. - W / dist[i, j]  
+        kappa = 1. - wasserstein_distance / geodesic_distances[i, j]  
      
-    return K
+    return kappa
 
 
-def K_all(mx_all, dist, lamb, G, with_weights=False):     
-
-    dist = dist.astype(float)
-    
-    Kt = []
-    x = np.unique([x[0] for x in G.edges])
-    for i in tqdm(x):
-        ind = [y[1] for y in G.edges if y[0] == i]              
-
-        W = ot.sinkhorn(mx_all[:,i].tolist(), mx_all[:,ind].tolist(), dist.tolist(), lamb)    
-        if with_weights:
-            Kt = np.append(Kt, dist[i][ind] - W)
-        else:
-            Kt = np.append(Kt, 1. - W/dist[i][ind])
-        
-    return Kt
-
-
-def K_all_gpu(mx_all, dist, lamb, G, with_weights=False):   
+def edge_curvature_gpu(mx_all, dist, lamb, G, with_weights=False):   
     import ot.gpu    
        
     mx_all = ot.gpu.to_gpu(mx_all) 
@@ -98,3 +100,5 @@ def K_all_gpu(mx_all, dist, lamb, G, with_weights=False):
             Kt = np.append(Kt, 1. - W/ot.gpu.to_np(dist[i][ind]))
         
     return Kt
+
+
