@@ -57,3 +57,22 @@ def compute_curvatures(graph, times, params):
         io.save_curvatures(times[:time_index], kappas[:time_index])
 
     return kappas
+
+def compute_scales(times, kappas, method='zeros'):
+    """compute the scales on edges, from curvatures"""
+    if method == "zeros":
+        edge_scales = []
+        for kappa in kappas.T:
+            crossing_id = np.argwhere(np.diff(np.sign(kappa)) == 2)
+            if len(crossing_id) > 0:
+                edge_scales += list(times[crossing_id[0]])
+            else:
+                edge_scales += [
+                    times[0],
+                ]
+
+    elif method == "mins":
+        edge_scales = times[np.argmin(kappas, axis=0)]
+    return edge_scales
+
+

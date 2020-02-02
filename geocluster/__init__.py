@@ -1,1 +1,1 @@
-from .main import compute_curvatures 
+from .main import *

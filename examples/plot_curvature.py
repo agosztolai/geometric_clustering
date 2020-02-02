@@ -3,6 +3,7 @@ import os
 import numpy as np
 import yaml
 
+import geocluster as gc 
 from geocluster import plotting, io
 from graph_library import generate
 
@@ -23,5 +24,6 @@ times, kappas = io.load_curvature()
 
 #Save results for later analysis
 plotting.plot_edge_curvatures(times, kappas, ylog=True)
-plotting.plot_scales(graph, times, kappas)
+edge_scales = gc.compute_scales(times, kappas)
+plotting.plot_scales(graph, edge_scales)
 plotting.plot_graph_snapshots(graph, times, kappas, folder='curvature_images', ext='.png')

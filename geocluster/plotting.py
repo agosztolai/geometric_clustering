@@ -151,22 +151,8 @@ def plot_graph(
     plt.axis("off")
 
 
-def plot_scales(graph, times, kappas, method="mins"):
+def plot_scales(graph, edge_scales):
     """plot scales on edges, from curvatures"""
-    if method == "zeros":
-        edge_scales = []
-        for kappa in kappas.T:
-            crossing_id = np.argwhere(np.diff(np.sign(kappa)) == 2)
-            if len(crossing_id) > 0:
-                edge_scales += list(times[crossing_id[0]])
-            else:
-                edge_scales += [
-                    times[0],
-                ]
-
-    elif method == "mins":
-        edge_scales = times[np.argmin(kappas, axis=0)]
-
     plt.figure()
     plt.hist(np.log10(edge_scales), bins=40)
     plt.savefig("hist_scales.png")
@@ -177,7 +163,7 @@ def plot_scales(graph, times, kappas, method="mins"):
     plt.figure()
     nx.draw_networkx_nodes(graph, pos=pos, node_size=1)
     nx.draw_networkx_edges(
-        graph, pos=pos, edge_color=np.log10(edge_scales), width=2, edge_cmap=cmap
+        graph, pos=pos, edge_color=np.log10(edge_scales), width=2, edge_cmap=cmap, alpha=0.5
     )
 
     edges = plt.cm.ScalarMappable(
