@@ -13,7 +13,7 @@ def construct_laplacian(graph, laplacian_tpe='normalized', use_spectral_gap=True
                 
     if laplacian_tpe == 'normalized':
         degrees = np.array([graph.degree[i] for i in graph.nodes])
-        laplacian = sc.sparse.csr_matrix(nx.laplacian_matrix(graph).toarray().dot(np.diag(1. / degrees)))
+        laplacian = nx.laplacian_matrix(graph).dot(sc.sparse.diags(1. / degrees))
 
     elif laplacian_tpe == 'combinatorial':
         laplacian = sc.sparse.csr_matrix(1.*nx.laplacian_matrix(graph))
