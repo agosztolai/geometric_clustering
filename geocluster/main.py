@@ -17,6 +17,8 @@ def compute_curvatures(graph, times, params):
     )
     geodesic_distances = curvature.compute_distance_geodesic(graph)
 
+    times_with_zero = np.hstack([0., times])  # add 0 timepoint
+
     kappas = np.ones([len(times), len(graph.edges())])
     measures = list(np.eye(len(graph)))
     for time_index in tqdm(range(len(times) - 1)):
@@ -25,7 +27,7 @@ def compute_curvatures(graph, times, params):
                 partial(
                     curvature.heat_kernel,
                     laplacian,
-                    times[time_index + 1] - times[time_index],
+                    times_with_zero[time_index + 1] - times_with_zero[time_index],
                 ),
                 measures,
             ).get()
@@ -74,5 +76,3 @@ def compute_scales(times, kappas, method='zeros'):
     elif method == "mins":
         edge_scales = times[np.argmin(kappas, axis=0)]
     return edge_scales
-
-
