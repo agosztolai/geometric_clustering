@@ -151,7 +151,7 @@ def plot_graph(
     plt.axis("off")
 
 
-def plot_scales(graph, edge_scales):
+def plot_scales(graph, edge_scales, figsize=(10, 5)):
     """plot scales on edges, from curvatures"""
     plt.figure()
     plt.hist(np.log10(edge_scales), bins=40)
@@ -160,8 +160,8 @@ def plot_scales(graph, edge_scales):
     pos = list(nx.get_node_attributes(graph, "pos").values())
     cmap = plt.get_cmap("plasma")
 
-    plt.figure()
-    nx.draw_networkx_nodes(graph, pos=pos, node_size=1)
+    plt.figure(figsize=figsize)
+    nx.draw_networkx_nodes(graph, pos=pos, node_size=0)
     nx.draw_networkx_edges(
         graph, pos=pos, edge_color=np.log10(edge_scales), width=2, edge_cmap=cmap, alpha=0.5
     )

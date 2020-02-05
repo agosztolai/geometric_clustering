@@ -25,16 +25,16 @@ graph = generate(whichgraph=whichgraph, params=params)
 times = np.logspace(params['t_min'], params['t_max'], params['n_t'] + 1)
 
 params = {}
-params['n_workers'] = 1
+params['n_workers'] = 10
 params['GPU'] = False
-params['lambda'] = False
+params['lambda'] = 0
 params['with_weights'] = False
-params['cutoff'] = 1.
+params['cutoff'] = 1.-1e-8
 params['laplacian_tpe'] = 'normalized'
 params['use_spectral_gap'] = True
 
 #Compute the OR curvatures
 kappas = gc.compute_curvatures(graph, times, params)
 
-plotting.plot_edge_curvatures(times, kappas, ylog=True)
-plotting.plot_graph_snapshots(graph, times, kappas, folder='curvature_images', ext='.png')
+#plotting.plot_edge_curvatures(times, kappas, ylog=True)
+#plotting.plot_graph_snapshots(graph, times, kappas, folder='curvature_images', ext='.png')
