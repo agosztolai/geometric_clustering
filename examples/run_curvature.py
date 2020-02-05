@@ -30,7 +30,6 @@ params['GPU'] = False
 params['lambda'] = 0
 params['with_weights'] = False
 params['cutoff'] = 1.-1e-8
-params['laplacian_tpe'] = 'normalized'
 params['use_spectral_gap'] = True
 
 #Compute the OR curvatures

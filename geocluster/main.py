@@ -32,9 +32,7 @@ class WorkerCurvatures:
 def compute_curvatures(graph, times, params):
     """Edge curvature matrix"""
 
-    laplacian = curvature.construct_laplacian(
-        graph, params["laplacian_tpe"], params["use_spectral_gap"]
-    )
+    laplacian = curvature.construct_laplacian(graph, params["use_spectral_gap"])
     geodesic_distances = curvature.compute_distance_geodesic(graph)
 
     times_with_zero = np.hstack([0., times])  # add 0 timepoint

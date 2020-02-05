@@ -157,8 +157,8 @@ netscience:
 
 powergrid:
         t_min: -5.0
-        t_max: 0.
-        n_t: 20
+        t_max: 1.0
+        n_t: 100
 
 celegans_undirected:
         t_min: -1.8
