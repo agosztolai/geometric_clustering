@@ -70,6 +70,7 @@ def compute_curvatures(graph, times, params):
 
     return kappas
 
+
 def compute_scales(times, kappas, method='zeros'):
     """compute the scales on edges, from curvatures"""
     if method == "zeros":

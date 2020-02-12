@@ -8,7 +8,11 @@ import matplotlib.colors as col
 
 
 def plot_edge_curvatures(
-        times, kappas, ylog=False, filename="edge_curvature", ext=".svg"
+        times, 
+        kappas, 
+        ylog=False, 
+        filename=None, 
+        ext=".svg"
 ):
     """plot edge curvature"""
 
@@ -44,7 +48,7 @@ def plot_graph_snapshots(
         times,
         kappas,
         folder="images",
-        filename="image",
+        filename=None,
         node_size=20,
         edge_width=2,
         node_labels=False,
@@ -66,7 +70,10 @@ def plot_graph_snapshots(
             figsize=figsize,
         )
         plt.title(r"$log_{10}(t)=$" + str(np.around(np.log10(times[i]), 2)))
-        plt.savefig(folder + "/" + filename + "_%03d" % i + ext, bbox_inches="tight")
+        
+        if filename is not None:
+            plt.savefig(folder + "/" + filename + "_%03d" % i + ext, bbox_inches="tight")
+        
         plt.close()
 
 
