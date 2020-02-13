@@ -29,7 +29,7 @@ class WorkerCurvatures:
 
 
 
-def compute_curvatures(graph, times, params, save=True):
+def compute_curvatures(graph, times, params, save=True, disable=False):
     """Edge curvature matrix"""
 
     laplacian = curvature.construct_laplacian(graph, params["use_spectral_gap"])
@@ -40,7 +40,8 @@ def compute_curvatures(graph, times, params, save=True):
     kappas = np.ones([len(times), len(graph.edges())])
     measures = list(np.eye(len(graph)))
     pool = multiprocessing.Pool(params["n_workers"])
-    for time_index in tqdm(range(len(times) - 1)):
+    ind = False
+    for time_index in tqdm(range(len(times) - 1), disable=disable):
         timestep = times_with_zero[time_index + 1] - times_with_zero[time_index]
 
         worker_measure = WorkerMeasures(laplacian, timestep)
@@ -61,10 +62,11 @@ def compute_curvatures(graph, times, params, save=True):
                     with_weights=params["with_weights"],
                 )
 
-        if all(kappas[time_index] > 0):
+        if all(kappas[time_index] > 0) and not disable and not ind:
             print(
                 "All edges have positive curvatures, so you may stop the computations."
             )
+            ind = True
 
         if save:
             io.save_curvatures(times[:time_index], kappas[:time_index])
