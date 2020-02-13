@@ -45,7 +45,7 @@ def plot_graph_snapshots(
         kappas,
         folder="images",
         filename="image",
-        node_size=20,
+        node_size=5,
         edge_width=2,
         node_labels=False,
         ext=".svg",
@@ -93,14 +93,14 @@ def plot_graph(
 
     kappa_min = abs(min(np.min(kappa), 0))
     kappa_0 = kappa_min / (1.0 + kappa_min)
-    cdict = {
-        "red": [(0.0, 0.1, 0.1), (kappa_0, 0.1, 0.1), (1.0, 1.0, 1.0)],
-        "green": [(0.0, 0.1, 0.1), (kappa_0, 0.1, 0.1), (1.0, 0.1, 0.1)],
-        "blue": [(0.0, 1.0, 1.0), (kappa_0, 0.1, 0.1), (1.0, 0.1, 0.1)],
-        "alpha": [(0.0, 0.8, 0.8), (kappa_0, 0.05, 0.05), (1.0, 0.8, 0.8)],
+    cdict_coolwarm = {
+        "red": [(0.0, 0.0, 0.0), (kappa_0, 0.1, 0.1), (1.0, 1.0, 1.0)],
+        "green": [(0.0, 0.1, 0.1), (kappa_0, 0.1, 0.1), (1.0, 0.0, 0.0)],
+        "blue": [(0.0, 1.0, 1.0), (kappa_0, 0.1, 0.1), (1.0, 0.0, 0.0)],
+        "alpha": [(0.0, 0.8, 0.8), (kappa_0, 0.02, 0.02), (1.0, 0.8, 0.8)],
     }
 
-    edge_cmap = col.LinearSegmentedColormap("my_colormap", cdict)
+    edge_cmap = col.LinearSegmentedColormap("my_colormap", cdict_coolwarm)
     edge_vmin = -kappa_min
     edge_vmax = 1.0
 

@@ -23,7 +23,7 @@ graph = generate(whichgraph=whichgraph, params=params)
 times, kappas = io.load_curvature()
 
 #Save results for later analysis
-plotting.plot_edge_curvatures(times, kappas, ylog=True)
+plotting.plot_edge_curvatures(times, kappas, ylog=False)
 edge_scales = gc.compute_scales(times, kappas)
 plotting.plot_scales(graph, edge_scales)
-plotting.plot_graph_snapshots(graph, times, kappas, folder='curvature_images', ext='.png')
+plotting.plot_graph_snapshots(graph, times, kappas, folder='curvature_images', ext='.png', figsize=(15,7))
