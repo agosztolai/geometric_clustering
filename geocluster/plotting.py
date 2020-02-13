@@ -5,58 +5,100 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.colors as col
+import matplotlib.cm as cmx
+from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy import stats
 
 
 def plot_edge_curvatures(
-        times, kappas, ylog=False, filename="edge_curvature", ext=".svg"
+    times, kappas, edge_color=None, ylog=False, filename=None, ext=".svg"
 ):
     """plot edge curvature"""
 
-    fig = plt.figure()
-    ax = plt.gca()
+    fig = plt.figure(constrained_layout=True)
+    gs = fig.add_gridspec(ncols=2, nrows=2, width_ratios=[3, 1], height_ratios=[3, 1])
 
-    for kappa in kappas.T:
-        if all(kappa > 0):
-            color = "C0"
-        else:
-            color = "C1"
-        plt.plot(np.log10(times), kappa, c=color, lw=0.5)
-
-    ax.axhline(1, ls="--", c="k")
-    ax.axhline(0, ls="--", c="k")
-
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax1.get_xaxis().set_visible(False)
     if ylog:
-        ax.set_yscale("symlog")
-        ax.set_ylabel("log(edge curvature)")
-    ax.set_ylabel("edge curvature")
+        ax1.set_yscale("symlog")
+        ax1.set_ylabel(r"Edge curvature, $\log\kappa_{ij}$")
+    else:
+        ax1.set_ylabel(r"Edge curvature, $\kappa_{ij}$")
+    ax1.set_xlim([np.log10(times[0]), np.log10(times[-1])])
+    ax1.set_ylim([np.min(kappas), 1.1])
 
-    ax.set_ylim([np.min(kappas), 1.1])
-    ax.set_xlim([np.log10(times[0]), np.log10(times[-1])])
+    ax2 = fig.add_subplot(gs[1, 0])
+    ax2.tick_params(axis="x", which="both", left=False, top=False, labelleft=False)
+    ax2.set_ylim([-0.1, 1])
+    ax2.set_xlabel(r"Diffusion time, $\log(\tau)$")
+    ax2.set_ylabel("Density of \n zero-crossings")
+
+    gs.update(wspace=0.00)
+    gs.update(hspace=0)
+
+    for i, kappa in enumerate(kappas.T):
+        if edge_color is not None:
+            color = cmx.tab10(int(edge_color[i] / np.max(edge_color) * 10))
+        elif edge_color is None:
+            if all(kappa > 0):
+                color = "C0"
+            else:
+                color = "C1"
+
+        ax1.plot(np.log10(times), kappa, c=color, lw=0.5)
+
+    ax1.axhline(1, ls="--", c="k")
+    ax1.axhline(0, ls="--", c="k")
+
+    # find zero crossings
+    roots = []
+    for j in range(kappas.shape[1]):
+        f = InterpolatedUnivariateSpline(np.log10(times), kappas[:, j], k=3)
+        _roots = f.roots()
+        if len(_roots) > 0:
+            roots.append(_roots)
+
+    #    shift_origin = 0.4
+    #    shift = int(shift_origin*len(times))
+    #    kappas = kappas[:, shift:-2]
+    #    t_mins =  times[shift + np.array([ np.argmin(abs(kappas[i])) for i in range(kappas.shape[0]) ])]
+
+    roots = np.array(roots).flatten()
+
+    # plot Gaussian kde
+    if len(roots) > 0:
+        Tind = np.linspace(np.log10(times[0]), np.log10(times[-2]), 100)
+
+        pdf = stats.gaussian_kde(roots)
+        ax2.plot(Tind, pdf(Tind), color="navy", linestyle="-")
+        ax2.scatter(roots, np.zeros_like(roots), marker="x", color="k", alpha=0.1)
 
     if filename is not None:
         plt.savefig(filename + ext)
 
-    return fig, ax
+    return fig
 
 
 def plot_graph_snapshots(
-        graph,
-        times,
-        kappas,
-        folder="images",
-        filename="image",
-        node_size=5,
-        edge_width=2,
-        node_labels=False,
-        ext=".svg",
-        figsize=(5, 4),
+    graph,
+    times,
+    kappas,
+    folder="images",
+    filename=None,
+    node_size=5,
+    edge_width=2,
+    node_labels=False,
+    disable=False,
+    ext=".svg",
+    figsize=(5, 4),
 ):
     """plot the curvature on the graph for each time"""
 
     if not os.path.isdir(folder):
         os.mkdir(folder)
 
-    for i, kappa in tqdm(enumerate(kappas), total=len(kappas)):
+    for i, kappa in tqdm(enumerate(kappas), total=len(kappas), disable=disable):
         plot_graph(
             graph,
             kappa,
@@ -66,20 +108,25 @@ def plot_graph_snapshots(
             figsize=figsize,
         )
         plt.title(r"$log_{10}(t)=$" + str(np.around(np.log10(times[i]), 2)))
-        plt.savefig(folder + "/" + filename + "_%03d" % i + ext, bbox_inches="tight")
-        plt.close()
+
+        if filename is not None:
+            plt.savefig(
+                folder + "/" + filename + "_%03d" % i + ext, bbox_inches="tight"
+            )
+            plt.close()
 
 
 def plot_graph(
-        graph,
-        kappa,
-        node_size=20,
-        edge_width=1,
-        node_labels=False,
-        node_colors=None,
-        figsize=(10, 7),
+    graph,
+    kappa,
+    node_size=20,
+    edge_width=1,
+    node_labels=False,
+    node_colors=None,
+    color_map=0,
+    figsize=(10, 7),
 ):
-    """plot the curvature on the graph for a given time t"""
+    """plot the curvature on the graph"""
 
     if "pos" in graph.nodes[1]:
         pos = list(nx.get_node_attributes(graph, "pos").values())
@@ -91,7 +138,8 @@ def plot_graph(
 
     plt.figure(figsize=figsize)
 
-    kappa_min = abs(min(np.min(kappa), 0))
+    kappa_min = min(np.min(kappa), 0)
+    kappa_max = max(np.max(kappa), 0)
     kappa_0 = kappa_min / (1.0 + kappa_min)
     cdict_coolwarm = {
         "red": [(0.0, 0.0, 0.0), (kappa_0, 0.1, 0.1), (1.0, 1.0, 1.0)],
@@ -100,11 +148,22 @@ def plot_graph(
         "alpha": [(0.0, 0.8, 0.8), (kappa_0, 0.02, 0.02), (1.0, 0.8, 0.8)],
     }
 
-    edge_cmap = col.LinearSegmentedColormap("my_colormap", cdict_coolwarm)
-    edge_vmin = -kappa_min
-    edge_vmax = 1.0
+    if color_map == 0:
+        edge_cmap = col.LinearSegmentedColormap("my_colormap", cdict)
+        edge_vmin = -kappa_min
+        edge_vmax = 1.0
+    elif color_map == 1:
+        edge_cmap = cmx.inferno
+        edge_vmin = kappa_min
+        edge_vmax = 1.1 * kappa_max  # to avoid the not so visible bright yellow
 
     if node_colors is None:
+        node_colors = "k"
+        cmap = None
+        vmin = None
+        vmax = None
+
+    elif node_colors == "curvature":
         incidence_matrix = nx.incidence_matrix(graph, weight="weight").toarray()
         inverse_degrees = np.diag([1.0 / graph.degree[i] for i in graph.nodes])
         node_colors = inverse_degrees.dot(incidence_matrix.dot(kappa))
@@ -163,7 +222,12 @@ def plot_scales(graph, edge_scales, figsize=(10, 5)):
     plt.figure(figsize=figsize)
     nx.draw_networkx_nodes(graph, pos=pos, node_size=0)
     nx.draw_networkx_edges(
-        graph, pos=pos, edge_color=np.log10(edge_scales), width=2, edge_cmap=cmap, alpha=0.5
+        graph,
+        pos=pos,
+        edge_color=np.log10(edge_scales),
+        width=2,
+        edge_cmap=cmap,
+        alpha=0.5,
     )
 
     edges = plt.cm.ScalarMappable(

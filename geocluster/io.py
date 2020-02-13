@@ -15,13 +15,6 @@ def load_curvature(filename = 'curvature'):
 
 
 
-
-
-
-
-
-
-
 def save_clustering(self, filename = None):
     if not filename:
         filename = self.G.graph.get('name')

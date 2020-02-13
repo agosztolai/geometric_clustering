@@ -282,7 +282,7 @@ class GeoCluster(object):
 
     def plot_edge_curvature(self, density=False, zeros=True, 
                             log=False, shift_origin=0.4, 
-                            save=True, filename='', ext='.svg'):
+                            save=True, filename='', ext='.png'):
         
         fig = plt.figure(constrained_layout=True)
         gs = fig.add_gridspec(ncols=2, nrows=2, width_ratios=[3, 1], height_ratios=[3, 1])

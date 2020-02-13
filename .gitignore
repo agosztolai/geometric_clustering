@@ -1,4 +1,5 @@
 
+*.svg
 *.DS_store
 *._.DS_store
 *.edj

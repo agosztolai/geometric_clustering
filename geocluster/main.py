@@ -1,4 +1,4 @@
-'''main functionf for geoclusters'''
+"""main functionf for geoclusters"""
 import multiprocessing
 
 import numpy as np
@@ -10,6 +10,7 @@ import geocluster.io as io
 
 class WorkerMeasures:
     """worker for building measures"""
+
     def __init__(self, laplacian, timestep):
         self.laplacian = laplacian
         self.timestep = timestep
@@ -17,38 +18,44 @@ class WorkerMeasures:
     def __call__(self, measure):
         return curvature.heat_kernel(self.laplacian, self.timestep, measure)
 
+
 class WorkerCurvatures:
     """worker for building measures"""
+
     def __init__(self, measures, geodesic_distances, params):
         self.measures = measures
         self.geodesic_distances = geodesic_distances
         self.params = params
 
     def __call__(self, edge):
-        return curvature.edge_curvature(self.measures, self.geodesic_distances, self.params, edge)
+        return curvature.edge_curvature(
+            self.measures, self.geodesic_distances, self.params, edge
+        )
 
 
-
-def compute_curvatures(graph, times, params):
+def compute_curvatures(graph, times, params, save=True, disable=False):
     """Edge curvature matrix"""
 
     laplacian = curvature.construct_laplacian(graph, params["use_spectral_gap"])
     geodesic_distances = curvature.compute_distance_geodesic(graph)
 
-    times_with_zero = np.hstack([0., times])  # add 0 timepoint
+    times_with_zero = np.hstack([0.0, times])  # add 0 timepoint
 
     kappas = np.ones([len(times), len(graph.edges())])
     measures = list(np.eye(len(graph)))
     pool = multiprocessing.Pool(params["n_workers"])
-    for time_index in tqdm(range(len(times) - 1)):
-        timestep = times_with_zero[time_index + 1] - times_with_zero[time_index]
+    ind = False
+    for time_index in tqdm(range(len(times) - 1), disable=disable):
 
-        worker_measure = WorkerMeasures(laplacian, timestep)
+        worker_measure = WorkerMeasures(
+            laplacian, times_with_zero[time_index + 1] - times_with_zero[time_index]
+        )
         measures = pool.map(worker_measure, measures)
 
         if not params["GPU"]:
-            worker_curvatures = WorkerCurvatures(measures, geodesic_distances, params)
-            kappas[time_index] = pool.map(worker_curvatures, graph.edges())
+            kappas[time_index] = pool.map(
+                WorkerCurvatures(measures, geodesic_distances, params), graph.edges()
+            )
 
         else:
             for measure in measures:
@@ -61,16 +68,19 @@ def compute_curvatures(graph, times, params):
                     with_weights=params["with_weights"],
                 )
 
-        if all(kappas[time_index] > 0):
+        if all(kappas[time_index] > 0) and not disable and not ind:
             print(
                 "All edges have positive curvatures, so you may stop the computations."
             )
+            ind = True
 
-        io.save_curvatures(times[:time_index], kappas[:time_index])
+        if save:
+            io.save_curvatures(times[:time_index], kappas[:time_index])
 
     return kappas
 
-def compute_scales(times, kappas, method='zeros'):
+
+def compute_scales(times, kappas, method="zeros"):
     """compute the scales on edges, from curvatures"""
     if method == "zeros":
         edge_scales = []
