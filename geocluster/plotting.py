@@ -5,42 +5,91 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.colors as col
-
+import matplotlib.cm as cmx
+from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy import stats
 
 def plot_edge_curvatures(
         times, 
         kappas, 
+        edge_color=None,
         ylog=False, 
         filename=None, 
         ext=".svg"
 ):
     """plot edge curvature"""
-
-    fig = plt.figure()
-    ax = plt.gca()
-
-    for kappa in kappas.T:
-        if all(kappa > 0):
-            color = "C0"
-        else:
-            color = "C1"
-        plt.plot(np.log10(times), kappa, c=color, lw=0.5)
-
-    ax.axhline(1, ls="--", c="k")
-    ax.axhline(0, ls="--", c="k")
-
+    
+    fig = plt.figure(constrained_layout=True)
+    gs = fig.add_gridspec(ncols=2, nrows=2, width_ratios=[3, 1], height_ratios=[3, 1])
+        
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax1.get_xaxis().set_visible(False)
     if ylog:
-        ax.set_yscale("symlog")
-        ax.set_ylabel("log(edge curvature)")
-    ax.set_ylabel("edge curvature")
+        ax1.set_yscale("symlog")
+        ax1.set_ylabel(r"Edge curvature, $\log\kappa_{ij}$")
+    else:
+        ax1.set_ylabel(r'Edge curvature, $\kappa_{ij}$')  
+    ax1.set_xlim([np.log10(times[0]), np.log10(times[-1])])
+    ax1.set_ylim([np.min(kappas), 1.1])
+    
+    ax2 = fig.add_subplot(gs[1, 0])
+    ax2.tick_params(axis='x', which='both', left=False, top=False, labelleft=False)
+    ax2.set_ylim([-0.1,1])
+    ax2.set_xlabel(r'Diffusion time, $\log(\tau)$')
+    ax2.set_ylabel('Density of \n zero-crossings')
+    
+    gs.update(wspace=0.00)
+    gs.update(hspace=0)
 
-    ax.set_ylim([np.min(kappas), 1.1])
-    ax.set_xlim([np.log10(times[0]), np.log10(times[-1])])
+#        cmap = plt.get_cmap('rainbow') 
+#        cNorm  = col.Normalize(vmin=np.min(w), vmax=np.max(w))
+#        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cmap)
+        
+#        for i in range(self.Kappa.shape[1]):
+#            edge_col = scalarMap.to_rgba(w[i])
+#            ax1.plot(np.log10(self.T[:-1]), self.Kappa[i], c=edge_col, lw=0.5)
 
+    for i, kappa in enumerate(kappas.T):
+        if edge_color is not None: 
+            color = cmx.tab10(int(edge_color[i]/np.max(edge_color)*10))
+        elif edge_color is None:
+            if all(kappa > 0):
+                color = "C0"
+            else:
+                color = "C1"
+            
+        ax1.plot(np.log10(times), kappa, c=color, lw=0.5)
+       
+    ax1.axhline(1, ls="--", c="k")
+    ax1.axhline(0, ls="--", c="k")
+    
+    #find zero crossings
+    roots = []
+    for j in range(kappas.shape[1]):
+        f = InterpolatedUnivariateSpline(np.log10(times), kappas[:,j], k=3)
+        _roots = f.roots()
+        if len(_roots)>0:
+            roots.append(_roots)
+       
+    #    shift_origin = 0.4
+#    shift = int(shift_origin*len(times))
+#    kappas = kappas[:, shift:-2]
+#    t_mins =  times[shift + np.array([ np.argmin(abs(kappas[i])) for i in range(kappas.shape[0]) ])]
+    
+    roots = np.array(roots).flatten()
+    
+    #plot Gaussian kde        
+    if len(roots)>0:       
+        Tind = np.linspace(np.log10(times[0]), np.log10(times[-2]), 100)              
+            
+        pdf = stats.gaussian_kde(roots)        
+        ax2.plot(Tind, pdf(Tind), color='navy', linestyle='-')            
+        ax2.scatter(roots, np.zeros_like(roots), marker='x', color='k', alpha=.1)
+        
     if filename is not None:
         plt.savefig(filename + ext)
 
-    return fig, ax
+    return fig
 
 
 def plot_graph_snapshots(

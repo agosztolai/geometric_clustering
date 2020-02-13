@@ -29,7 +29,7 @@ class WorkerCurvatures:
 
 
 
-def compute_curvatures(graph, times, params):
+def compute_curvatures(graph, times, params, save=True):
     """Edge curvature matrix"""
 
     laplacian = curvature.construct_laplacian(graph, params["use_spectral_gap"])
@@ -66,7 +66,8 @@ def compute_curvatures(graph, times, params):
                 "All edges have positive curvatures, so you may stop the computations."
             )
 
-        io.save_curvatures(times[:time_index], kappas[:time_index])
+        if save:
+            io.save_curvatures(times[:time_index], kappas[:time_index])
 
     return kappas
 
