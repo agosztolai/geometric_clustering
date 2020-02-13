@@ -41,14 +41,6 @@ def plot_edge_curvatures(
     gs.update(wspace=0.00)
     gs.update(hspace=0)
 
-#        cmap = plt.get_cmap('rainbow') 
-#        cNorm  = col.Normalize(vmin=np.min(w), vmax=np.max(w))
-#        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cmap)
-        
-#        for i in range(self.Kappa.shape[1]):
-#            edge_col = scalarMap.to_rgba(w[i])
-#            ax1.plot(np.log10(self.T[:-1]), self.Kappa[i], c=edge_col, lw=0.5)
-
     for i, kappa in enumerate(kappas.T):
         if edge_color is not None: 
             color = cmx.tab10(int(edge_color[i]/np.max(edge_color)*10))
@@ -101,6 +93,7 @@ def plot_graph_snapshots(
         node_size=20,
         edge_width=2,
         node_labels=False,
+        disable=False,
         ext=".svg",
         figsize=(5, 4),
 ):
@@ -109,7 +102,7 @@ def plot_graph_snapshots(
     if not os.path.isdir(folder):
         os.mkdir(folder)
 
-    for i, kappa in tqdm(enumerate(kappas), total=len(kappas)):
+    for i, kappa in tqdm(enumerate(kappas), total=len(kappas), disable=disable):
         plot_graph(
             graph,
             kappa,
@@ -133,9 +126,10 @@ def plot_graph(
         edge_width=1,
         node_labels=False,
         node_colors=None,
+        color_map=0,
         figsize=(10, 7),
 ):
-    """plot the curvature on the graph for a given time t"""
+    """plot the curvature on the graph"""
 
     if "pos" in graph.nodes[1]:
         pos = list(nx.get_node_attributes(graph, "pos").values())
@@ -147,7 +141,8 @@ def plot_graph(
 
     plt.figure(figsize=figsize)
 
-    kappa_min = abs(min(np.min(kappa), 0))
+    kappa_min = min(np.min(kappa), 0)
+    kappa_max = max(np.max(kappa), 0)
     kappa_0 = kappa_min / (1.0 + kappa_min)
     cdict = {
         "red": [(0.0, 0.1, 0.1), (kappa_0, 0.1, 0.1), (1.0, 1.0, 1.0)],
@@ -155,12 +150,22 @@ def plot_graph(
         "blue": [(0.0, 1.0, 1.0), (kappa_0, 0.1, 0.1), (1.0, 0.1, 0.1)],
         "alpha": [(0.0, 0.8, 0.8), (kappa_0, 0.05, 0.05), (1.0, 0.8, 0.8)],
     }
-
-    edge_cmap = col.LinearSegmentedColormap("my_colormap", cdict)
-    edge_vmin = -kappa_min
-    edge_vmax = 1.0
+    
+    if color_map==0:
+        edge_cmap = col.LinearSegmentedColormap("my_colormap", cdict)
+        edge_vmin = -kappa_min
+        edge_vmax = 1.0
+    elif color_map==1:    
+        edge_cmap = cmx.inferno
+        edge_vmin = kappa_min
+        edge_vmax = 1.1*kappa_max #to avoid the not so visible bright yellow
 
     if node_colors is None:
+        node_colors = 'k'
+        cmap = None
+        vmin = None
+        vmax = None
+    elif node_colors == 'curvature':
         incidence_matrix = nx.incidence_matrix(graph, weight="weight").toarray()
         inverse_degrees = np.diag([1.0 / graph.degree[i] for i in graph.nodes])
         node_colors = inverse_degrees.dot(incidence_matrix.dot(kappa))
