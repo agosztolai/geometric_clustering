@@ -11,12 +11,14 @@ from scipy import stats
 
 
 def plot_edge_curvatures(
-    times, kappas, edge_color=None, ylog=False, filename=None, ext=".svg"
+    times, kappas, edge_color=None, ylog=False, filename="curvature", ext=".svg"
 ):
     """plot edge curvature"""
 
-    fig = plt.figure(constrained_layout=True, figsize=(7,6))
-    gs = fig.add_gridspec(ncols=2, nrows=3, width_ratios=[3, 1], height_ratios=[2.5, 1, 1])
+    fig = plt.figure(constrained_layout=True, figsize=(7, 6))
+    gs = fig.add_gridspec(
+        ncols=2, nrows=3, width_ratios=[3, 1], height_ratios=[2.5, 1, 1]
+    )
 
     ax1 = fig.add_subplot(gs[0, 0])
     ax1.get_xaxis().set_visible(False)
@@ -29,23 +31,25 @@ def plot_edge_curvatures(
     ax1.set_ylim([np.min(kappas), 1.1])
 
     ax2 = fig.add_subplot(gs[1, 0])
-#    ax2.tick_params(axis="x", which="both", left=False, top=False, labelleft=False)
+    #    ax2.tick_params(axis="x", which="both", left=False, top=False, labelleft=False)
     ax2.set_ylim([-0.1, 1])
     ax2.set_ylabel("Density of \n zero-crossings")
-    
-    #ax3 = fig.add_subplot(gs[2, 0])
-    #var = np.sum(np.abs(np.diff(kappas,axis=0)), axis=1)
-    #ax3.plot(np.log10(times[1:]), var)
-    #ax3.set_ylabel('Variance of curvature')
-    #ax3.set_xlabel(r"Diffusion time, $\log(\tau)$")
+
+    # ax3 = fig.add_subplot(gs[2, 0])
+    # var = np.sum(np.abs(np.diff(kappas,axis=0)), axis=1)
+    # ax3.plot(np.log10(times[1:]), var)
+    # ax3.set_ylabel('Variance of curvature')
+    # ax3.set_xlabel(r"Diffusion time, $\log(\tau)$")
 
     gs.update(wspace=0.00)
     gs.update(hspace=0)
 
     for i, kappa in enumerate(kappas.T):
         if edge_color is not None:
-#            color = cmx.tab10(int(edge_color[i] / np.max(edge_color) * 10))
-            normalized = (edge_color[i] - np.min(edge_color)) / (np.max(edge_color) - np.min(edge_color))
+            #            color = cmx.tab10(int(edge_color[i] / np.max(edge_color) * 10))
+            normalized = (edge_color[i] - np.min(edge_color)) / (
+                np.max(edge_color) - np.min(edge_color)
+            )
             color = cmx.inferno(normalized)
         elif edge_color is None:
             if all(kappa > 0):
@@ -81,8 +85,7 @@ def plot_edge_curvatures(
         ax2.plot(Tind, pdf(Tind), color="navy", linestyle="-")
         ax2.scatter(roots, np.zeros_like(roots), marker="x", color="k", alpha=0.1)
 
-    if filename is not None:
-        plt.savefig(filename + ext)
+    plt.savefig(filename + ext)
 
     return fig
 
@@ -92,7 +95,7 @@ def plot_graph_snapshots(
     times,
     kappas,
     folder="images",
-    filename=None,
+    filename="image",
     node_size=5,
     edge_width=2,
     node_labels=False,
@@ -117,11 +120,8 @@ def plot_graph_snapshots(
         )
         plt.title(r"$log_{10}(t)=$" + str(np.around(np.log10(times[i]), 2)))
 
-        if filename is not None:
-            plt.savefig(
-                folder + "/" + filename + "_%03d" % i + ext, bbox_inches="tight"
-            )
-            plt.close()
+        plt.savefig(folder + "/" + filename + "_%03d" % i + ext, bbox_inches="tight")
+        plt.close()
 
 
 def plot_graph(
@@ -160,7 +160,7 @@ def plot_graph(
     if color_map == 0:
         edge_cmap = col.LinearSegmentedColormap("my_colormap", cdict)
         edge_vmin = -kappa_min
-        edge_vmax = 1.0       
+        edge_vmax = 1.0
     elif color_map == 1:
         edge_cmap = cmx.inferno
         edge_vmin = -kappa_min
