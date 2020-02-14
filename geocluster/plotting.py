@@ -15,8 +15,8 @@ def plot_edge_curvatures(
 ):
     """plot edge curvature"""
 
-    fig = plt.figure(constrained_layout=True)
-    gs = fig.add_gridspec(ncols=2, nrows=2, width_ratios=[3, 1], height_ratios=[3, 1])
+    fig = plt.figure(constrained_layout=True, figsize=(7,6))
+    gs = fig.add_gridspec(ncols=2, nrows=3, width_ratios=[3, 1], height_ratios=[2.5, 1, 1])
 
     ax1 = fig.add_subplot(gs[0, 0])
     ax1.get_xaxis().set_visible(False)
@@ -29,17 +29,24 @@ def plot_edge_curvatures(
     ax1.set_ylim([np.min(kappas), 1.1])
 
     ax2 = fig.add_subplot(gs[1, 0])
-    ax2.tick_params(axis="x", which="both", left=False, top=False, labelleft=False)
+#    ax2.tick_params(axis="x", which="both", left=False, top=False, labelleft=False)
     ax2.set_ylim([-0.1, 1])
-    ax2.set_xlabel(r"Diffusion time, $\log(\tau)$")
     ax2.set_ylabel("Density of \n zero-crossings")
+    
+    #ax3 = fig.add_subplot(gs[2, 0])
+    #var = np.sum(np.abs(np.diff(kappas,axis=0)), axis=1)
+    #ax3.plot(np.log10(times[1:]), var)
+    #ax3.set_ylabel('Variance of curvature')
+    #ax3.set_xlabel(r"Diffusion time, $\log(\tau)$")
 
     gs.update(wspace=0.00)
     gs.update(hspace=0)
 
     for i, kappa in enumerate(kappas.T):
         if edge_color is not None:
-            color = cmx.tab10(int(edge_color[i] / np.max(edge_color) * 10))
+#            color = cmx.tab10(int(edge_color[i] / np.max(edge_color) * 10))
+            normalized = (edge_color[i] - np.min(edge_color)) / (np.max(edge_color) - np.min(edge_color))
+            color = cmx.inferno(normalized)
         elif edge_color is None:
             if all(kappa > 0):
                 color = "C0"
@@ -106,6 +113,7 @@ def plot_graph_snapshots(
             node_labels=node_labels,
             edge_width=edge_width,
             figsize=figsize,
+            node_colors="curvature",
         )
         plt.title(r"$log_{10}(t)=$" + str(np.around(np.log10(times[i]), 2)))
 
@@ -125,6 +133,7 @@ def plot_graph(
     node_colors=None,
     color_map=0,
     figsize=(10, 7),
+    label="Edge curvature",
 ):
     """plot the curvature on the graph"""
 
@@ -138,10 +147,10 @@ def plot_graph(
 
     plt.figure(figsize=figsize)
 
-    kappa_min = min(np.min(kappa), 0)
+    kappa_min = abs(min(np.min(kappa), 0))
     kappa_max = max(np.max(kappa), 0)
     kappa_0 = kappa_min / (1.0 + kappa_min)
-    cdict_coolwarm = {
+    cdict = {
         "red": [(0.0, 0.0, 0.0), (kappa_0, 0.1, 0.1), (1.0, 1.0, 1.0)],
         "green": [(0.0, 0.1, 0.1), (kappa_0, 0.1, 0.1), (1.0, 0.0, 0.0)],
         "blue": [(0.0, 1.0, 1.0), (kappa_0, 0.1, 0.1), (1.0, 0.0, 0.0)],
@@ -151,10 +160,10 @@ def plot_graph(
     if color_map == 0:
         edge_cmap = col.LinearSegmentedColormap("my_colormap", cdict)
         edge_vmin = -kappa_min
-        edge_vmax = 1.0
+        edge_vmax = 1.0       
     elif color_map == 1:
         edge_cmap = cmx.inferno
-        edge_vmin = kappa_min
+        edge_vmin = -kappa_min
         edge_vmax = 1.1 * kappa_max  # to avoid the not so visible bright yellow
 
     if node_colors is None:
@@ -162,7 +171,6 @@ def plot_graph(
         cmap = None
         vmin = None
         vmax = None
-
     elif node_colors == "curvature":
         incidence_matrix = nx.incidence_matrix(graph, weight="weight").toarray()
         inverse_degrees = np.diag([1.0 / graph.degree[i] for i in graph.nodes])
@@ -199,7 +207,7 @@ def plot_graph(
         norm=plt.cm.colors.Normalize(edge_vmin, edge_vmax), cmap=edge_cmap
     )
 
-    plt.colorbar(edges, label="Edge curvature")
+    plt.colorbar(edges, label=label)
 
     if node_labels:
         labels_gt = {}
