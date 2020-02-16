@@ -24,6 +24,8 @@ clique_of_cliques:
         m: 5
         n: 3
         L: 1
+        w: [1, 10, 100]
+        p: [0.01, 0.1, 1.]
         seed: 1
         t_min: -8.0
         t_max: 1.0
