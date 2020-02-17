@@ -1,4 +1,5 @@
 """plotting functions"""
+import itertools
 import os
 from tqdm import tqdm
 import numpy as np
@@ -34,12 +35,12 @@ def plot_edge_curvatures(
     #    ax2.tick_params(axis="x", which="both", left=False, top=False, labelleft=False)
     ax2.set_ylim([-0.1, 1])
     ax2.set_ylabel("Density of \n zero-crossings")
-    
+
     ax3 = fig.add_subplot(gs[2, 0])
-#    kappas[kappas>0] = 0
-    var = np.sum(np.abs(np.diff(kappas,axis=0)), axis=1)
+    #    kappas[kappas>0] = 0
+    var = np.sum(np.abs(np.diff(kappas, axis=0)), axis=1)
     ax3.plot(np.log10(times[1:]), var)
-    ax3.set_ylabel('Variance of curvature')
+    ax3.set_ylabel("Variance of curvature")
     ax3.set_xlabel(r"Diffusion time, $\log(\tau)$")
 
     gs.update(wspace=0.00)
@@ -127,7 +128,7 @@ def plot_graph_snapshots(
 
 def plot_graph(
     graph,
-    kappa,
+    kappa=None,
     node_size=20,
     edge_width=1,
     node_labels=False,
@@ -147,25 +148,30 @@ def plot_graph(
         pos = np.asarray(pos)[:, [0, 2]]
 
     plt.figure(figsize=figsize)
+    if kappa is not None:
+        kappa_min = abs(min(np.min(kappa), 0))
+        kappa_max = max(np.max(kappa), 0)
+        kappa_0 = kappa_min / (1.0 + kappa_min)
+        cdict = {
+            "red": [(0.0, 0.0, 0.0), (kappa_0, 0.1, 0.1), (1.0, 1.0, 1.0)],
+            "green": [(0.0, 0.1, 0.1), (kappa_0, 0.1, 0.1), (1.0, 0.0, 0.0)],
+            "blue": [(0.0, 1.0, 1.0), (kappa_0, 0.1, 0.1), (1.0, 0.0, 0.0)],
+            "alpha": [(0.0, 0.8, 0.8), (kappa_0, 0.02, 0.02), (1.0, 0.8, 0.8)],
+        }
 
-    kappa_min = abs(min(np.min(kappa), 0))
-    kappa_max = max(np.max(kappa), 0)
-    kappa_0 = kappa_min / (1.0 + kappa_min)
-    cdict = {
-        "red": [(0.0, 0.0, 0.0), (kappa_0, 0.1, 0.1), (1.0, 1.0, 1.0)],
-        "green": [(0.0, 0.1, 0.1), (kappa_0, 0.1, 0.1), (1.0, 0.0, 0.0)],
-        "blue": [(0.0, 1.0, 1.0), (kappa_0, 0.1, 0.1), (1.0, 0.0, 0.0)],
-        "alpha": [(0.0, 0.8, 0.8), (kappa_0, 0.02, 0.02), (1.0, 0.8, 0.8)],
-    }
-
-    if color_map == 0:
-        edge_cmap = col.LinearSegmentedColormap("my_colormap", cdict)
-        edge_vmin = -kappa_min
+        if color_map == 0:
+            edge_cmap = col.LinearSegmentedColormap("my_colormap", cdict)
+            edge_vmin = -kappa_min
+            edge_vmax = 1.0
+        elif color_map == 1:
+            edge_cmap = cmx.inferno
+            edge_vmin = -kappa_min
+            edge_vmax = 1.1 * kappa_max  # to avoid the not so visible bright yellow
+    else:
+        kappa = np.ones(len(graph.edges()))
+        edge_vmin = 1.0
         edge_vmax = 1.0
-    elif color_map == 1:
-        edge_cmap = cmx.inferno
-        edge_vmin = -kappa_min
-        edge_vmax = 1.1 * kappa_max  # to avoid the not so visible bright yellow
+        edge_cmap = plt.get_cmap("viridis")
 
     if node_colors is None:
         node_colors = "k"
@@ -249,3 +255,33 @@ def plot_scales(graph, edge_scales, figsize=(10, 5)):
     plt.colorbar(edges, label="Edge scale")
 
     plt.savefig("graph_scales.png")
+
+
+def plot_coarse_grain(
+    graphs,
+    edge_color=None,
+    folder="coarse_grain",
+    filename="image",
+    ext=".png",
+    node_size=5,
+    edge_width=2,
+    node_labels=False,
+    disable=False,
+    figsize=(5, 4),
+):
+    """plot coarse grained graphs"""
+
+    if not os.path.isdir(folder):
+        os.mkdir(folder)
+
+    for i, graph in enumerate(graphs):
+        plot_graph(
+            graph,
+            edge_color,
+            node_size=node_size,
+            node_labels=node_labels,
+            edge_width=edge_width,
+            figsize=figsize,
+        )
+
+        plt.savefig(folder + "/" + filename + "_%03d" % i + ext, bbox_inches="tight")
