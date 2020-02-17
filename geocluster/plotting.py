@@ -34,12 +34,13 @@ def plot_edge_curvatures(
     #    ax2.tick_params(axis="x", which="both", left=False, top=False, labelleft=False)
     ax2.set_ylim([-0.1, 1])
     ax2.set_ylabel("Density of \n zero-crossings")
-
-    # ax3 = fig.add_subplot(gs[2, 0])
-    # var = np.sum(np.abs(np.diff(kappas,axis=0)), axis=1)
-    # ax3.plot(np.log10(times[1:]), var)
-    # ax3.set_ylabel('Variance of curvature')
-    # ax3.set_xlabel(r"Diffusion time, $\log(\tau)$")
+    
+    ax3 = fig.add_subplot(gs[2, 0])
+#    kappas[kappas>0] = 0
+    var = np.sum(np.abs(np.diff(kappas,axis=0)), axis=1)
+    ax3.plot(np.log10(times[1:]), var)
+    ax3.set_ylabel('Variance of curvature')
+    ax3.set_xlabel(r"Diffusion time, $\log(\tau)$")
 
     gs.update(wspace=0.00)
     gs.update(hspace=0)
