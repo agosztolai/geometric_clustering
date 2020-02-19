@@ -27,6 +27,7 @@ times, kappas = io.load_curvature()
 
 print('Compute scales')
 edge_scales = gc.compute_scales(times, kappas)
+plotting.plot_scales(graph, edge_scales)
 
 print('Coarse grain')
 graphs_reduc = gc.coarse_grain(graph, edge_scales, times)

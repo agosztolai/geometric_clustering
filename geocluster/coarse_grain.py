@@ -1,14 +1,7 @@
 """coarse grainning functions"""
-import multiprocessing
-from tqdm import tqdm
-
 import networkx as nx
 import numpy as np
-from scipy.interpolate import InterpolatedUnivariateSpline
 from tqdm import tqdm
-
-import geocluster.curvature as curvature
-import geocluster.io as io
 
 
 def coarse_grain(graph, edge_scales, thresholds):
@@ -22,20 +15,23 @@ def coarse_grain(graph, edge_scales, thresholds):
 def single_coarse_grain(graph, edge_scales, threshold):
     """coarse grain a graph at a single threshold"""
 
-    def _find_edge(graph_r):
-        """find the next edge to coarse grain"""
-        for e in graph_r.edges():
-            if graph_r[e[0]][e[1]]['scale'] < threshold:
-                return [e, ]
-        return []
+    for ei, e in enumerate(graph.edges()):
+        graph[e[0]][e[1]]["scale"] = edge_scales[ei]
 
-    graph_reduc = graph.copy()
-    for ei, e in enumerate(graph_reduc.edges()):
-        graph_reduc[e[0]][e[1]]['scale'] = edge_scales[ei]
+    # TODO: cache the shortest path computations for speed up on subsequent coarse grainings
+    def _equivalence(u, v):
+        return (
+            nx.shortest_path_length(graph, u, v, weight="scale")
+            / len(nx.shortest_path(graph, u, v, weight="scale"))
+            < threshold
+        )
 
-    edgelist = _find_edge(graph_reduc)
-    while len(edgelist) > 0:
-        graph_reduc = nx.contracted_edge(graph_reduc, edgelist[0], self_loops=False)
-        edgelist = _find_edge(graph_reduc)
+    graph_reduc = nx.quotient_graph(graph, _equivalence)
+
+    for u in graph_reduc:
+        pos = []
+        for uu in u:
+            pos.append(graph.nodes[uu]["pos"])
+        graph_reduc.nodes[u]["pos"] = np.array(pos).mean(0)
 
     return nx.convert_node_labels_to_integers(graph_reduc)

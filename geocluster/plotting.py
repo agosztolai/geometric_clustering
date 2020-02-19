@@ -1,14 +1,17 @@
 """plotting functions"""
-import itertools
 import os
-from tqdm import tqdm
-import numpy as np
-import networkx as nx
-import matplotlib.pyplot as plt
-import matplotlib.colors as col
+
+import matplotlib
 import matplotlib.cm as cmx
-from scipy.interpolate import InterpolatedUnivariateSpline
+import matplotlib.colors as col
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
 from scipy import stats
+from scipy.interpolate import InterpolatedUnivariateSpline
+from tqdm import tqdm
+
+matplotlib.use("Agg")
 
 
 def plot_edge_curvatures(
@@ -139,7 +142,7 @@ def plot_graph(
 ):
     """plot the curvature on the graph"""
 
-    if "pos" in graph.nodes[1]:
+    if "pos" in graph.nodes[0]:
         pos = list(nx.get_node_attributes(graph, "pos").values())
     else:
         pos = nx.spring_layout(graph)
@@ -147,7 +150,6 @@ def plot_graph(
     if len(pos[0]) > 2:
         pos = np.asarray(pos)[:, [0, 2]]
 
-    plt.figure(figsize=figsize)
     if kappa is not None:
         kappa_min = abs(min(np.min(kappa), 0))
         kappa_max = max(np.max(kappa), 0)
@@ -275,6 +277,7 @@ def plot_coarse_grain(
         os.mkdir(folder)
 
     for i, graph in tqdm(enumerate(graphs), total=len(graphs), disable=disable):
+        plt.figure(figsize=figsize)
         plot_graph(
             graph,
             edge_color,
@@ -285,3 +288,4 @@ def plot_coarse_grain(
         )
 
         plt.savefig(folder + "/" + filename + "_%03d" % i + ext, bbox_inches="tight")
+        plt.close()

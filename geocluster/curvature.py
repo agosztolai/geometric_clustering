@@ -1,4 +1,7 @@
 """Functions for computing the curvature"""
+import multiprocessing
+from tqdm import tqdm
+
 import networkx as nx
 import numpy as np
 import scipy as sc
@@ -6,6 +9,8 @@ from scipy.sparse.csgraph import floyd_warshall
 from sklearn.utils import check_symmetric
 
 import ot
+
+from .io import save_curvatures
 
 
 class WorkerMeasures:
@@ -16,7 +21,7 @@ class WorkerMeasures:
         self.timestep = timestep
 
     def __call__(self, measure):
-        return curvature.heat_kernel(self.laplacian, self.timestep, measure)
+        return heat_kernel(self.laplacian, self.timestep, measure)
 
 
 class WorkerCurvatures:
@@ -28,7 +33,7 @@ class WorkerCurvatures:
         self.params = params
 
     def __call__(self, edge):
-        return curvature.edge_curvature(
+        return edge_curvature(
             self.measures, self.geodesic_distances, self.params, edge
         )
 
@@ -36,8 +41,8 @@ class WorkerCurvatures:
 def compute_curvatures(graph, times, params, save=True, disable=False):
     """Edge curvature matrix"""
 
-    laplacian = curvature.construct_laplacian(graph, params["use_spectral_gap"])
-    geodesic_distances = curvature.compute_distance_geodesic(graph)
+    laplacian = construct_laplacian(graph, params["use_spectral_gap"])
+    geodesic_distances = compute_distance_geodesic(graph)
 
     times_with_zero = np.hstack([0.0, times])  # add 0 timepoint
 
@@ -60,7 +65,7 @@ def compute_curvatures(graph, times, params, save=True, disable=False):
         else:
             for measure in measures:
                 Warning("GPU code not working, WIP!")
-                kappas[time_index] = curvature.edge_curvature_gpu(
+                kappas[time_index] = edge_curvature_gpu(
                     measure,
                     geodesic_distances,
                     params["lamb"],
@@ -75,7 +80,7 @@ def compute_curvatures(graph, times, params, save=True, disable=False):
             ind = True
 
         if save:
-            io.save_curvatures(times[:time_index], kappas[:time_index])
+            save_curvatures(times[:time_index], kappas[:time_index])
 
     return kappas
 

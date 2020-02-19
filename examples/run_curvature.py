@@ -35,5 +35,5 @@ params['use_spectral_gap'] = True
 #Compute the OR curvatures
 kappas = gc.compute_curvatures(graph, times, params)
 
-plotting.plot_edge_curvatures(times, kappas, ylog=True, filename='edge_curvature.pkl')
-#plotting.plot_graph_snapshots(graph, times, kappas, folder='curvature_images', ext='.png')
+plotting.plot_edge_curvatures(times, kappas, ylog=True, filename='edge_curvature')
+plotting.plot_graph_snapshots(graph, times, kappas, folder='curvature_images', ext='.png')
