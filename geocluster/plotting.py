@@ -274,7 +274,7 @@ def plot_coarse_grain(
     if not os.path.isdir(folder):
         os.mkdir(folder)
 
-    for i, graph in enumerate(graphs):
+    for i, graph in tqdm(enumerate(graphs), total=len(graphs), disable=disable):
         plot_graph(
             graph,
             edge_color,

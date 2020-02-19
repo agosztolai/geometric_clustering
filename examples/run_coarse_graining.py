@@ -25,7 +25,11 @@ graph = generate(whichgraph=whichgraph, params=params)
 #Compute the OR curvatures
 times, kappas = io.load_curvature()
 
+print('Compute scales')
 edge_scales = gc.compute_scales(times, kappas)
 
-graphs_reduc = gc.coarse_grain(graph, edge_scales, times[:20])
+print('Coarse grain')
+graphs_reduc = gc.coarse_grain(graph, edge_scales, times)
+
+print('plot coarse grain')
 plotting.plot_coarse_grain(graphs_reduc, node_size=20, edge_width=1)

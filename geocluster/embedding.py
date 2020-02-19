@@ -576,3 +576,28 @@ class SpectralEmbedding(BaseEstimator):
         """
         self.fit(X)
         return self.embedding_    
+
+
+
+
+def run_embedding(self, weight='curvature'):
+    '''embedding based on curvature-signed Laplacian eigenmaps'''
+
+    se = SpectralEmbedding(n_components=2, affinity='precomputed')
+    A = se.fit_transform(nx.adjacency_matrix(self.G, weight=weight).toarray())
+
+    return A 
+
+
+def run_embeddings(self, weight='curvature'):
+    '''embedding based on curvature-signed Laplacian eigenmaps for all times'''
+       
+    self.Y = []
+    for t in tqdm(range(self.n_t)):
+
+        for e, edge in enumerate(self.G.edges):
+            self.G.edges[edge]['curvature'] = self.Kappa[e,t]   
+            
+        self.Y.append(self.run_embedding(weight=weight))
+
+
