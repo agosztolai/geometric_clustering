@@ -15,23 +15,30 @@ def coarse_grain(graph, edge_scales, thresholds):
 def single_coarse_grain(graph, edge_scales, threshold):
     """coarse grain a graph at a single threshold"""
 
+    # cut a copy of the graph
+    graph_cut = graph.copy()
     for ei, e in enumerate(graph.edges()):
-        graph[e[0]][e[1]]["scale"] = edge_scales[ei]
+        if edge_scales[ei] >= threshold:
+            graph_cut.remove_edge(e[0], e[1])
 
-    # TODO: cache the shortest path computations for speed up on subsequent coarse grainings
+    # find connected components and node to comp dict
+    connected_comps = list(nx.connected_components(graph_cut))
+    set_id = {u: i for u in graph for i, c in enumerate(connected_comps) if u in c}
+
     def _equivalence(u, v):
-        return (
-            nx.shortest_path_length(graph, u, v, weight="scale")
-            / len(nx.shortest_path(graph, u, v, weight="scale"))
-            < threshold
-        )
+        """equivalence relation to quotient/coarse grain the graph"""
+        if v in connected_comps[set_id[u]]:
+            return True
+        return False
 
+    # quotient the graph
     graph_reduc = nx.quotient_graph(graph, _equivalence)
 
+    # set position as mean of clustered nodes
     for u in graph_reduc:
         pos = []
-        for uu in u:
-            pos.append(graph.nodes[uu]["pos"])
+        for sub_u in u:
+            pos.append(graph.nodes[sub_u]["pos"])
         graph_reduc.nodes[u]["pos"] = np.array(pos).mean(0)
 
     return nx.convert_node_labels_to_integers(graph_reduc)
