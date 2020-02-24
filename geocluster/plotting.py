@@ -278,3 +278,15 @@ def plot_coarse_grain(
 
         plt.savefig(folder + "/" + filename + "_%03d" % i + ext, bbox_inches="tight")
         plt.close()
+
+
+def plot_embeddings(embeddings, folder="embedding", filename="image", ext=".png"):
+    """plot the embedding results on scatter plot"""
+
+    if not os.path.isdir(folder):
+        os.mkdir(folder)
+
+    for i, embedding in enumerate(embeddings):
+        plt.figure()
+        plt.scatter(embedding[0], embedding[1])
+        plt.savefig(folder + "/" + filename + "_%03d" % i + ext, bbox_inches="tight")
