@@ -1,114 +1,90 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""clustering functions"""
+import multiprocessing
 
-import numpy as np
-import scipy as sc
 import networkx as nx
-from scipy.sparse import csr_matrix
+import numpy as np
+from tqdm import tqdm
 
-'''
-=============================================================================
-Functions for clustering
-=============================================================================
-'''
-
-def cluster_threshold(self, sample=20, perturb=0.02):
-    #parameters
-    #sample = 20     # how many samples to use for computing the VI
-    #perturb = 0.02  # threshold k ~ Norm(0,perturb(kmax-kmin))
-
-    Aold = self.A.toarray()
-    K_tmp = nx.adjacency_matrix(self.G, weight='curvature').toarray()
-
-    mink = np.min(K_tmp)
-    maxk = np.max(K_tmp)
-    labels = np.zeros([sample, Aold.shape[0] ])
-
-    #set the first threshold to 0, others are random numbers around 0
-    thres = np.append(0.0, np.random.normal(0, perturb*(maxk-mink), sample-1))
-
-    nComms = np.zeros(sample)
-    for k in range(sample):
-        ind = np.where(K_tmp <= thres[k])     
-        A = Aold.copy()
-        A[ind[0], ind[1]] = 0 #remove edges with negative curvature.       
-        nComms[k], labels[k] = sc.sparse.csgraph.connected_components(csr_matrix(A, dtype=int), directed=False, return_labels=True) 
-
-    # compute the MI between the threshold=0 and other ones
-    from sklearn.metrics.cluster import normalized_mutual_info_score
-
-    mi = 0; k = 0 
-    for i in range(sample):
-            mi += normalized_mutual_info_score(list(labels[i]),list(self.labels_gt), average_method='arithmetic' )
-            k+=1
-
-    #return the mean number of communities, MI and label at threshold = 0 
-    return np.mean(nComms), mi/k, labels[0]
+from pygenstability import pygenstability as pgs
+from pygenstability.io import save
+from pygenstability.constructors import constructor_signed_modularity
 
 
+def cluster(graph, times, kappas, params):
+    """main clusterin function"""
+
+    if params["clustering_mode"] == "threshold":
+        return cluster_threshold(graph, times, kappas, params)
+
+    if params["clustering_mode"] == "signed_modularity":
+        return cluster_signed_modularity(graph, times, kappas, params)
+
+    raise Exception("Clustering method not understood")
 
 
-def run_clustering(self, cluster_tpe='threshold', cluster_by='curvature'):
-    """Clustering of curvature weigthed graphs"""
-    
-    self.cluster_tpe = cluster_tpe
-    self.labels_gt = [int(self.G.nodes[i]['block']) for i in self.G.nodes if 'block' in self.G.nodes[0]]
+def cluster_signed_modularity(graph, times, kappas, params):
+    """cluster usint signed mofularity of Gomez, Jensen, Arenas PRE 2009"""
 
-    if cluster_tpe == 'threshold':
-        
-        nComms, MIs, labels = np.zeros(self.n_t), np.zeros(self.n_t), np.zeros([self.n_t, self.n])
+    def modularity_constructor(graph, time):
+        """signed modularity contructor with curvature"""
+        graph_kappa = graph.copy()
+        for ei, e in enumerate(graph_kappa.edges()):
+            graph_kappa[e[0]][e[1]]["weight"] = kappas[int(time)][ei]
+        return constructor_signed_modularity(graph_kappa, 1.0)
 
-        for t in tqdm(range(self.n_t)):
-            # update edge curvatures                    
-            for e, edge in enumerate(self.G.edges):
-                self.G.edges[edge]['curvature'] = self.Kappa[e,t]                     
+    params["min_time"] = 0
+    params["max_time"] = len(times) - 1
+    params["n_time"] = len(times)
+    params["log_time"] = False
+    params["save_qualities"] = False
 
-            nComms[t], MIs[t], labels[t] = cluster_threshold(self)
-            
-        self.clustering_results = {'Markov time' : self.T,
-                'number_of_communities' : nComms,
-                'community_id' : labels,
-                'MI' : MIs}    
+    return pgs.run(graph, params, constructor=modularity_constructor)
 
+
+def cluster_threshold(graph, times, kappas, params):  # pylint: disable=too-many-locals
+    """run clustering by thresholding (with noise to estimate the quality"""
+
+    if params["n_workers"] == 1:
+        mapper = map
     else:
-        import pygenstability.pygenstability as pgs
+        pool = multiprocessing.Pool(params["n_workers"])
+        mapper = pool.map
 
-        #parameters
-        stability = pgs.PyGenStability(self.G.copy(), cluster_tpe, louvain_runs=50)
-        stability.all_mi = False #to compute MI between all Louvain runs
-        stability.n_mi = 10  #if all_mi = False, number of top Louvain run to use for MI        
-        stability.n_processes_louv = 10 #number of cpus 
-        stability.n_processes_mi = 10 #number of cpus
+    all_results = {
+        "times": [],
+        "community_id": [],
+        "number_of_communities": [],
+    }
 
-        stabilities, nComms, MIs, labels = [], [], [], []
-        for i in tqdm(range(self.n_t)):
+    for time, kappa in tqdm(zip(times, kappas), total=len(times)):
 
-            #set adjacency matrix
-            if cluster_by == 'curvature':                 
-                for e, edge in enumerate(self.G.edges):
-                    stability.G.edges[edge]['curvature'] = self.Kappa[e,i] 
-                stability.A = nx.adjacency_matrix(stability.G, weight='curvature')
-                time = 1.
-            elif cluster_by == 'weight' :   
-                stability.A = nx.adjacency_matrix(stability.G, weight='weight')
-                time = self.T[i]
+        thresholds = np.random.normal(
+            0,
+            params["perturb"] * (np.max(kappas) - np.min(kappas)),
+            params["n_samples"] - 1,
+        )
+        thresholds = np.append(0.0, thresholds)
 
-            #run stability and collect results
-            stability.run_single_stability(time = time ) 
-            stabilities.append(stability.single_stability_result['stability'])
-            nComms.append(stability.single_stability_result['number_of_comms'])
-            MIs.append(stability.single_stability_result['MI'])
-            labels.append(stability.single_stability_result['community_id'])
+        community_ids = []
+        for threshold in thresholds:
+            graph_threshold = graph.copy()
+            for ei, e in enumerate(graph.edges()):
+                if kappa[ei] <= threshold:
+                    graph_threshold.remove_edge(e[0], e[1])
 
-        ttprime = stability.compute_ttprime(labels, nComms, self.T[:np.shape(self.Kappa)[1]])
+            community_id = np.zeros(len(graph))
+            for i, cp in enumerate(list(nx.connected_components(graph_threshold))):
+                community_id[list(cp)] = i
+            community_ids.append(community_id)
 
-        #save the results
-        self.clustering_results = {'Markov time' : self.T,
-                'stability' : stabilities,
-                'number_of_communities' : nComms,
-                'community_id' : labels,
-                'MI' : MIs, 
-                'ttprime': ttprime}
+        all_results["times"].append(time)
+        all_results["community_id"].append(community_ids[0])
+        all_results["number_of_communities"].append(len(set(community_ids[0])))
 
+        pgs.compute_mutual_information(
+            community_ids, all_results, mapper, params["n_samples"]
+        )
 
+    save(all_results)
 
+    return all_results

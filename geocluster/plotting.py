@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 from scipy import stats
-from scipy.interpolate import InterpolatedUnivariateSpline
 from tqdm import tqdm
 
 matplotlib.use("Agg")
@@ -67,19 +66,13 @@ def plot_edge_curvatures(
     ax1.axhline(1, ls="--", c="k")
     ax1.axhline(0, ls="--", c="k")
 
-    # find zero crossings
-    roots = []
-    for j in range(kappas.shape[1]):
-        f = InterpolatedUnivariateSpline(np.log10(times), kappas[:, j], k=3)
-        _roots = f.roots()
-        if len(_roots) > 0:
-            roots.append(_roots)
+    plt.savefig(filename + ext)
 
-    #    shift_origin = 0.4
-    #    shift = int(shift_origin*len(times))
-    #    kappas = kappas[:, shift:-2]
-    #    t_mins =  times[shift + np.array([ np.argmin(abs(kappas[i])) for i in range(kappas.shape[0]) ])]
+    return fig
 
+
+def plot_scales_WIP():
+    # TODO: make this a correct function
     roots = np.array(roots).flatten()
 
     # plot Gaussian kde
@@ -89,10 +82,6 @@ def plot_edge_curvatures(
         pdf = stats.gaussian_kde(roots)
         ax2.plot(Tind, pdf(Tind), color="navy", linestyle="-")
         ax2.scatter(roots, np.zeros_like(roots), marker="x", color="k", alpha=0.1)
-
-    plt.savefig(filename + ext)
-
-    return fig
 
 
 def plot_graph_snapshots(

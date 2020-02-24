@@ -1,14 +1,6 @@
-"""main functionf for geoclusters"""
-import multiprocessing
-from tqdm import tqdm
-
-import networkx as nx
+"""compute edge scales from curvature"""
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline
-from tqdm import tqdm
-
-import geocluster.curvature as curvature
-import geocluster.io as io
 
 
 def compute_scales(times, kappas, method="zeros"):
