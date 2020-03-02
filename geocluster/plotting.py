@@ -71,19 +71,6 @@ def plot_edge_curvatures(
     return fig
 
 
-def plot_scales_WIP():
-    # TODO: make this a correct function
-    roots = np.array(roots).flatten()
-
-    # plot Gaussian kde
-    if len(roots) > 0:
-        Tind = np.linspace(np.log10(times[0]), np.log10(times[-2]), 100)
-
-        pdf = stats.gaussian_kde(roots)
-        ax2.plot(Tind, pdf(Tind), color="navy", linestyle="-")
-        ax2.scatter(roots, np.zeros_like(roots), marker="x", color="k", alpha=0.1)
-
-
 def plot_graph_snapshots(
     graph,
     times,
@@ -216,12 +203,38 @@ def plot_graph(
     plt.axis("off")
 
 
-def plot_scales(graph, edge_scales, figsize=(10, 5)):
-    """plot scales on edges, from curvatures"""
+def plot_scales_distribution(
+    graph,
+    times,
+    edge_scales,
+    method="hist",
+    filename="hist_scales.png",
+    figsize=(10, 5),
+):
+    """plot scales on edges with histogram, or gaussian kernel, or both"""
     plt.figure()
-    plt.hist(np.log10(edge_scales), bins=40)
-    plt.savefig("hist_scales.png")
 
+    if method == "hist" or method == "both":
+        plt.hist(np.log10(edge_scales), bins=40, density=True)
+
+    if method == "gaussian" or method == "both":
+        pdf = stats.gaussian_kde(np.log10(edge_scales))
+        plt.plot(np.log10(times), pdf(np.log10(times)), color="navy", linestyle="-")
+        plt.scatter(
+            np.log10(edge_scales),
+            np.zeros_like(edge_scales),
+            marker="x",
+            color="k",
+            alpha=0.1,
+        )
+
+    plt.xlabel("Zero crossings / edge scales")
+    plt.gca().set_xlim(np.log10(times[0]), np.log10(times[-1]))
+    plt.savefig(filename)
+
+
+def plot_scales_graph(graph, edge_scales, filename="graph_scales.png", figsize=(10, 5)):
+    """plot scales on edges, from curvatures"""
     pos = list(nx.get_node_attributes(graph, "pos").values())
     cmap = plt.get_cmap("plasma")
 
@@ -245,7 +258,7 @@ def plot_scales(graph, edge_scales, figsize=(10, 5)):
 
     plt.colorbar(edges, label="Edge scale")
 
-    plt.savefig("graph_scales.png")
+    plt.savefig(filename)
 
 
 def plot_coarse_grain(

@@ -10,7 +10,9 @@ setup(
                           'scipy', 
                           'networkx', 
                           'matplotlib', 
-                          'cython', 
+                          'pyyaml',
+                          'tqdm',
+                          'sklearn',
                           'POT'],
         packages = find_packages(),                       
       )

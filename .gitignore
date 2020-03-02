@@ -1,3 +1,4 @@
+*.png
 *.egg-info
 *.pyc
 *.svg

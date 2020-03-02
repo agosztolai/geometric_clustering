@@ -25,9 +25,8 @@ times, kappas = io.load_curvature()
 
 print("Compute scales")
 edge_scales = gc.compute_scales(times, kappas)
-
-print("Coarse grain")
-graphs_reduc = gc.coarse_grain(graph, edge_scales, times)
-
-print("plot coarse grain")
-plotting.plot_coarse_grain(graphs_reduc, node_size=20, edge_width=1)
+plotting.plot_scales_graph(graph, edge_scales)
+plotting.plot_scales_distribution(graph, times, edge_scales, method="hist")
+plotting.plot_scales_distribution(
+    graph, times, edge_scales, method="gaussian", filename="gaussian_scale.png"
+)
