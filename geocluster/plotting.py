@@ -9,8 +9,8 @@ import numpy as np
 from scipy import stats
 from tqdm import tqdm
 
-#import matplotlib
-#matplotlib.use("Agg")
+# import matplotlib
+# matplotlib.use("Agg")
 
 
 def plot_edge_curvatures(
@@ -107,7 +107,7 @@ def plot_graph_snapshots(
 
 def plot_graph(
     graph,
-    kappa=None,
+    edge_color=None,
     node_size=20,
     edge_width=1,
     node_labels=False,
@@ -115,6 +115,7 @@ def plot_graph(
     color_map=0,
     figsize=(10, 7),
     label="Edge curvature",
+    show_colorbar=True,
 ):
     """plot the curvature on the graph"""
 
@@ -126,30 +127,31 @@ def plot_graph(
     if len(pos[0]) > 2:
         pos = np.asarray(pos)[:, [0, 2]]
 
-    if kappa is not None:
-        kappa_min = abs(min(np.min(kappa), 0))
-        kappa_max = max(np.max(kappa), 0)
-        kappa_0 = kappa_min / (1.0 + kappa_min)
+    if not isinstance(edge_color, str):
+        edge_color_min = abs(min(np.min(edge_color), 0))
+        edge_color_max = max(np.max(edge_color), 0)
+        edge_color_0 = edge_color_min / (1.0 + edge_color_min)
         cdict = {
-            "red": [(0.0, 0.0, 0.0), (kappa_0, 0.1, 0.1), (1.0, 1.0, 1.0)],
-            "green": [(0.0, 0.1, 0.1), (kappa_0, 0.1, 0.1), (1.0, 0.0, 0.0)],
-            "blue": [(0.0, 1.0, 1.0), (kappa_0, 0.1, 0.1), (1.0, 0.0, 0.0)],
-            "alpha": [(0.0, 0.8, 0.8), (kappa_0, 0.02, 0.02), (1.0, 0.8, 0.8)],
+            "red": [(0.0, 0.0, 0.0), (edge_color_0, 0.1, 0.1), (1.0, 1.0, 1.0)],
+            "green": [(0.0, 0.1, 0.1), (edge_color_0, 0.1, 0.1), (1.0, 0.0, 0.0)],
+            "blue": [(0.0, 1.0, 1.0), (edge_color_0, 0.1, 0.1), (1.0, 0.0, 0.0)],
+            "alpha": [(0.0, 0.8, 0.8), (edge_color_0, 0.02, 0.02), (1.0, 0.8, 0.8)],
         }
 
         if color_map == 0:
             edge_cmap = col.LinearSegmentedColormap("my_colormap", cdict)
-            edge_vmin = -kappa_min
+            edge_vmin = -edge_color_min
             edge_vmax = 1.0
         elif color_map == 1:
             edge_cmap = cmx.inferno
-            edge_vmin = -kappa_min
-            edge_vmax = 1.1 * kappa_max  # to avoid the not so visible bright yellow
+            edge_vmin = -edge_color_min
+            edge_vmax = (
+                1.1 * edge_color_max
+            )  # to avoid the not so visible bright yellow
     else:
-        kappa = np.ones(len(graph.edges()))
-        edge_vmin = 1.0
-        edge_vmax = 1.0
-        edge_cmap = plt.get_cmap("viridis")
+        edge_vmin = None
+        edge_vmax = None
+        edge_cmap = None
 
     if node_colors is None:
         node_colors = "k"
@@ -159,10 +161,10 @@ def plot_graph(
     elif node_colors == "curvature":
         incidence_matrix = nx.incidence_matrix(graph, weight="weight").toarray()
         inverse_degrees = np.diag([1.0 / graph.degree[i] for i in graph.nodes])
-        node_colors = inverse_degrees.dot(incidence_matrix.dot(kappa))
+        node_colors = inverse_degrees.dot(incidence_matrix.dot(edge_color))
 
         cmap = edge_cmap
-        vmin = -kappa_min
+        vmin = -edge_color_min
         vmax = 1.0
     else:
         cmap = plt.get_cmap("tab20")
@@ -182,7 +184,7 @@ def plot_graph(
         graph,
         pos=pos,
         width=edge_width,
-        edge_color=kappa,
+        edge_color=edge_color,
         edge_vmin=edge_vmin,
         edge_vmax=edge_vmax,
         edge_cmap=edge_cmap,
@@ -191,8 +193,8 @@ def plot_graph(
     edges = plt.cm.ScalarMappable(
         norm=plt.cm.colors.Normalize(edge_vmin, edge_vmax), cmap=edge_cmap
     )
-
-    plt.colorbar(edges, label=label)
+    if show_colorbar:
+        plt.colorbar(edges, label=label)
 
     if node_labels:
         labels_gt = {}
@@ -280,13 +282,33 @@ def plot_coarse_grain(
 
     for i, graph in tqdm(enumerate(graphs), total=len(graphs), disable=disable):
         plt.figure(figsize=figsize)
+
         plot_graph(
-            graph,
-            edge_color,
+            graphs[0],
+            "k",
+            node_colors="k",
             node_size=node_size,
             node_labels=node_labels,
             edge_width=edge_width,
             figsize=figsize,
+            show_colorbar=False,
+        )
+        total_weight = sum([graph.nodes[u]["weight"] for u in graph])
+        node_size_weight = (
+            node_size
+            * np.array([graph.nodes[u]["weight"] for u in graph])
+            / total_weight
+            * 100
+        )
+        plot_graph(
+            graph,
+            "C1",
+            node_colors="C1",
+            node_size=node_size_weight,
+            node_labels=node_labels,
+            edge_width=edge_width,
+            figsize=figsize,
+            show_colorbar=False,
         )
 
         plt.savefig(folder + "/" + filename + "_%03d" % i + ext, bbox_inches="tight")

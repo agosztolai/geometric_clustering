@@ -34,11 +34,19 @@ def single_coarse_grain(graph, edge_scales, threshold):
     # quotient the graph
     graph_reduc = nx.quotient_graph(graph, _equivalence)
 
-    # set position as mean of clustered nodes
+    # set position as mean of clustered nodes, and sum edges
     for u in graph_reduc:
         pos = []
+        weight = 0
         for sub_u in u:
             pos.append(graph.nodes[sub_u]["pos"])
+            for v in graph[sub_u]:
+                if v in u:
+                    if "weight" in graph[sub_u][v]:
+                        weight += graph[sub_u][v]["weight"]
+                    else:
+                        weight += 1
         graph_reduc.nodes[u]["pos"] = np.array(pos).mean(0)
+        graph_reduc.nodes[u]["weight"] = weight
 
     return nx.convert_node_labels_to_integers(graph_reduc)

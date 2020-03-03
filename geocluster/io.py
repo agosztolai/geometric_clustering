@@ -12,6 +12,7 @@ def load_curvature(filename="curvature"):
     times, kappas = pickle.load(open(filename + ".pkl", "rb"))
     return times, kappas
 
+
 def save_embedding(embedding, filename=None):
     """save embedding results"""
     pickle.dump(embedding, open(filename + "_embed.pkl", "wb"))

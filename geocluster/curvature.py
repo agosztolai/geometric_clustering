@@ -33,9 +33,7 @@ class WorkerCurvatures:
         self.params = params
 
     def __call__(self, edge):
-        return edge_curvature(
-            self.measures, self.geodesic_distances, self.params, edge
-        )
+        return edge_curvature(self.measures, self.geodesic_distances, self.params, edge)
 
 
 def compute_curvatures(graph, times, params, save=True, disable=False):

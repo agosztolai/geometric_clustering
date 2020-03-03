@@ -54,7 +54,7 @@ def cluster_threshold(graph, times, kappas, params):  # pylint: disable=too-many
         "times": [],
         "community_id": [],
         "number_of_communities": [],
-        'params': params,
+        "params": params,
     }
 
     for time, kappa in tqdm(zip(times, kappas), total=len(times)):
