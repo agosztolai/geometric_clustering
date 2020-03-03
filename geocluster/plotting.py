@@ -1,7 +1,6 @@
 """plotting functions"""
 import os
 
-import matplotlib
 import matplotlib.cm as cmx
 import matplotlib.colors as col
 import matplotlib.pyplot as plt
@@ -10,7 +9,8 @@ import numpy as np
 from scipy import stats
 from tqdm import tqdm
 
-matplotlib.use("Agg")
+#import matplotlib
+#matplotlib.use("Agg")
 
 
 def plot_edge_curvatures(
