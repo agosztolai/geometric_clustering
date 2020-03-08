@@ -25,14 +25,14 @@ os.chdir(whichgraph)
 # Load graph
 graph = generate(whichgraph=whichgraph, params=graph_params)
 
-
 # Initialise the code with parameters and graph
-times = np.logspace(params["t_min"], params["t_max"], params["n_t"] + 1)
+times = np.logspace(graph_params["t_min"], graph_params["t_max"], graph_params["n_t"])
 
 # Compute the OR curvatures
 kappas = gc.compute_curvatures(graph, times, params)
 
 plotting.plot_edge_curvatures(times, kappas, ylog=True, filename="edge_curvature")
+
 plotting.plot_graph_snapshots(
     graph, times, kappas, folder="curvature_images", ext=".png"
 )

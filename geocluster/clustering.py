@@ -5,9 +5,12 @@ import networkx as nx
 import numpy as np
 from tqdm import tqdm
 
-from pygenstability import pygenstability as pgs
-from pygenstability.io import save
-from pygenstability.constructors import constructor_signed_modularity
+try:
+    from pygenstability import pygenstability as pgs
+    from pygenstability.io import save
+    from pygenstability.constructors import constructor_signed_modularity
+except ImportError:
+    print("Pygenstability module not found, clustering will not work")
 
 
 def cluster(graph, times, kappas, params):

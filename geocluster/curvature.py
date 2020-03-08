@@ -1,16 +1,21 @@
 """Functions for computing the curvature"""
 import multiprocessing
 from tqdm import tqdm
+import logging
+import os
+from time import time
 
 import networkx as nx
 import numpy as np
 import scipy as sc
 from scipy.sparse.csgraph import floyd_warshall
 from sklearn.utils import check_symmetric
-
 import ot
 
 from .io import save_curvatures
+
+L = logging.getLogger(__name__)
+logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
 
 class WorkerMeasures:
@@ -36,10 +41,40 @@ class WorkerCurvatures:
         return edge_curvature(self.measures, self.geodesic_distances, self.params, edge)
 
 
+def _get_chunksize(worker, graph, params, n_tries=10):
+    """estimate good chunksize for POT parallel computation
+       for fast POT computations, we will use large chunksize, 
+       so little multiprocessing overhead, if POT computations are longer, 
+       the chunksize will decrease until minimum value w.r.g n_workers"""
+
+    dtime_step = params["chunksize_time_step"]
+    dtime_min = params["chunksize_time_min"]
+
+    time0 = time()
+    for i in range(n_tries):
+        worker(list(graph.edges)[np.random.randint(len(graph.edges))])
+
+    dtime = max(dtime_min, (time() - time0) / n_tries)
+
+    chunksize = int(len(graph.edges) / ((dtime_step + dtime - dtime_min) / dtime_step))
+    chunksize = max(chunksize, int(len(graph.edges) / params["n_workers"]))
+
+    L.info(
+        "Using chunksize = {}, (max={}, min={})".format(
+            chunksize, len(graph.edges), int(len(graph.edges) / params["n_workers"])
+        )
+    )
+
+    return chunksize
+
+
 def compute_curvatures(graph, times, params, save=True, disable=False):
     """Edge curvature matrix"""
 
+    L.info("Construct Laplacian")
     laplacian = construct_laplacian(graph, params["use_spectral_gap"])
+
+    L.info("Compute geodesic distances")
     geodesic_distances = compute_distance_geodesic(graph)
 
     times_with_zero = np.hstack([0.0, times])  # add 0 timepoint
@@ -47,22 +82,36 @@ def compute_curvatures(graph, times, params, save=True, disable=False):
     kappas = np.ones([len(times), len(graph.edges())])
     measures = list(np.eye(len(graph)))
     pool = multiprocessing.Pool(params["n_workers"])
+
     ind = False
-    for time_index in tqdm(range(len(times) - 1), disable=disable):
+    L.info("Compute curvatures")
+    for time_index in tqdm(range(len(times)), disable=True):
+        L.info("---------------------------------")
+        L.info("Step {}/{}".format(time_index, len(times)))
+        L.info("Computing diffusion time 10^{:.1f}".format(np.log10(times[time_index])))
 
         worker_measure = WorkerMeasures(
             laplacian, times_with_zero[time_index + 1] - times_with_zero[time_index]
         )
-        measures = pool.map(worker_measure, measures)
 
+        L.info("Computing measures")
+        measures = pool.map(
+            worker_measure,
+            measures,
+            chunksize=max(1, int(len(graph) / params["n_workers"])),
+        )
+
+        L.info("Computing curvatures")
         if not params["GPU"]:
+
+            worker = WorkerCurvatures(measures, geodesic_distances, params)
             kappas[time_index] = pool.map(
-                WorkerCurvatures(measures, geodesic_distances, params), graph.edges()
+                worker, graph.edges, chunksize=_get_chunksize(worker, graph, params)
             )
 
         else:
             for measure in measures:
-                Warning("GPU code not working, WIP!")
+                raise Exception("GPU code not working, WIP!")
                 kappas[time_index] = edge_curvature_gpu(
                     measure,
                     geodesic_distances,
@@ -72,13 +121,15 @@ def compute_curvatures(graph, times, params, save=True, disable=False):
                 )
 
         if all(kappas[time_index] > 0) and not disable and not ind:
-            print(
+            L.info(
                 "All edges have positive curvatures, so you may stop the computations."
             )
             ind = True
 
         if save:
             save_curvatures(times[:time_index], kappas[:time_index])
+
+    pool.close()
 
     return kappas
 
@@ -90,8 +141,10 @@ def construct_laplacian(graph, use_spectral_gap=True):
     laplacian = nx.laplacian_matrix(graph).dot(sc.sparse.diags(1.0 / degrees))
 
     if use_spectral_gap:
-        laplacian /= abs(sc.sparse.linalg.eigs(laplacian, which="SM", k=2)[0][1])
-
+        if len(graph) > 3:
+            spectral_gap = abs(sc.sparse.linalg.eigs(laplacian, which="SM", k=2)[0][1])
+            L.info("Spectral gap = 10^{:.1f}".format(np.log10(spectral_gap)))
+            laplacian /= spectral_gap
     return laplacian
 
 

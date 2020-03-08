@@ -90,6 +90,7 @@ def plot_graph_snapshots(
         os.mkdir(folder)
 
     for i, kappa in tqdm(enumerate(kappas), total=len(kappas), disable=disable):
+        plt.figure(figsize=figsize)
         plot_graph(
             graph,
             kappa,

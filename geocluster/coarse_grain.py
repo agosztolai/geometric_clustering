@@ -2,11 +2,40 @@
 import networkx as nx
 import numpy as np
 from tqdm import tqdm
+import logging
+
+from .scales import compute_scales
+from .curvature import compute_curvatures
+
+L = logging.getLogger(__name__)
+
+
+def renormalize(full_graph, stepsize, params, threshold=-1e-7):
+    """renormalize the graph with given stepsize"""
+
+    graph = full_graph.copy()
+
+    for u in graph:
+        graph.nodes[u]["weight"] = 1.0
+
+    graphs = [graph]
+    while len(graph) > 1:
+        L.info("Current graph size: {}".format(len(graph)))
+        kappas = compute_curvatures(graph, [stepsize], params, save=False, disable=True)
+        edge_scales = np.zeros(len(graph.edges))
+        edge_scales[kappas[0] >= threshold] = -1.0
+        graph = single_coarse_grain(graph, edge_scales, 0.0)
+        graphs.append(graph)
+
+    return graphs
 
 
 def coarse_grain(graph, edge_scales, thresholds):
     """coarse graain a graph for various thresholds"""
-    graphs = []
+    for u in graph:
+        graph.nodes[u]["weight"] = 1.0
+
+    graphs = [graph]
     for threshold in tqdm(thresholds):
         graphs.append(single_coarse_grain(graph, edge_scales, threshold))
     return graphs

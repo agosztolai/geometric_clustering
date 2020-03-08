@@ -1,8 +1,7 @@
-t_min: -4.0
-t_max: 1.0
-n_t: 20
-
-n_workers: 10
+n_workers: 30
+# for chunksie estimation
+chunksize_time_step: 0.002 # computational time increase for reducing chunksize
+chunksize_time_min: 0.004  # minimum computational time for use of parallel computation
 GPU: False
 
 use_spectral_gap: True
