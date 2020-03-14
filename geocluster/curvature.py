@@ -46,7 +46,13 @@ def _get_chunksize(worker, graph, params, n_tries=10):
        for fast POT computations, we will use large chunksize, 
        so little multiprocessing overhead, if POT computations are longer, 
        the chunksize will decrease until minimum value w.r.g n_workers"""
-
+       
+    if 'chunksize_time_step' not in params.keys():
+        params["chunksize_time_step"] = 0.002
+        
+    if 'chunksize_time_min' not in params.keys():  
+        params["chunksize_time_min"] = 0.004
+        
     dtime_step = params["chunksize_time_step"]
     dtime_min = params["chunksize_time_min"]
 
