@@ -30,24 +30,21 @@ def renormalize(full_graph, stepsize, params, threshold=-1e-7):
     return graphs
 
 
-def coarse_grain(graph, edge_scales, thresholds):
+def coarse_grain(graph, kappas, threshold):
     """coarse graain a graph for various thresholds"""
-    for u in graph:
-        graph.nodes[u]["weight"] = 1.0
-
-    graphs = [graph]
-    for threshold in tqdm(thresholds):
-        graphs.append(single_coarse_grain(graph, edge_scales, threshold))
+    graphs = []
+    for kappa in tqdm(kappas):
+        graphs.append(single_coarse_grain(graph, kappa, threshold))
     return graphs
 
 
-def single_coarse_grain(graph, edge_scales, threshold):
+def single_coarse_grain(graph, kappa, threshold):
     """coarse grain a graph at a single threshold"""
-
+    
     # cut a copy of the graph
     graph_cut = graph.copy()
     for ei, e in enumerate(graph.edges()):
-        if edge_scales[ei] >= threshold:
+        if kappa[ei] < threshold:
             graph_cut.remove_edge(e[0], e[1])
 
     # find connected components and node to comp dict
@@ -75,6 +72,7 @@ def single_coarse_grain(graph, edge_scales, threshold):
                         weight += graph[sub_u][v]["weight"]
                     else:
                         weight += 1
+
         graph_reduc.nodes[u]["pos"] = np.array(pos).mean(0)
         graph_reduc.nodes[u]["weight"] = weight
 

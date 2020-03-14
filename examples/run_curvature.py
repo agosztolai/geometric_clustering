@@ -2,30 +2,28 @@
 import sys
 import os
 import yaml
-
 import numpy as np
+import networkx as nx
 
 import geocluster as gc
 from geocluster import plotting
-from graph_library import generate
+#from graph_library import generate
 
-# get the graph from terminal input
-whichgraph = sys.argv[-1]
+graph_name = sys.argv[-1]
 
 # load parameters
-graph_params = yaml.full_load(open("graph_params.yaml", "rb"))[whichgraph]
+graph_params = yaml.full_load(open("graph_params.yaml", "rb"))[graph_name]
 
-if not os.path.isdir(whichgraph):
-    os.mkdir(whichgraph)
+#graph = generate(whichgraph=whichgraph, params=graph_params)
+graph = nx.read_gpickle(os.path.join('graphs', 'graph_' + graph_name + '.gpickle'))
+
+if not os.path.isdir(graph_name):
+    os.mkdir(graph_name)
 
 params = yaml.full_load(open("params.yaml", "rb"))
 
-os.chdir(whichgraph)
+os.chdir(graph_name)
 
-# Load graph
-graph = generate(whichgraph=whichgraph, params=graph_params)
-
-# Initialise the code with parameters and graph
 times = np.logspace(graph_params["t_min"], graph_params["t_max"], graph_params["n_t"])
 
 # Compute the OR curvatures

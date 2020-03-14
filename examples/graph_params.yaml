@@ -5,6 +5,15 @@ barbell:
         t_max: 1.0
         n_t: 20
 
+erdos_renyi:
+        n: 100
+        p: 0.08
+        seed: 0
+        t_min: -4.0
+        t_max: 1.0
+        n_t: 20
+
+
 barbell_noisy:
         m1: 7
         m2: 0
@@ -92,9 +101,9 @@ ER:
         n_t: 20
 
 SBM:
-        sizes: [20, 15] 
-        probs: [[10., 0.5,], 
-                [0.5, 10.,]]
+        sizes: [50, 35] 
+        probs: [[10., 0.2,], 
+                [0.2, 10.,]]
         seed: 0
         t_min: -1.5
         t_max: 2.0
