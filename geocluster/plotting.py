@@ -180,6 +180,7 @@ def plot_graph(
         cmap=cmap,
         vmin=vmin,
         vmax=vmax,
+        alpha = 0.8,
     )
     nx.draw_networkx_edges(
         graph,
