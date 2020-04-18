@@ -1,4 +1,4 @@
-n_workers: 30
+n_workers: 10
 # for chunksie estimation
 chunksize_time_step: 0.002 # computational time increase for reducing chunksize
 chunksize_time_min: 0.004  # minimum computational time for use of parallel computation
@@ -22,7 +22,7 @@ save_qualities: True
 compute_mutual_information: True
 n_partitions: 10  # number of louvian runs for MI computation
 compute_ttprime: True
-apply_postprocessing: True
+apply_postprocessing: False
 
 
 

@@ -2,29 +2,25 @@
 import sys
 import os
 import yaml
+import matplotlib.pyplot as plt
+import networkx as nx
 
 import geocluster as gc
 from geocluster import plotting, io
-from graph_library import generate
 
 # get the graph from terminal input
-whichgraph = sys.argv[-1]
+graph_name = sys.argv[-1]
+graph = nx.read_gpickle(os.path.join('graphs', 'graph_' + graph_name + '.gpickle'))
 
-# load parameters
-paramsfile = "graph_params.yaml"
-params = yaml.load(open(paramsfile, "rb"), Loader=yaml.FullLoader)[whichgraph]
-
-os.chdir(whichgraph)
-
-# Load graph
-graph = generate(whichgraph=whichgraph, params=params)
+os.chdir(graph_name)
 
 # Compute the OR curvatures
 times, kappas = io.load_curvature()
 
 # Save results for later analysis
-plotting.plot_edge_curvatures(times, kappas, ylog=False)
-edge_scales = gc.compute_scales(times, kappas)
+plotting.plot_edge_curvatures(times, kappas)
+plotting.plot_edge_curvature_variance(times, kappas)
+plt.show()
 plotting.plot_graph_snapshots(
     graph, times, kappas, folder="curvature_images", ext=".png", figsize=(15, 7)
 )

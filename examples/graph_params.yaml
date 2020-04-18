@@ -36,7 +36,7 @@ clique_of_cliques:
         w: [1, 10, 100]
         p: [0.01, 0.1, 1.]
         seed: 1
-        t_min: -8.0
+        t_min: -4.0
         t_max: 1.0
         n_t: 100
         
@@ -66,9 +66,9 @@ delaunay-nonunif:
         n_t: 20     
         
 dolphin:
-        t_min: -1.5
-        t_max: 2.5
-        n_t: 50  
+        t_min: -3.
+        t_max: 1.0
+        n_t: 100
         
 email:
         t_min: 0
@@ -81,8 +81,8 @@ karate:
         n_t: 100
 
 miserable:
-        t_min: -2.0
-        t_max: 2.0
+        t_min: -3.0
+        t_max: 1.0
         n_t: 50  
 
 tree:
@@ -158,11 +158,11 @@ LFR:
 
 football:
         t_min: -1.5
-        t_max: 1.5
-        n_t: 200
+        t_max: 0.5
+        n_t: 100
         
 netscience:
-        t_min: -3.5
+        t_min: -4.0
         t_max: 1.0
         n_t: 200
 

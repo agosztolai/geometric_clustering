@@ -41,35 +41,52 @@ class WorkerCurvatures:
         return edge_curvature(self.measures, self.geodesic_distances, self.params, edge)
 
 
+def get_node_curvature(graph, kappa):
+    """Compute node curvature from edges"""
+    incidence_matrix = nx.incidence_matrix(graph, weight="weight").toarray()
+    inverse_degrees = np.diag([1.0 / graph.degree[i] for i in graph.nodes])
+    return inverse_degrees.dot(incidence_matrix.dot(kappa))
+
+
 def _get_chunksize(worker, graph, params, n_tries=10):
     """estimate good chunksize for POT parallel computation
        for fast POT computations, we will use large chunksize, 
        so little multiprocessing overhead, if POT computations are longer, 
        the chunksize will decrease until minimum value w.r.g n_workers"""
-       
-    if 'chunksize_time_step' not in params.keys():
-        params["chunksize_time_step"] = 0.002
-        
-    if 'chunksize_time_min' not in params.keys():  
-        params["chunksize_time_min"] = 0.004
-        
-    dtime_step = params["chunksize_time_step"]
-    dtime_min = params["chunksize_time_min"]
 
-    time0 = time()
-    for i in range(n_tries):
-        worker(list(graph.edges)[np.random.randint(len(graph.edges))])
+    if "chunksize_mode" not in params:
+        params["chunksize_mode"] = "equal"
 
-    dtime = max(dtime_min, (time() - time0) / n_tries)
+    if params["chunksize_mode"] == "progressive":
+        if "chunksize_time_step" not in params.keys():
+            params["chunksize_time_step"] = 0.002
 
-    chunksize = int(len(graph.edges) / ((dtime_step + dtime - dtime_min) / dtime_step))
-    chunksize = max(chunksize, int(len(graph.edges) / params["n_workers"]))
+        if "chunksize_time_min" not in params.keys():
+            params["chunksize_time_min"] = 0.004
 
-    L.info(
-        "Using chunksize = {}, (max={}, min={})".format(
-            chunksize, len(graph.edges), int(len(graph.edges) / params["n_workers"])
+        dtime_step = params["chunksize_time_step"]
+        dtime_min = params["chunksize_time_min"]
+
+        time0 = time()
+        for i in range(n_tries):
+            worker(list(graph.edges)[np.random.randint(len(graph.edges))])
+
+        dtime = max(dtime_min, (time() - time0) / n_tries)
+
+        chunksize = int(
+            len(graph.edges) / ((dtime_step + dtime - dtime_min) / dtime_step)
         )
-    )
+        chunksize = max(chunksize, int(len(graph.edges) / params["n_workers"]))
+        L.debug(
+            "Using chunksize = {}, (max={}, min={})".format(
+                chunksize, len(graph.edges), int(len(graph.edges) / params["n_workers"])
+            )
+        )
+    if params["chunksize_mode"] == "equal":
+        chunksize = int(len(graph.edges) / params["n_workers"])
+
+    if params["chunksize_mode"] == "default":
+        chunksize == None
 
     return chunksize
 
@@ -77,10 +94,10 @@ def _get_chunksize(worker, graph, params, n_tries=10):
 def compute_curvatures(graph, times, params, save=True, disable=False):
     """Edge curvature matrix"""
 
-    L.info("Construct Laplacian")
+    L.debug("Construct Laplacian")
     laplacian = construct_laplacian(graph, params["use_spectral_gap"])
 
-    L.info("Compute geodesic distances")
+    L.debug("Compute geodesic distances")
     geodesic_distances = compute_distance_geodesic(graph)
 
     times_with_zero = np.hstack([0.0, times])  # add 0 timepoint
@@ -90,24 +107,24 @@ def compute_curvatures(graph, times, params, save=True, disable=False):
     pool = multiprocessing.Pool(params["n_workers"])
 
     ind = False
-    L.info("Compute curvatures")
-    for time_index in tqdm(range(len(times)), disable=True):
-        L.info("---------------------------------")
-        L.info("Step {}/{}".format(time_index, len(times)))
-        L.info("Computing diffusion time 10^{:.1f}".format(np.log10(times[time_index])))
+    L.debug("Compute curvatures")
+    for time_index in tqdm(range(len(times))):
+        L.debug("---------------------------------")
+        L.debug("Step {}/{}".format(time_index, len(times)))
+        L.debug("Computing diffusion time 10^{:.1f}".format(np.log10(times[time_index])))
 
         worker_measure = WorkerMeasures(
             laplacian, times_with_zero[time_index + 1] - times_with_zero[time_index]
         )
 
-        L.info("Computing measures")
+        L.debug("Computing measures")
         measures = pool.map(
             worker_measure,
             measures,
             chunksize=max(1, int(len(graph) / params["n_workers"])),
         )
 
-        L.info("Computing curvatures")
+        L.debug("Computing curvatures")
         if not params["GPU"]:
 
             worker = WorkerCurvatures(measures, geodesic_distances, params)
@@ -149,7 +166,7 @@ def construct_laplacian(graph, use_spectral_gap=True):
     if use_spectral_gap:
         if len(graph) > 3:
             spectral_gap = abs(sc.sparse.linalg.eigs(laplacian, which="SM", k=2)[0][1])
-            L.info("Spectral gap = 10^{:.1f}".format(np.log10(spectral_gap)))
+            L.debug("Spectral gap = 10^{:.1f}".format(np.log10(spectral_gap)))
             laplacian /= spectral_gap
     return laplacian
 

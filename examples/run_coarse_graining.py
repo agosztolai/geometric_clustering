@@ -3,10 +3,11 @@ import sys
 import os
 import yaml
 import networkx as nx
+import matplotlib.cm
 
 import geocluster as gc
 from geocluster import plotting, io
-from graph_library import generate
+#from graph_library import generate
 
 # get the graph from terminal input
 graph_name = sys.argv[-1]
@@ -23,25 +24,33 @@ os.chdir(graph_name)
 times, kappas = io.load_curvature()
 
 print("Coarse grain")
-graphs_reduc = gc.coarse_grain(graph, kappas, 0.0)
-
+graphs_reduc = gc.coarse_grain(graph, kappas, 0.5)
 
 import scipy.sparse as sp
 import numpy as np
 import matplotlib.pyplot as plt
 eigs = []
 lens = []
-n_eig = 5
+n_eig = int(0.05 * len(graph))
 for graph in graphs_reduc:
-    lens.append(len(graph))
     if len(graph) > n_eig:
+        lens.append(len(graph))
         eigs.append(np.sort(np.linalg.eigh(1.*nx.laplacian_matrix(graph).toarray())[0])[:n_eig])
+
 eigs = np.array(eigs)
-print(eigs)
-plt.figure()
-plt.plot(eigs)
-plt.twinx()
-plt.plot(lens)
-plt.show()
-print("plot coarse grain")
-#plotting.plot_coarse_grain(graphs_reduc, node_size=20, edge_width=1)
+
+plt.figure(figsize=(5,4))
+cmap = matplotlib.cm.get_cmap('viridis')
+for i, eig in enumerate(eigs.T[1:]):
+    #plt.semilogx(times[:len(eig)], eig, c=str(i/len(eigs.T)))
+    plt.plot(lens, eig, c=cmap(i/len(eigs.T)))
+
+plt.xlabel('Size of coarse grained graph')
+plt.ylabel('Eigenvalues')
+
+#plt.twinx()
+#plt.plot(lens)
+
+plt.savefig('eigenvalues_coarse_grain.png')
+
+plotting.plot_coarse_grain(graphs_reduc, node_size=20, edge_width=1)

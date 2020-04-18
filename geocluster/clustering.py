@@ -9,6 +9,7 @@ try:
     from pygenstability import pygenstability as pgs
     from pygenstability.io import save
     from pygenstability.constructors import constructor_signed_modularity
+    from pygenstability.constructors import constructor_continuous_linearized
 except ImportError:
     print("Pygenstability module not found, clustering will not work")
 
