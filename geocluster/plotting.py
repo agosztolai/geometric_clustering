@@ -93,22 +93,30 @@ def plot_graph_snapshots(
         plt.savefig(folder + "/" + filename + "_%03d" % i + ext, bbox_inches="tight")
         plt.close()
 
-    matplotlib.use("TkAgg")
 
 def _get_custom_colormap(edge_color, colormap='continuous'):
     """Get custom colormaps"""
     if colormap == 'continuous':
-        edge_color_min = abs(min(np.min(edge_color), 0))
-        edge_color_max = max(np.max(edge_color), 0)
-        edge_color_0 = edge_color_min / (1.0 + edge_color_min)
-        cdict = {
+        edge_color_min = np.min(edge_color) #abs(min(np.min(edge_color), 0))
+        edge_color_max = np.max(edge_color) #max(np.max(edge_color), 0)
+        edge_color_0 = -edge_color_min / (edge_color_max - edge_color_min)
+
+        cdict_with_neg = {
             "red": [(0.0, 0.0, 0.0), (edge_color_0, 0.1, 0.1), (1.0, 1.0, 1.0)],
             "green": [(0.0, 0.1, 0.1), (edge_color_0, 0.1, 0.1), (1.0, 0.0, 0.0)],
             "blue": [(0.0, 1.0, 1.0), (edge_color_0, 0.1, 0.1), (1.0, 0.0, 0.0)],
             "alpha": [(0.0, 0.8, 0.8), (edge_color_0, 0.02, 0.02), (1.0, 0.8, 0.8)],
         }
 
-        return col.LinearSegmentedColormap("my_colormap", cdict)
+        cdict_no_neg = {
+            "red": [(0, 0.1, 0.1), (1.0, 1.0, 1.0)],
+            "green": [(0, 0.1, 0.1), (1.0, 0.0, 0.0)],
+            "blue": [(0, 0.1, 0.1), (1.0, 0.0, 0.0)],
+            "alpha": [(0, 0.02, 0.02), (1.0, 0.8, 0.8)],
+        }
+        if edge_color_0 < 0:
+            return col.LinearSegmentedColormap("my_colormap", cdict_no_neg)
+        return col.LinearSegmentedColormap("my_colormap", cdict_with_neg)
 
 
 def plot_graph(

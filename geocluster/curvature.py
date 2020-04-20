@@ -11,6 +11,7 @@ import scipy as sc
 from scipy.sparse.csgraph import floyd_warshall
 from sklearn.utils import check_symmetric
 import ot
+import matplotlib.pyplot as plt
 
 from .io import save_curvatures
 
@@ -93,12 +94,17 @@ def _get_chunksize(worker, graph, params, n_tries=10):
 
 def compute_curvatures(graph, times, params, save=True, disable=False):
     """Edge curvature matrix"""
+    if nx.number_of_selfloops(graph) > 0:
+        raise Exception("A graph with self-loops will not work!")
 
     L.debug("Construct Laplacian")
     laplacian = construct_laplacian(graph, params["use_spectral_gap"])
 
     L.debug("Compute geodesic distances")
     geodesic_distances = compute_distance_geodesic(graph)
+    plt.figure()
+    plt.imshow(geodesic_distances)
+    plt.show()
 
     times_with_zero = np.hstack([0.0, times])  # add 0 timepoint
 
@@ -219,7 +225,7 @@ def edge_curvature(measures, geodesic_distances, params, edge):
     if params["with_weights"]:
         kappa = geodesic_distances[i, j] - wasserstein_distance
     else:
-        kappa = 1.0 - wasserstein_distance / geodesic_distances[i, j]
+        kappa = 1.0 - wasserstein_distance  / geodesic_distances[i, j]
 
     return kappa
 

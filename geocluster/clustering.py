@@ -1,5 +1,7 @@
 """clustering functions"""
 import multiprocessing
+from functools import lru_cache
+import scipy.sparse as sp
 
 import networkx as nx
 import numpy as np
@@ -7,7 +9,7 @@ from tqdm import tqdm
 
 try:
     from pygenstability import pygenstability as pgs
-    from pygenstability.io import save
+    from pygenstability.io import save_results
     from pygenstability.constructors import constructor_signed_modularity
     from pygenstability.constructors import constructor_continuous_linearized
 except ImportError:
@@ -30,10 +32,9 @@ def cluster_signed_modularity(graph, times, kappas, params):
     """cluster usint signed mofularity of Gomez, Jensen, Arenas PRE 2009"""
 
     def modularity_constructor(graph, time):
-        """signed modularity contructor with curvature"""
-        graph_kappa = graph.copy()
-        for ei, e in enumerate(graph_kappa.edges()):
-            graph_kappa[e[0]][e[1]]["weight"] = kappas[int(time)][ei]
+        """signed modularity contructor with curvature."""
+        graph_kappa = sp.csr_matrix((kappas[int(time)], sp.tril(graph).nonzero()), shape=graph.shape)
+        graph_kappa += graph_kappa.T
         return constructor_signed_modularity(graph_kappa, 1.0)
 
     params["min_time"] = 0
@@ -42,7 +43,8 @@ def cluster_signed_modularity(graph, times, kappas, params):
     params["log_time"] = False
     params["save_qualities"] = False
 
-    return pgs.run(graph, params, constructor=modularity_constructor)
+    csgraph = nx.adjacency_matrix(graph, weight='weight')
+    return pgs.run(csgraph, params, constructor_custom=modularity_constructor)
 
 
 def cluster_threshold(graph, times, kappas, params):  # pylint: disable=too-many-locals
@@ -90,6 +92,6 @@ def cluster_threshold(graph, times, kappas, params):  # pylint: disable=too-many
             community_ids, all_results, mapper, params["n_samples"]
         )
 
-    save(all_results)
+    save_results(all_results)
 
     return all_results
