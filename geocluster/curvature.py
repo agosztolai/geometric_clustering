@@ -102,9 +102,6 @@ def compute_curvatures(graph, times, params, save=True, disable=False):
 
     L.debug("Compute geodesic distances")
     geodesic_distances = compute_distance_geodesic(graph)
-    plt.figure()
-    plt.imshow(geodesic_distances)
-    plt.show()
 
     times_with_zero = np.hstack([0.0, times])  # add 0 timepoint
 
