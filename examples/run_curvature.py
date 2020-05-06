@@ -10,7 +10,8 @@ from geocluster import plotting
 
 graph_name = sys.argv[-1]
 graph_params = yaml.full_load(open("graph_params.yaml", "rb"))[graph_name]
-graph = nx.read_gpickle(os.path.join('graphs', 'graph_' + graph_name + '.gpickle'))
+graph = nx.read_gpickle(os.path.join("graphs", "graph_" + graph_name + ".gpickle"))
+graph = nx.convert_node_labels_to_integers(graph)
 
 if not os.path.isdir(graph_name):
     os.mkdir(graph_name)

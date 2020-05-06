@@ -9,47 +9,50 @@ from tqdm import tqdm
 
 try:
     from pygenstability import pygenstability as pgs
-    from pygenstability.io import save_results
     from pygenstability.constructors import constructor_signed_modularity
-    from pygenstability.constructors import constructor_continuous_linearized
 except ImportError:
     print("Pygenstability module not found, clustering will not work")
 
 
-def cluster(graph, times, kappas, params):
-    """main clusterin function"""
+def cluster(graph, times, kappas, params, global_time=1.0):
+    """Main clustering function."""
 
     if params["clustering_mode"] == "threshold":
         return cluster_threshold(graph, times, kappas, params)
 
     if params["clustering_mode"] == "signed_modularity":
-        return cluster_signed_modularity(graph, times, kappas, params)
+        return cluster_signed_modularity(
+            graph, times, kappas, params, global_time=global_time
+        )
 
     raise Exception("Clustering method not understood")
 
 
-def cluster_signed_modularity(graph, times, kappas, params):
-    """cluster usint signed mofularity of Gomez, Jensen, Arenas PRE 2009"""
+def cluster_signed_modularity(graph_nx, times, kappas, params, global_time=1.0):
+    """Cluster using signed modularity of Gomez, Jensen, Arenas PRE 2009. 
+    
+    The global_time argument is a scaling for the modularity to fix the
+    global scale at thish modularity will work, similar to time in linearized 
+    markov stability."""
 
     def modularity_constructor(graph, time):
         """signed modularity contructor with curvature."""
-        graph_kappa = sp.csr_matrix((kappas[int(time)], sp.tril(graph).nonzero()), shape=graph.shape)
+        row = np.array([e[0] for e in graph_nx.edges])
+        cols = np.array([e[1] for e in graph_nx.edges])
+        graph_kappa = sp.csr_matrix((kappas[int(time)], (row, cols)), shape=graph.shape)
         graph_kappa += graph_kappa.T
-        return constructor_signed_modularity(graph_kappa, 1.0)
+        return constructor_signed_modularity(graph_kappa, global_time)[:2]
 
     params["min_time"] = 0
     params["max_time"] = len(times) - 1
     params["n_time"] = len(times)
     params["log_time"] = False
-    params["save_qualities"] = False
-
-    csgraph = nx.adjacency_matrix(graph, weight='weight')
+    csgraph = nx.adjacency_matrix(graph_nx, weight="weight")
     return pgs.run(csgraph, params, constructor_custom=modularity_constructor)
 
 
 def cluster_threshold(graph, times, kappas, params):  # pylint: disable=too-many-locals
     """run clustering by thresholding (with noise to estimate the quality"""
-
     if params["n_workers"] == 1:
         mapper = map
     else:
@@ -92,6 +95,6 @@ def cluster_threshold(graph, times, kappas, params):  # pylint: disable=too-many
             community_ids, all_results, mapper, params["n_samples"]
         )
 
-    save_results(all_results)
+    pgs.io.save_results(all_results)
 
     return all_results

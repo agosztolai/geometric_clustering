@@ -1,14 +1,14 @@
 multiscale:
-        t_min: -2.0
-        t_max: 0.5
+        t_min: -3.0
+        t_max: 1.5
         n_t: 100
 
 
 barbell:
-        m1: 7
+        m1: 3
         m2: 0
-        t_min: -4.0
-        t_max: 1.0
+        t_min: -1.0
+        t_max: 0.0
         n_t: 20
 
 erdos_renyi:

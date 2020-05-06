@@ -40,7 +40,7 @@ def coarse_grain(graph, kappas, threshold):
 
 def single_coarse_grain(graph, kappa, threshold):
     """coarse grain a graph at a single threshold"""
-    
+
     # cut a copy of the graph
     graph_cut = graph.copy()
     for ei, e in enumerate(graph.edges()):

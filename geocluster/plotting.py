@@ -20,7 +20,14 @@ def _savefig(fig, folder, filename, ext):
 
 
 def plot_edge_curvatures(
-    times, kappas, ylog=False, folder='figures', filename="curvature", ext=".svg", ax=None, figsize=(5,4),
+    times,
+    kappas,
+    ylog=False,
+    folder="figures",
+    filename="curvature",
+    ext=".svg",
+    ax=None,
+    figsize=(5, 4),
 ):
     """plot edge curvature"""
     if ax is None:
@@ -36,9 +43,9 @@ def plot_edge_curvatures(
             color = "C1"
         ax.plot(times, kappa, c=color, lw=0.5)
 
-    ax.set_xscale('log')
+    ax.set_xscale("log")
     if ylog:
-        ax.set_xscale('symlog')
+        ax.set_xscale("symlog")
     ax.axhline(0, ls="--", c="k")
     ax.axis([times[0], times[-1], np.min(kappas), 1])
 
@@ -46,7 +53,16 @@ def plot_edge_curvatures(
     return fig, ax
 
 
-def plot_edge_curvature_variance(times, kappas, ylog=False, folder='figures', filename="curvature_variance", ext=".svg", ax=None, figsize=(5,4)):
+def plot_edge_curvature_variance(
+    times,
+    kappas,
+    ylog=False,
+    folder="figures",
+    filename="curvature_variance",
+    ext=".svg",
+    ax=None,
+    figsize=(5, 4),
+):
     """Plot the variance of the curvature across edges."""
     if ax is None:
         fig = plt.figure(figsize=figsize)
@@ -55,7 +71,7 @@ def plot_edge_curvature_variance(times, kappas, ylog=False, folder='figures', fi
         fig = None
 
     ax.plot(times, np.std(kappas, axis=1))
-    ax.set_xscale('log')
+    ax.set_xscale("log")
 
     _savefig(fig, folder, filename, ext=ext)
     return fig, ax
@@ -83,10 +99,7 @@ def plot_graph_snapshots(
     for i, kappa in tqdm(enumerate(kappas), total=len(kappas), disable=disable):
         plt.figure(figsize=figsize)
         plot_graph(
-            graph,
-            edge_color=kappa,
-            node_size=node_size,
-            edge_width=edge_width,
+            graph, edge_color=kappa, node_size=node_size, edge_width=edge_width,
         )
         plt.title(r"$log_{10}(t)=$" + str(np.around(np.log10(times[i]), 2)))
 
@@ -94,25 +107,25 @@ def plot_graph_snapshots(
         plt.close()
 
 
-def _get_custom_colormap(edge_color, colormap='continuous'):
+def _get_custom_colormap(edge_color, colormap="continuous"):
     """Get custom colormaps"""
-    if colormap == 'continuous':
-        edge_color_min = np.min(edge_color) #abs(min(np.min(edge_color), 0))
-        edge_color_max = np.max(edge_color) #max(np.max(edge_color), 0)
+    if colormap == "continuous":
+        edge_color_min = np.min(edge_color)  # abs(min(np.min(edge_color), 0))
+        edge_color_max = np.max(edge_color)  # max(np.max(edge_color), 0)
         edge_color_0 = -edge_color_min / (edge_color_max - edge_color_min)
 
         cdict_with_neg = {
             "red": [(0.0, 0.0, 0.0), (edge_color_0, 0.1, 0.1), (1.0, 1.0, 1.0)],
             "green": [(0.0, 0.1, 0.1), (edge_color_0, 0.1, 0.1), (1.0, 0.0, 0.0)],
             "blue": [(0.0, 1.0, 1.0), (edge_color_0, 0.1, 0.1), (1.0, 0.0, 0.0)],
-            "alpha": [(0.0, 0.8, 0.8), (edge_color_0, 0.02, 0.02), (1.0, 0.8, 0.8)],
+            "alpha": [(0.0, 0.8, 0.8), (edge_color_0, 0.2, 0.2), (1.0, 0.8, 0.8)],
         }
 
         cdict_no_neg = {
             "red": [(0, 0.1, 0.1), (1.0, 1.0, 1.0)],
             "green": [(0, 0.1, 0.1), (1.0, 0.0, 0.0)],
             "blue": [(0, 0.1, 0.1), (1.0, 0.0, 0.0)],
-            "alpha": [(0, 0.02, 0.02), (1.0, 0.8, 0.8)],
+            "alpha": [(0, 0.2, 0.2), (1.0, 0.8, 0.8)],
         }
         if edge_color_0 < 0:
             return col.LinearSegmentedColormap("my_colormap", cdict_no_neg)
@@ -125,20 +138,22 @@ def plot_graph(
     edge_width=1,
     node_colors=None,
     node_size=20,
-    colormap='continuous',
+    colormap="continuous",
     show_colorbar=True,
     vmin=None,
-    vmax=None
+    vmax=None,
 ):
     """plot the curvature on the graph"""
     pos = list(nx.get_node_attributes(graph, "pos").values())
 
-    cmap = _get_custom_colormap(edge_color, colormap=colormap)
-    if vmin is None:
-        vmin = np.min(edge_color)
-    if vmax is None:
-        vmax = np.max(edge_color)
-
+    if edge_color is not None:
+        cmap = _get_custom_colormap(edge_color, colormap=colormap)
+        if vmin is None:
+            vmin = np.min(edge_color)
+        if vmax is None:
+            vmax = np.max(edge_color)
+    else:
+        cmap, vmin, vmax = None, None, None
     nx.draw_networkx_nodes(
         graph,
         pos=pos,
@@ -147,7 +162,7 @@ def plot_graph(
         cmap=cmap,
         vmin=vmin,
         vmax=vmax,
-        alpha = 0.8,
+        alpha=0.8,
     )
 
     nx.draw_networkx_edges(
@@ -157,7 +172,7 @@ def plot_graph(
         edge_color=edge_color,
         edge_cmap=cmap,
         edge_vmin=vmin,
-        edge_vmax=vmax
+        edge_vmax=vmax,
     )
 
     if show_colorbar:

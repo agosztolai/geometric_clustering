@@ -89,7 +89,7 @@ def _get_chunksize(worker, graph, params, n_tries=10):
     if params["chunksize_mode"] == "default":
         chunksize == None
 
-    return chunksize
+    return max(1, chunksize)
 
 
 def compute_curvatures(graph, times, params, save=True, disable=False):
@@ -114,7 +114,9 @@ def compute_curvatures(graph, times, params, save=True, disable=False):
     for time_index in tqdm(range(len(times))):
         L.debug("---------------------------------")
         L.debug("Step {}/{}".format(time_index, len(times)))
-        L.debug("Computing diffusion time 10^{:.1f}".format(np.log10(times[time_index])))
+        L.debug(
+            "Computing diffusion time 10^{:.1f}".format(np.log10(times[time_index]))
+        )
 
         worker_measure = WorkerMeasures(
             laplacian, times_with_zero[time_index + 1] - times_with_zero[time_index]
@@ -126,7 +128,6 @@ def compute_curvatures(graph, times, params, save=True, disable=False):
             measures,
             chunksize=max(1, int(len(graph) / params["n_workers"])),
         )
-
         L.debug("Computing curvatures")
         if not params["GPU"]:
 
@@ -191,7 +192,6 @@ def heat_kernel(laplacian, timestep, measure):
 
 def edge_curvature(measures, geodesic_distances, params, edge):
     """compute curvature for an edge ij"""
-
     # get the edge/nodes ids
     i = edge[0]
     j = edge[1]
@@ -222,7 +222,7 @@ def edge_curvature(measures, geodesic_distances, params, edge):
     if params["with_weights"]:
         kappa = geodesic_distances[i, j] - wasserstein_distance
     else:
-        kappa = 1.0 - wasserstein_distance  / geodesic_distances[i, j]
+        kappa = 1.0 - wasserstein_distance / geodesic_distances[i, j]
 
     return kappa
 

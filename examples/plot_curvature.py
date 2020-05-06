@@ -10,7 +10,8 @@ from geocluster import plotting, io
 
 # get the graph from terminal input
 graph_name = sys.argv[-1]
-graph = nx.read_gpickle(os.path.join('graphs', 'graph_' + graph_name + '.gpickle'))
+graph = nx.read_gpickle(os.path.join("graphs", "graph_" + graph_name + ".gpickle"))
+graph = nx.convert_node_labels_to_integers(graph)
 
 os.chdir(graph_name)
 
@@ -22,5 +23,5 @@ plotting.plot_edge_curvatures(times, kappas)
 plotting.plot_edge_curvature_variance(times, kappas)
 plt.show()
 plotting.plot_graph_snapshots(
-    graph, times, kappas, folder="curvature_images", ext=".png", figsize=(15, 7)
+    graph, times, kappas, folder="curvature_images", ext=".svg", figsize=(12, 7)
 )
