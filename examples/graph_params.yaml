@@ -3,6 +3,11 @@ multiscale:
         t_max: 1.5
         n_t: 100
 
+3K8Y:
+        t_min: -5.0
+        t_max: -2.0
+        n_t: 10
+
 
 barbell:
         m1: 3
