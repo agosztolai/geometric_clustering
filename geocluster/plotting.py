@@ -107,9 +107,9 @@ def plot_graph_snapshots(
         plt.close()
 
 
-def _get_custom_colormap(edge_color, colormap="continuous"):
+def _get_colormap(edge_color, colormap="standard"):
     """Get custom colormaps"""
-    if colormap == "continuous":
+    if colormap == "adaptive":
         edge_color_min = np.min(edge_color)  # abs(min(np.min(edge_color), 0))
         edge_color_max = np.max(edge_color)  # max(np.max(edge_color), 0)
         edge_color_0 = -edge_color_min / (edge_color_max - edge_color_min)
@@ -130,6 +130,9 @@ def _get_custom_colormap(edge_color, colormap="continuous"):
         if edge_color_0 < 0:
             return col.LinearSegmentedColormap("my_colormap", cdict_no_neg)
         return col.LinearSegmentedColormap("my_colormap", cdict_with_neg)
+    
+    if colormap == 'standard':
+        return plt.cm.coolwarm
 
 
 def plot_graph(
@@ -138,7 +141,7 @@ def plot_graph(
     edge_width=1,
     node_colors=None,
     node_size=20,
-    colormap="continuous",
+    colormap="standard",
     show_colorbar=True,
     vmin=None,
     vmax=None,
@@ -147,7 +150,7 @@ def plot_graph(
     pos = list(nx.get_node_attributes(graph, "pos").values())
 
     if edge_color is not None:
-        cmap = _get_custom_colormap(edge_color, colormap=colormap)
+        cmap = _get_colormap(edge_color, colormap=colormap)
         if vmin is None:
             vmin = np.min(edge_color)
         if vmax is None:
@@ -173,6 +176,7 @@ def plot_graph(
         edge_cmap=cmap,
         edge_vmin=vmin,
         edge_vmax=vmax,
+        alpha=0.5,
     )
 
     if show_colorbar:
