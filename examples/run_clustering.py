@@ -7,6 +7,7 @@ import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import matplotlib
+import pickle
 
 import geocluster as gc
 from geocluster import io
@@ -37,7 +38,10 @@ os.chdir(graph_name)
 
 times, kappas = io.load_curvature()
 
-cluster_results = gc.cluster(graph, times, kappas, params)
+# powergrid: 20
+cluster_results = gc.cluster(graph, times, kappas, params, global_time=1)
+
+pickle.dump(cluster_results, open('cluster_results.pkl', 'wb'))
 
 plotting.plot_scan(
     cluster_results, figure_name="figures/clustering_scan.svg", use_plotly=False
