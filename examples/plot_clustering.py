@@ -59,8 +59,6 @@ def plot_communities(
 
     mpl_backend = matplotlib.get_backend()
     matplotlib.use("Agg")
-    # kappas[kappas<0] = -1
-    # kappas[kappas>0] = 1
     for time_id in tqdm(range(len(all_results["times"]))):
         plt.figure(figsize=(15, 10))
         plotting.plot_single_community(

@@ -4,6 +4,7 @@ from tqdm import tqdm
 import logging
 import os
 from time import time
+from functools import partial
 
 import networkx as nx
 import numpy as np
@@ -17,17 +18,6 @@ from .io import save_curvatures
 
 L = logging.getLogger(__name__)
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
-
-
-class WorkerMeasures:
-    """worker for building measures"""
-
-    def __init__(self, laplacian, timestep):
-        self.laplacian = laplacian
-        self.timestep = timestep
-
-    def __call__(self, measure):
-        return heat_kernel(self.laplacian, self.timestep, measure)
 
 
 class WorkerCurvatures:
@@ -92,6 +82,28 @@ def _get_chunksize(worker, graph, params, n_tries=10):
     return max(1, chunksize)
 
 
+def compute_OR_curvature(graph, params):
+    """Compute the original OR curvature of Ollivier 2007."""
+    L.debug("Construct transition matrix")
+    adjacency = nx.adjacency_matrix(graph)
+    inv_degree = sc.sparse.diags(1.0 / np.array(adjacency.sum(0)).flatten())
+    transition_matrix = adjacency.dot(inv_degree)
+
+    L.debug("Compute geodesic distances")
+    geodesic_distances = compute_distance_geodesic(graph)
+
+    L.debug("Computing measures")
+    measures = [transition_matrix.dot(measure) for measure in list(np.eye(len(graph)))]
+
+    L.debug("Computing curvatures")
+    worker = WorkerCurvatures(measures, geodesic_distances, params)
+    with multiprocessing.Pool(params["n_workers"]) as pool:
+        kappas = pool.map(
+            worker, graph.edges, chunksize=_get_chunksize(worker, graph, params)
+        )
+    return kappas
+
+
 def compute_curvatures(graph, times, params, save=True, disable=False):
     """Edge curvature matrix"""
     if nx.number_of_selfloops(graph) > 0:
@@ -103,7 +115,7 @@ def compute_curvatures(graph, times, params, save=True, disable=False):
     L.debug("Compute geodesic distances")
     geodesic_distances = compute_distance_geodesic(graph)
 
-    times_with_zero = np.hstack([0.0, times])  # add 0 timepoint
+    times_with_zero = np.insert(times, 0, 0.0)
 
     kappas = np.ones([len(times), len(graph.edges())])
     measures = list(np.eye(len(graph)))
@@ -118,19 +130,19 @@ def compute_curvatures(graph, times, params, save=True, disable=False):
             "Computing diffusion time 10^{:.1f}".format(np.log10(times[time_index]))
         )
 
-        worker_measure = WorkerMeasures(
-            laplacian, times_with_zero[time_index + 1] - times_with_zero[time_index]
-        )
-
         L.debug("Computing measures")
         measures = pool.map(
-            worker_measure,
+            partial(
+                heat_kernel,
+                laplacian=laplacian,
+                timestep=times_with_zero[time_index + 1] - times_with_zero[time_index],
+            ),
             measures,
             chunksize=max(1, int(len(graph) / params["n_workers"])),
         )
+
         L.debug("Computing curvatures")
         if not params["GPU"]:
-
             worker = WorkerCurvatures(measures, geodesic_distances, params)
             kappas[time_index] = pool.map(
                 worker, graph.edges, chunksize=_get_chunksize(worker, graph, params)
@@ -177,15 +189,12 @@ def construct_laplacian(graph, use_spectral_gap=True):
 
 def compute_distance_geodesic(G):
     """Geodesic distance matrix"""
-
     A = check_symmetric(nx.adjacency_matrix(G, weight="weight"))
-    dist = floyd_warshall(A, directed=True, unweighted=False)
-
-    return dist
+    return floyd_warshall(A, directed=True, unweighted=False)
 
 
 # compute all neighbourhood densities
-def heat_kernel(laplacian, timestep, measure):
+def heat_kernel(measure, laplacian, timestep):
     """compute matrix exponential on a measure"""
     return sc.sparse.linalg.expm_multiply(-timestep * laplacian, measure)
 
@@ -214,7 +223,7 @@ def edge_curvature(measures, geodesic_distances, params, edge):
 
     # compute K
     if params["lambda"] != 0:  # entropy regularized OT
-        wasserstein_distance = ot.sinkhorn2(m_x, m_y, distances_xy, params["lambda"])
+        wasserstein_distance = ot.sinkhorn2(m_x, m_y, distances_xy, params["lambda"])[0]
 
     elif params["lambda"] == 0:  # classical sparse OT
         wasserstein_distance = ot.emd2(m_x, m_y, distances_xy)
@@ -223,7 +232,6 @@ def edge_curvature(measures, geodesic_distances, params, edge):
         kappa = geodesic_distances[i, j] - wasserstein_distance
     else:
         kappa = 1.0 - wasserstein_distance / geodesic_distances[i, j]
-
     return kappa
 
 

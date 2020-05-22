@@ -38,10 +38,14 @@ os.chdir(graph_name)
 
 times, kappas = io.load_curvature()
 
+<<<<<<< Updated upstream
 # powergrid: 20
 cluster_results = gc.cluster(graph, times, kappas, params, global_time=1)
 
 pickle.dump(cluster_results, open('cluster_results.pkl', 'wb'))
+=======
+cluster_results = gc.cluster(graph, times, kappas, params, global_time=1)
+>>>>>>> Stashed changes
 
 plotting.plot_scan(
     cluster_results, figure_name="figures/clustering_scan.svg", use_plotly=False
@@ -50,7 +54,7 @@ plt.show()
 
 
 def plot_communities(
-    graph, all_results, folder="communities", edge_color="0.5", edge_width=2
+    graph, all_results, folder="communities", edge_color="0.5", edge_width=3
 ):
     """now plot the community structures at each time in a folder"""
 

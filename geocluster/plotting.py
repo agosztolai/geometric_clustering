@@ -130,8 +130,8 @@ def _get_colormap(edge_color, colormap="standard"):
         if edge_color_0 < 0:
             return col.LinearSegmentedColormap("my_colormap", cdict_no_neg)
         return col.LinearSegmentedColormap("my_colormap", cdict_with_neg)
-    
-    if colormap == 'standard':
+
+    if colormap == "standard":
         return plt.cm.coolwarm
 
 

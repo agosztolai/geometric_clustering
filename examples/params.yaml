@@ -7,7 +7,7 @@ GPU: False
 use_spectral_gap: True
 
 lambda: 0
-cutoff: 1.0 #99999999
+cutoff: 0.999999
 with_weights: False
 
 #clustering_mode: 'threshold'
