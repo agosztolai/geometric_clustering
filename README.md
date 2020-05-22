@@ -18,7 +18,7 @@ Please cite our paper if you use this code in your own work:
 A. Gosztolai, A. Arnaudon “Multiscale Ollivier-Ricci curvature for the clustering of sparse networks”, In preparation, 2020
 
 ```
-## Run exmples
+## Run examples
 
 To use this code, the folder `example` contains some example scripts.
 
