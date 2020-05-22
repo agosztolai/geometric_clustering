@@ -1,18 +1,16 @@
 """Functions for computing the curvature"""
-import multiprocessing
-from tqdm import tqdm
 import logging
+import multiprocessing
 import os
-from time import time
 from functools import partial
 
 import networkx as nx
 import numpy as np
+import ot
 import scipy as sc
 from scipy.sparse.csgraph import floyd_warshall
 from sklearn.utils import check_symmetric
-import ot
-import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 from .io import save_curvatures
 
@@ -89,7 +87,7 @@ def compute_OR_curvature(
         graph (networkx graph): graph to consider
         n_workers (int): number of workers for multiprocessing
         measure_cutoff (float): cutoff of the measures, in [0, 1], with no cutoff at 0
-        sinkhorn_regularisation (float): Sinkhorn regularisation value, when 0, no sinkhorn is applied
+        sinkhorn_regularisation (float): Sinkhorn regularisation value, when 0, no sinkhorn is used
         weighted_curvature (bool): if True, the curvature if multiplied by the original edge weight
     """
     L.debug("Construct transition matrix")
@@ -130,7 +128,7 @@ def compute_curvatures(
     weighted_curvature=True,
 ):
     """Edge curvature matrix.
-    
+
     Args:
         graph (networkx graph): graph to consider
         times (array): array of times to compute curvature
@@ -158,7 +156,7 @@ def compute_curvatures(
     with multiprocessing.Pool(n_workers) as pool:
         for time_index in tqdm(range(len(times))):
             L.debug("---------------------------------")
-            L.debug("Step {}/{}".format(time_index, len(times)))
+            L.debug("Step %s / %s", str(time_index), str(len(times)))
             L.debug(
                 "Computing diffusion time 10^{:.1f}".format(np.log10(times[time_index]))
             )

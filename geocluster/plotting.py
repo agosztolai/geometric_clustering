@@ -36,7 +36,7 @@ def plot_edge_curvatures(
     else:
         fig = None
 
-    for i, kappa in enumerate(kappas.T):
+    for kappa in kappas.T:
         if all(kappa > 0):
             color = "C0"
         else:
@@ -56,7 +56,6 @@ def plot_edge_curvatures(
 def plot_edge_curvature_variance(
     times,
     kappas,
-    ylog=False,
     folder="figures",
     filename="curvature_variance",
     ext=".svg",
@@ -85,7 +84,6 @@ def plot_graph_snapshots(
     filename="image",
     node_size=5,
     edge_width=2,
-    node_labels=False,
     disable=False,
     ext=".svg",
     figsize=(5, 4),
@@ -131,8 +129,7 @@ def _get_colormap(edge_color, colormap="standard"):
             return col.LinearSegmentedColormap("my_colormap", cdict_no_neg)
         return col.LinearSegmentedColormap("my_colormap", cdict_with_neg)
 
-    if colormap == "standard":
-        return plt.cm.coolwarm
+    return plt.cm.coolwarm
 
 
 def plot_graph(
@@ -187,21 +184,19 @@ def plot_graph(
     plt.axis("off")
 
 
+# unused/deprecated functions below
+
+
 def plot_scales_distribution(
-    graph,
-    times,
-    edge_scales,
-    method="hist",
-    filename="hist_scales.png",
-    figsize=(10, 5),
+    times, edge_scales, method="hist", filename="hist_scales.png", figsize=(10, 5),
 ):
     """plot scales on edges with histogram, or gaussian kernel, or both"""
-    plt.figure()
+    plt.figure(figsize=figsize)
 
-    if method == "hist" or method == "both":
+    if method in ("hist", "both"):
         plt.hist(np.log10(edge_scales), bins=40, density=True)
 
-    if method == "gaussian" or method == "both":
+    if method in ("gaussian", "both"):
         pdf = stats.gaussian_kde(np.log10(edge_scales))
         plt.plot(np.log10(times), pdf(np.log10(times)), color="navy", linestyle="-")
         plt.scatter(

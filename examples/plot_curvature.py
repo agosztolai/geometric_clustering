@@ -1,22 +1,20 @@
 """plot the computed edge curvature"""
-import sys
 import os
-import yaml
+import sys
+
 import matplotlib.pyplot as plt
 import networkx as nx
 
-import geocluster as gc
-from geocluster import plotting, io
+from geocluster import load_curvature, plotting
 
 # get the graph from terminal input
 graph_name = sys.argv[-1]
 graph = nx.read_gpickle(os.path.join("graphs", "graph_" + graph_name + ".gpickle"))
-graph = nx.convert_node_labels_to_integers(graph)
 
 os.chdir(graph_name)
 
 # Compute the OR curvatures
-times, kappas = io.load_curvature()
+times, kappas = load_curvature()
 
 # Save results for later analysis
 plotting.plot_edge_curvatures(times, kappas)
