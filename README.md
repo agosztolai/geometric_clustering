@@ -1,38 +1,53 @@
-Geometric clustering
-=====================
+# Multiscale Ollivier-Ricci curvature and clustering
 
-Graph clustering based on Ollivier-Ricci curvature
+This python package computes the edge multiscale Ollivier-Ricci curvature using diffusion on graphs, and uses it cluster the graph.
 
-Installation
-------------
+## Installation
 
-To install: 
+To install this package, clone this repository, and run
 
 ```
-pip install -e . 
+pip install . 
 ```
 
-Exmples
--------
+## Cite
 
-To use, in folder test:
-
-```
-python run_curvature.py <network>
-```
-
-where `<network>` is the name of the network you want to use (see `graph_params.yaml` for the list and parameters)
-
-then to plot the results:
+Please cite our paper if you use this code in your own work:
 
 ```
-python plot_curvature.py <network>
-```
-
-
-For ricci flows:
+A. Gosztolai, A. Arnaudon “Multiscale Ollivier-Ricci curvature for the clustering of sparse networks”, In preparation, 2020
 
 ```
-python run_ricci_flow.py <network>
-python plot_ricci_flow.py <network>
+## Run exmples
+
+To use this code, the folder `example` contains some example scripts.
+
+### Create a graph
+First, one need to have a graph, which can be taken from the examples in the folder `graph`, or provided by the user. 
+
+### Compute curvature
+If taken from the folder `graph`, the multiscale curvature can be computed by running
+```
+python run_curvature.py <graph>
+```
+
+To plot the results, use
+```
+python plot_curvature.py <graph>
+```
+
+To only run the original Ollivier-Ricci curvature, use
+```
+python compute_original_OR.py <graph>
+```
+
+### Compute clustering
+
+To run the clustering using curvature, 
+```
+python run_clustering.py <graph>
+```
+then plot the results with
+```
+python plot_clustering.py <graph>
 ```
