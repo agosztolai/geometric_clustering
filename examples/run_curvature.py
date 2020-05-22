@@ -24,4 +24,4 @@ times = np.logspace(graph_params["t_min"], graph_params["t_max"], graph_params["
 
 # Compute the OR curvatures
 print("Computing curvatures...")
-kappas = gc.compute_curvatures(graph, times, params)
+kappas = gc.compute_curvatures(graph, times)
