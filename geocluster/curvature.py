@@ -1,100 +1,198 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""Functions for computing the curvature"""
+import logging
+import multiprocessing
+import os
+from functools import partial
 
+import networkx as nx
 import numpy as np
-import scipy as sc
 import ot
+import scipy as sc
+from scipy.sparse.csgraph import floyd_warshall
+from sklearn.utils import check_symmetric
 from tqdm import tqdm
 
-'''
-=============================================================================
-Functions for computing the curvature
-=============================================================================
-'''
+from .io import save_curvatures
 
-# compute all neighbourhood densities
-def mx_comp(L, dt, mx):
-    """ compute matrix exponential """
-
-    return sc.sparse.linalg.expm_multiply(-dt*L, mx)
+L = logging.getLogger(__name__)
+logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
 
-# compute curvature for an edge ij
-def K_ij(mxs, dist, lamb, cutoff, with_weights, edges, e):
-    #print("step "+ str(e))
+def _construct_laplacian(graph, use_spectral_gap=True):
+    """Laplacian matrix"""
+    degrees = np.array([graph.degree[i] for i in graph.nodes])
+    laplacian = nx.laplacian_matrix(graph).dot(sc.sparse.diags(1.0 / degrees))
 
-    # get the edge/nodes ids
-    edge = edges[e]
-    i = edge[0]
-    j = edge[1]
+    if use_spectral_gap and len(graph) > 3:
+        spectral_gap = abs(sc.sparse.linalg.eigs(laplacian, which="SM", k=2)[0][1])
+        L.debug("Spectral gap = 10^{:.1f}".format(np.log10(spectral_gap)))
+        laplacian /= spectral_gap
+    return laplacian
 
-    #get the measures
-    mx = mxs[i]
-    my = mxs[j]
-    
-    #set reduce the sized with cutoffs
-    Nx = np.where(mx >= (1. - cutoff) * np.max(mx))[0]
-    Ny = np.where(my >= (1. - cutoff) * np.max(my))[0]
 
-    dNxNy = dist[np.ix_(Nx, Ny)]
+def _compute_distance_geodesic(G):
+    """Geodesic distance matrix"""
+    A = check_symmetric(nx.adjacency_matrix(G, weight="weight"))
+    return floyd_warshall(A, directed=True, unweighted=False)
 
-    mx = mx[Nx]
-    my = my[Ny]
 
-    mx /=mx.sum()
-    my /=my.sum()
+def _heat_kernel(measure, laplacian, timestep):
+    """compute matrix exponential on a measure"""
+    return sc.sparse.linalg.expm_multiply(-timestep * laplacian, measure)
 
-    #compute K
-    if lamb != 0: #entropy regularized OT
-        W = ot.sinkhorn2(mx, my, dNxNy, lamb)
 
-    elif lamb == 0: #classical sparse OT
-        W = ot.emd2(mx, my, dNxNy)
-        
-    if with_weights:
-        K = dist[i, j] - W
+def _edge_curvature(
+    edge,
+    measures,
+    geodesic_distances,
+    measure_cutoff=0.0,
+    sinkhorn_regularisation=0,
+    weighted_curvature=True,
+):
+    """Compute curvature for an edge"""
+    node_x, node_y = edge
+    m_x, m_y = measures[node_x], measures[node_y]
+
+    Nx = np.where(m_x >= measure_cutoff * np.max(m_x))[0]
+    Ny = np.where(m_y >= measure_cutoff * np.max(m_y))[0]
+
+    m_x, m_y = m_x[Nx], m_y[Ny]
+    m_x /= m_x.sum()
+    m_y /= m_y.sum()
+
+    distances_xy = geodesic_distances[np.ix_(Nx, Ny)]
+
+    if sinkhorn_regularisation > 0:
+        wasserstein_distance = ot.sinkhorn2(
+            m_x, m_y, distances_xy, sinkhorn_regularisation
+        )[0]
     else:
-        K = 1. - W / dist[i, j]  
-     
-    return K
+        wasserstein_distance = ot.emd2(m_x, m_y, distances_xy)
+
+    if weighted_curvature:
+        return geodesic_distances[node_x, node_y] - wasserstein_distance
+    return 1.0 - wasserstein_distance / geodesic_distances[node_x, node_y]
 
 
-def K_all(mx_all, dist, lamb, G, with_weights=False):     
+def compute_OR_curvature(
+    graph,
+    n_workers=1,
+    measure_cutoff=0.0,
+    sinkhorn_regularisation=0,
+    weighted_curvature=True,
+):
+    """Compute the original OR curvature of Ollivier 2007.
 
-    dist = dist.astype(float)
-    
-    Kt = []
-    x = np.unique([x[0] for x in G.edges])
-    for i in tqdm(x):
-        ind = [y[1] for y in G.edges if y[0] == i]              
+    Args:
+        graph (networkx graph): graph to consider
+        n_workers (int): number of workers for multiprocessing
+        measure_cutoff (float): cutoff of the measures, in [0, 1], with no cutoff at 0
+        sinkhorn_regularisation (float): Sinkhorn regularisation value, when 0, no sinkhorn is used
+        weighted_curvature (bool): if True, the curvature if multiplied by the original edge weight
+    """
+    L.debug("Construct transition matrix")
+    adjacency = nx.adjacency_matrix(graph)
+    inv_degree = sc.sparse.diags(1.0 / np.array(adjacency.sum(0)).flatten())
+    transition_matrix = adjacency.dot(inv_degree)
 
-        W = ot.sinkhorn(mx_all[:,i].tolist(), mx_all[:,ind].tolist(), dist.tolist(), lamb)    
-        if with_weights:
-            Kt = np.append(Kt, dist[i][ind] - W)
-        else:
-            Kt = np.append(Kt, 1. - W/dist[i][ind])
-        
-    return Kt
+    L.debug("Compute geodesic distances")
+    geodesic_distances = _compute_distance_geodesic(graph)
+
+    L.debug("Computing measures")
+    measures = [transition_matrix.dot(measure) for measure in list(np.eye(len(graph)))]
+
+    L.debug("Computing curvatures")
+    with multiprocessing.Pool(n_workers) as pool:
+        kappas = pool.map(
+            partial(
+                _edge_curvature,
+                measures=measures,
+                geodesic_distances=geodesic_distances,
+                measure_cutoff=measure_cutoff,
+                sinkhorn_regularisation=sinkhorn_regularisation,
+                weighted_curvature=weighted_curvature,
+            ),
+            graph.edges,
+            chunksize=max(1, int(len(graph.edges) / n_workers)),
+        )
+    return kappas
 
 
-def K_all_gpu(mx_all, dist, lamb, G, with_weights=False):   
-    import ot.gpu    
-       
-    mx_all = ot.gpu.to_gpu(mx_all) 
-    dist = ot.gpu.to_gpu(dist.astype(float))
-    lamb = ot.gpu.to_gpu(lamb)
+def compute_curvatures(
+    graph,
+    times,
+    n_workers=1,
+    use_spectral_gap=True,
+    measure_cutoff=0.0,
+    sinkhorn_regularisation=0,
+    weighted_curvature=True,
+):
+    """Edge curvature matrix.
 
-    dist = dist.astype(float)
-    
-    Kt = []
-    x = np.unique([x[0] for x in G.edges])
-    for i in x:
-        ind = [y[1] for y in G.edges if y[0] == i]              
+    Args:
+        graph (networkx graph): graph to consider
+        times (array): array of times to compute curvature
+        n_workers (int): number of workers for multiprocessing
+        use_spectral_gap (bool): to normalise time by the spectral gap of laplacian
+        measure_cutoff (float): cutoff of the measures, in [0, 1], with no cutoff at 0
+        sinkhorn_regularisation (float): Sinkhorn regularisation value, when 0, no sinkhorn is applied
+        weighted_curvature (bool): if True, the curvature if multiplied by the original edge weight
+    """
+    if nx.number_of_selfloops(graph) > 0:
+        raise Exception("A graph with self-loops will not work!")
 
-        W = ot.gpu.sinkhorn(mx_all[:,i].tolist(), mx_all[:,ind].tolist(), dist.tolist(), lamb)    
-        if with_weights:
-            Kt = np.append(Kt, ot.gpu.to_np(dist[i][ind] - W))
-        else:
-            Kt = np.append(Kt, 1. - W/ot.gpu.to_np(dist[i][ind]))
-        
-    return Kt
+    L.debug("Construct Laplacian")
+    laplacian = _construct_laplacian(graph, use_spectral_gap)
+
+    L.debug("Compute geodesic distances")
+    geodesic_distances = _compute_distance_geodesic(graph)
+
+    times_with_zero = np.insert(times, 0, 0.0)
+
+    kappas = np.ones([len(times), len(graph.edges())])
+    measures = list(np.eye(len(graph)))
+    display_all_positive = False
+    L.debug("Compute all curvatures")
+    with multiprocessing.Pool(n_workers) as pool:
+        for time_index in tqdm(range(len(times))):
+            L.debug("---------------------------------")
+            L.debug("Step %s / %s", str(time_index), str(len(times)))
+            L.debug(
+                "Computing diffusion time 10^{:.1f}".format(np.log10(times[time_index]))
+            )
+
+            L.debug("Computing measures")
+            measures = pool.map(
+                partial(
+                    _heat_kernel,
+                    laplacian=laplacian,
+                    timestep=times_with_zero[time_index + 1]
+                    - times_with_zero[time_index],
+                ),
+                measures,
+                chunksize=max(1, int(len(graph) / n_workers)),
+            )
+
+            L.debug("Computing curvatures")
+            kappas[time_index] = pool.map(
+                partial(
+                    _edge_curvature,
+                    measures=measures,
+                    geodesic_distances=geodesic_distances,
+                    measure_cutoff=measure_cutoff,
+                    sinkhorn_regularisation=sinkhorn_regularisation,
+                    weighted_curvature=weighted_curvature,
+                ),
+                graph.edges,
+                chunksize=max(1, int(len(graph.edges) / n_workers)),
+            )
+
+            if all(kappas[time_index] > 0) and display_all_positive:
+                L.info(
+                    "All edges have positive curvatures, so you may stop the computations."
+                )
+                display_all_positive = False
+
+            save_curvatures(times[:time_index], kappas[:time_index])
+
+    return kappas
