@@ -136,7 +136,7 @@ def compute_curvatures(
         use_spectral_gap (bool): to normalise time by the spectral gap of laplacian
         measure_cutoff (float): cutoff of the measures, in [0, 1], with no cutoff at 0
         sinkhorn_regularisation (float): Sinkhorn regularisation value, when 0, no sinkhorn is applied
-        weighted_curvature (bool): if True, the curvature if multiplied by the original edge weight
+        weighted_curvature (bool): if True, the curvature is multiplied by the original edge weight
     """
     if nx.number_of_selfloops(graph) > 0:
         raise Exception("A graph with self-loops will not work!")

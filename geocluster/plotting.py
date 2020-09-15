@@ -41,13 +41,15 @@ def plot_edge_curvatures(
             color = "C0"
         else:
             color = "C1"
-        ax.plot(times, kappa, c=color, lw=0.5)
+        ax.plot(np.log10(times), kappa, c=color, lw=0.5)
+        
 
-    ax.set_xscale("log")
     if ylog:
         ax.set_xscale("symlog")
     ax.axhline(0, ls="--", c="k")
-    ax.axis([times[0], times[-1], np.min(kappas), 1])
+    ax.axis([np.log10(times[0]), np.log10(times[-1]), np.min(kappas), 1])
+    ax.set_xlabel(r'$log_{10}(t)$')
+    ax.set_ylabel('Edge curvatures')
 
     _savefig(fig, folder, filename, ext=ext)
     return fig, ax
@@ -69,8 +71,10 @@ def plot_edge_curvature_variance(
     else:
         fig = None
 
-    ax.plot(times, np.std(kappas, axis=1))
-    ax.set_xscale("log")
+    ax.plot(np.log10(times), np.std(kappas, axis=1))
+    ax.set_xlabel(r'$log_{10}$(t)')
+    ax.set_ylabel('Edge curvature variance')
+    ax.set_xlim([np.log10(times[0]), np.log10(times[-1])])
 
     _savefig(fig, folder, filename, ext=ext)
     return fig, ax
@@ -182,6 +186,41 @@ def plot_graph(
         plt.colorbar(edges)
 
     plt.axis("off")
+    
+    
+def plot_communities(
+    graph,
+    kappas,
+    all_results,
+    folder="communities",
+    edge_color="0.5",
+    edge_width=2,
+    figsize=(15, 10),
+):
+    
+    from pygenstability.plotting import plot_single_community
+    
+    """now plot the community structures at each time in a folder"""
+    if not os.path.isdir(folder):
+        os.mkdir(folder)
+
+    pos = [graph.nodes[u]["pos"] for u in graph]
+
+    mpl_backend = matplotlib.get_backend()
+    matplotlib.use("Agg")
+    for time_id in tqdm(range(len(all_results["times"]))):
+        plt.figure(figsize=figsize)
+        plot_single_community(
+            graph, all_results, time_id, edge_color="1", edge_width=3, node_size=10
+        )
+        plot_graph(
+            graph, edge_color=kappas[time_id], node_size=0, edge_width=edge_width,
+        )
+        plt.savefig(
+            os.path.join(folder, "time_" + str(time_id) + ".svg"), bbox_inches="tight"
+        )
+        plt.close()
+    matplotlib.use(mpl_backend)    
 
 
 # unused/deprecated functions below

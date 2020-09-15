@@ -27,7 +27,7 @@ def cluster_signed_modularity(
 
     Args:
         graph (networkx): graph to cluster
-        global_time (float):  scaling for the modularity to fix the
+        global_time (float): scaling for the modularity to fix the
             global scale at thish modularity will work, similar to time
             in linearized markov stability.
         n_louvain (int): number of Louvain evaluations
@@ -36,11 +36,11 @@ def cluster_signed_modularity(
         with_postprocessing (bool): apply the final postprocessing step
         with_ttprime (bool): compute the ttprime matrix
         n_workers (int): number of workers for multiprocessing
-        tqdm_disbale (bool): disable progress bars
+        tqdm_disable (bool): disable progress bars
     """
     time_dict = {time: i for i, time in enumerate(times)}
     csgraph = nx.adjacency_matrix(graph, weight="weight")
-
+    
     def modularity_constructor(_graph, time):
         """signed modularity contructor with curvature."""
         row = np.array([e[0] for e in graph.edges])
@@ -49,7 +49,12 @@ def cluster_signed_modularity(
             (kappas[time_dict[time]], (row, cols)), shape=_graph.shape
         )
         graph_kappa += graph_kappa.T
-        return constructor_signed_modularity(graph_kappa, global_time)[:2]
+        
+        quality_matrix, null_model = constructor_signed_modularity(graph_kappa, global_time)[:2]
+        null_model = np.zeros_like(null_model) #ignore nullmodel
+        
+        return quality_matrix, null_model
+
 
     return pgs.run(
         csgraph,
