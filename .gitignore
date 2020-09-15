@@ -12,3 +12,4 @@ data/
 build/
 test/\.ipynb_checkpoints/
 *.swo
+bin/
