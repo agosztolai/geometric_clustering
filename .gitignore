@@ -14,3 +14,4 @@ test/\.ipynb_checkpoints/
 *.swo
 bin/
 lib/
+geocluster/*.DS_Store
