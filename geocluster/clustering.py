@@ -2,6 +2,7 @@
 import numpy as np
 import scipy.sparse as sp
 import networkx as nx
+from functools import partial
 
 try:
     from pygenstability import pygenstability as pgs
@@ -14,7 +15,7 @@ def cluster_signed_modularity(
     graph,
     times,
     kappas,
-    global_time=1.0,
+    thr=0,
     n_louvain=10,
     with_MI=True,
     n_louvain_MI=10,
@@ -41,24 +42,25 @@ def cluster_signed_modularity(
     time_dict = {time: i for i, time in enumerate(times)}
     csgraph = nx.adjacency_matrix(graph, weight="weight")
     
-    def modularity_constructor(_graph, time):
+    def modularity_constructor(_graph, time, thr):
         """signed modularity contructor with curvature."""
         row = np.array([e[0] for e in graph.edges])
         cols = np.array([e[1] for e in graph.edges])
         graph_kappa = sp.csr_matrix(
-            (kappas[time_dict[time]], (row, cols)), shape=_graph.shape
+            (kappas[time_dict[time]]-thr, (row, cols)), shape=_graph.shape
         )
         graph_kappa += graph_kappa.T
         
-        quality_matrix, null_model = constructor_signed_modularity(graph_kappa, global_time)[:2]
+        quality_matrix, null_model = constructor_signed_modularity(graph_kappa, time)[:2]
         null_model = np.zeros_like(null_model) #ignore nullmodel
         
         return quality_matrix, null_model
 
+    constructor = partial(modularity_constructor, thr=thr)
 
     return pgs.run(
         csgraph,
-        constructor=modularity_constructor,
+        constructor=constructor,
         times=times,
         n_louvain=n_louvain,
         with_MI=with_MI,

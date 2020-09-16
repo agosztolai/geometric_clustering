@@ -14,7 +14,7 @@ if not os.path.isdir(graph_name):
     os.mkdir(graph_name)
 os.chdir(graph_name)
 
-t_min = -3
+t_min = -0.5
 t_max = 1.0
 n_t = 20
 times = np.logspace(t_min, t_max, n_t)

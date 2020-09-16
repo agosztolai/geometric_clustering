@@ -7,7 +7,7 @@ import networkx as nx
 
 from geocluster import io
 from geocluster.plotting import plot_communities
-from pygenstability.plotting import plot_scan#, plot_single_community
+from pygenstability.plotting import plot_scan
 
 graph_name = sys.argv[-1]
 
@@ -22,6 +22,6 @@ cluster_results = pickle.load(open("cluster_results.pkl", "rb"))
 
 plot_scan(cluster_results, figure_name="figures/clustering_scan.svg", use_plotly=False)
 
-plot_scan(cluster_results, figure_name="figures/clustering_scan.svg", use_plotly=True)
+#plot_scan(cluster_results, figure_name="figures/clustering_scan.svg", use_plotly=True)
 
 plot_communities(graph, kappas, cluster_results)
