@@ -149,15 +149,20 @@ def plot_graph(
 ):
     """plot the curvature on the graph"""
     pos = list(nx.get_node_attributes(graph, "pos").values())
+    
+    if pos == []:
+        pos = nx.spring_layout(graph)
 
     if edge_color is not None:
         cmap = _get_colormap(edge_color, colormap=colormap)
+
         if vmin is None:
             vmin = np.min(edge_color)
         if vmax is None:
             vmax = np.max(edge_color)
     else:
         cmap, vmin, vmax = None, None, None
+        
     nx.draw_networkx_nodes(
         graph,
         pos=pos,
@@ -173,11 +178,11 @@ def plot_graph(
         graph,
         pos=pos,
         width=edge_width,
-        edge_color=edge_color,
-        edge_cmap=cmap,
-        edge_vmin=vmin,
-        edge_vmax=vmax,
-        alpha=0.5,
+#        edge_color=edge_color,
+#        edge_cmap=cmap,
+#        edge_vmin=vmin,
+#        edge_vmax=vmax,
+#        alpha=0.5,
     )
 
     if show_colorbar:

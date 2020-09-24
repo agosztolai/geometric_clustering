@@ -142,7 +142,7 @@ def compute_curvatures(
         raise Exception("A graph with self-loops will not work!")
         
     degrees = [graph.degree(n) for n in graph.nodes]
-    assert (np.array(degrees)==0).any(), 'Graph is not connected!'
+    assert ~(np.array(degrees)==0).any(), 'Graph is not connected!'
 
     L.debug("Construct Laplacian")
     laplacian = _construct_laplacian(graph, use_spectral_gap)
