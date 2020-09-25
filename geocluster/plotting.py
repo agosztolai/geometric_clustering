@@ -178,11 +178,11 @@ def plot_graph(
         graph,
         pos=pos,
         width=edge_width,
-#        edge_color=edge_color,
-#        edge_cmap=cmap,
-#        edge_vmin=vmin,
-#        edge_vmax=vmax,
-#        alpha=0.5,
+        edge_color=edge_color,
+        edge_cmap=cmap,
+        edge_vmin=vmin,
+        edge_vmax=vmax,
+        alpha=0.5,
     )
 
     if show_colorbar:
@@ -201,6 +201,7 @@ def plot_communities(
     edge_color="0.5",
     edge_width=2,
     figsize=(15, 10),
+    ext =".png",
 ):
     
     from pygenstability.plotting import plot_single_community
@@ -209,10 +210,15 @@ def plot_communities(
     if not os.path.isdir(folder):
         os.mkdir(folder)
 
-    pos = [graph.nodes[u]["pos"] for u in graph]
-
     mpl_backend = matplotlib.get_backend()
     matplotlib.use("Agg")
+    
+    pos = list(nx.get_node_attributes(graph, "pos").values())
+    if pos == []:
+        pos = nx.spring_layout(graph)
+        for i in graph:
+            graph.nodes[i]['pos'] = pos[i]
+    
     for time_id in tqdm(range(len(all_results["times"]))):
         plt.figure(figsize=figsize)
         plot_single_community(
@@ -222,7 +228,7 @@ def plot_communities(
             graph, edge_color=kappas[time_id], node_size=0, edge_width=edge_width,
         )
         plt.savefig(
-            os.path.join(folder, "time_" + str(time_id) + ".svg"), bbox_inches="tight"
+            os.path.join(folder, "time_" + str(time_id) + ext), bbox_inches="tight"
         )
         plt.close()
     matplotlib.use(mpl_backend)    
