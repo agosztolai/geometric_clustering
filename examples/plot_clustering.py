@@ -24,4 +24,4 @@ plot_scan(cluster_results, figure_name="figures/clustering_scan.svg", use_plotly
 
 #plot_scan(cluster_results, figure_name="figures/clustering_scan.svg", use_plotly=True)
 
-#plot_communities(graph, kappas, cluster_results,ext = ".png")
+plot_communities(graph, kappas, cluster_results,ext = ".svg")

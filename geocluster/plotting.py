@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 from scipy import stats
+from scipy.spatial import ConvexHull
 from tqdm import tqdm
 
 
@@ -148,8 +149,7 @@ def plot_graph(
     vmax=None,
 ):
     """plot the curvature on the graph"""
-    pos = list(nx.get_node_attributes(graph, "pos").values())
-    
+    pos = list(nx.get_node_attributes(graph, "pos").values())    
     if pos == []:
         pos = nx.spring_layout(graph)
 
@@ -197,6 +197,7 @@ def plot_communities(
     graph,
     kappas,
     all_results,
+    ground_truth=None,
     folder="communities",
     edge_color="0.5",
     edge_width=2,
@@ -218,11 +219,26 @@ def plot_communities(
         pos = nx.spring_layout(graph)
         for i in graph:
             graph.nodes[i]['pos'] = pos[i]
+            
+    if ground_truth is not None:
+        pos = community_layout(graph, ground_truth)
+        for i in graph:
+            graph.nodes[i]['pos'] = pos[i]
     
     for time_id in tqdm(range(len(all_results["times"]))):
         plt.figure(figsize=figsize)
+        
+        if ground_truth is not None:
+            for i in set(ground_truth.values()):
+                ids = [j for j,k in enumerate(ground_truth.values()) if k==i]
+                points = np.array(list(pos.values()))[ids,:]
+                hull = ConvexHull(points)
+        
+                points = points[hull.vertices,:]
+                plt.fill(points[:,0],points[:,1], alpha=0.3)
+        
         plot_single_community(
-            graph, all_results, time_id, edge_color="1", edge_width=3, node_size=10
+            graph, all_results, time_id, edge_color="1", edge_width=3, node_size=200
         )
         plot_graph(
             graph, edge_color=kappas[time_id], node_size=0, edge_width=edge_width,
@@ -232,6 +248,100 @@ def plot_communities(
         )
         plt.close()
     matplotlib.use(mpl_backend)    
+    
+    
+def community_layout(g, partition):
+    """
+    Compute the layout for a modular graph.
+
+
+    Arguments:
+    ----------
+    g -- networkx.Graph or networkx.DiGraph instance
+        graph to plot
+
+    partition -- dict mapping int node -> int community
+        graph partitions
+
+
+    Returns:
+    --------
+    pos -- dict mapping int node -> (float x, float y)
+        node positions
+
+    """
+
+    pos_communities = _position_communities(g, partition, scale=3.)
+
+    pos_nodes = _position_nodes(g, partition, scale=1.)
+
+    # combine positions
+    pos = dict()
+    for node in g.nodes():
+        pos[node] = pos_communities[node] + pos_nodes[node]
+
+    return pos
+
+
+def _position_communities(g, partition, **kwargs):
+
+    # create a weighted graph, in which each node corresponds to a community,
+    # and each edge weight to the number of edges between communities
+    between_community_edges = _find_between_community_edges(g, partition)
+
+    communities = set(partition.values())
+    hypergraph = nx.DiGraph()
+    hypergraph.add_nodes_from(communities)
+    for (ci, cj), edges in between_community_edges.items():
+        hypergraph.add_edge(ci, cj, weight=len(edges))
+
+    # find layout for communities
+    pos_communities = nx.spring_layout(hypergraph, **kwargs)
+
+    # set node positions to position of community
+    pos = dict()
+    for node, community in partition.items():
+        pos[node] = pos_communities[community]
+
+    return pos
+
+
+def _find_between_community_edges(g, partition):
+
+    edges = dict()
+
+    for (ni, nj) in g.edges():
+        ci = partition[ni]
+        cj = partition[nj]
+
+        if ci != cj:
+            try:
+                edges[(ci, cj)] += [(ni, nj)]
+            except KeyError:
+                edges[(ci, cj)] = [(ni, nj)]
+
+    return edges
+
+
+def _position_nodes(g, partition, **kwargs):
+    """
+    Positions nodes within communities.
+    """
+
+    communities = dict()
+    for node, community in partition.items():
+        try:
+            communities[community] += [node]
+        except KeyError:
+            communities[community] = [node]
+
+    pos = dict()
+    for ci, nodes in communities.items():
+        subgraph = g.subgraph(nodes)
+        pos_subgraph = nx.spring_layout(subgraph, **kwargs)
+        pos.update(pos_subgraph)
+
+    return pos
 
 
 # unused/deprecated functions below

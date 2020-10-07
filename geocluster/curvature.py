@@ -8,7 +8,7 @@ import networkx as nx
 import numpy as np
 import ot
 import scipy as sc
-from scipy.sparse.csgraph import floyd_warshall
+import scipy.sparse.csgraph as scg
 from sklearn.utils import check_symmetric
 from tqdm import tqdm
 
@@ -20,6 +20,12 @@ logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
 def _construct_laplacian(graph, use_spectral_gap=True):
     """Laplacian matrix"""
+#    adjacency = nx.adjacency_matrix(graph).toarray()
+#    adjacency = np.exp(-adjacency)
+#    Lap = laplacian(adjacency)
+#    degrees = adjacency.sum(1).flatten()
+#    Lap = sc.sparse.csr_matrix(Lap)
+#    Lap = Lap.dot(sc.sparse.diags(1.0 / degrees))
     degrees = np.array([graph.degree(i, weight='weight') for i in graph.nodes])
     laplacian = nx.laplacian_matrix(graph).dot(sc.sparse.diags(1.0 / degrees))
 
@@ -27,13 +33,14 @@ def _construct_laplacian(graph, use_spectral_gap=True):
         spectral_gap = abs(sc.sparse.linalg.eigs(laplacian, which="SM", k=2)[0][1])
         L.debug("Spectral gap = 10^{:.1f}".format(np.log10(spectral_gap)))
         laplacian /= spectral_gap
+        
     return laplacian
 
 
 def _compute_distance_geodesic(G):
     """Geodesic distance matrix"""
     A = check_symmetric(nx.adjacency_matrix(G, weight="weight"))
-    return floyd_warshall(A, directed=True, unweighted=True)
+    return scg.floyd_warshall(A, directed=True, unweighted=True)
 
 
 def _heat_kernel(measure, laplacian, timestep):
@@ -160,45 +167,46 @@ def compute_curvatures(
     return kappas
 
 
-#def compute_OR_curvature(
-#    graph,
-#    n_workers=1,
-#    measure_cutoff=0.0,
-#    sinkhorn_regularisation=0,
-#    weighted_curvature=False,
-#):
-#    """Compute the original OR curvature of Ollivier 2007.
-#
-#    Args:
-#        graph (networkx graph): graph to consider
-#        n_workers (int): number of workers for multiprocessing
-#        measure_cutoff (float): cutoff of the measures, in [0, 1], with no cutoff at 0
-#        sinkhorn_regularisation (float): Sinkhorn regularisation value, when 0, no sinkhorn is used
-#        weighted_curvature (bool): if True, the curvature if multiplied by the original edge weight
-#    """
-#    L.debug("Construct transition matrix")
-#    adjacency = nx.adjacency_matrix(graph)
-#    inv_degree = sc.sparse.diags(1.0 / np.array(adjacency.sum(0)).flatten())
-#    transition_matrix = adjacency.dot(inv_degree)
-#
-#    L.debug("Compute geodesic distances")
-#    geodesic_distances = _compute_distance_geodesic(graph)
-#
-#    L.debug("Computing measures")
-#    measures = [transition_matrix.dot(measure) for measure in list(np.eye(len(graph)))]
-#
-#    L.debug("Computing curvatures")
-#    with multiprocessing.Pool(n_workers) as pool:
-#        kappas = pool.map(
-#            partial(
-#                _edge_curvature,
-#                measures=measures,
-#                geodesic_distances=geodesic_distances,
-#                measure_cutoff=measure_cutoff,
-#                sinkhorn_regularisation=sinkhorn_regularisation,
-#                weighted_curvature=weighted_curvature,
-#            ),
-#            graph.edges,
-#            chunksize=max(1, int(len(graph.edges) / n_workers)),
-#        )
-#    return kappas
+def compute_OR_curvature(
+    graph,
+    n_workers=1,
+    measure_cutoff=0.0,
+    sinkhorn_regularisation=0,
+    weighted_curvature=False,
+):
+    """Compute the original OR curvature of Ollivier 2007.
+
+    Args:
+        graph (networkx graph): graph to consider
+        n_workers (int): number of workers for multiprocessing
+        measure_cutoff (float): cutoff of the measures, in [0, 1], with no cutoff at 0
+        sinkhorn_regularisation (float): Sinkhorn regularisation value, when 0, no sinkhorn is used
+        weighted_curvature (bool): if True, the curvature if multiplied by the original edge weight
+    """
+    L.debug("Construct transition matrix")
+    adjacency = nx.adjacency_matrix(graph)
+    inv_degree = sc.sparse.diags(1.0 / np.array(adjacency.sum(0)).flatten())
+    transition_matrix = adjacency.dot(inv_degree)
+
+    L.debug("Compute geodesic distances")
+    geodesic_distances = _compute_distance_geodesic(graph)
+
+    L.debug("Computing measures")
+    measures = [transition_matrix.dot(measure) for measure in list(np.eye(len(graph)))]
+
+    L.debug("Computing curvatures")
+    with multiprocessing.Pool(n_workers) as pool:
+        kappas = pool.map(
+            partial(
+                _edge_curvature,
+                measures=measures,
+                geodesic_distances=geodesic_distances,
+                measure_cutoff=measure_cutoff,
+                sinkhorn_regularisation=sinkhorn_regularisation,
+                weighted_curvature=weighted_curvature,
+            ),
+            graph.edges,
+            chunksize=max(1, int(len(graph.edges) / n_workers)),
+        )
+    
+    return kappas
