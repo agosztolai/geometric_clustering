@@ -14,9 +14,9 @@ if not os.path.isdir(graph_name):
     os.mkdir(graph_name)
 os.chdir(graph_name)
 
-t_min = -0.5
-t_max = 1.0
-n_t = 20
+t_min = -2.0
+t_max = 0.5
+n_t = 100
 times = np.logspace(t_min, t_max, n_t)
 
-kappas = compute_curvatures(graph, times)
+kappas = compute_curvatures(graph, times, n_workers=12)

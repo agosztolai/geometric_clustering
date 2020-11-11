@@ -43,14 +43,13 @@ def plot_edge_curvatures(
         else:
             color = "C1"
         ax.plot(np.log10(times), kappa, c=color, lw=0.5)
-        
 
     if ylog:
         ax.set_xscale("symlog")
     ax.axhline(0, ls="--", c="k")
     ax.axis([np.log10(times[0]), np.log10(times[-1]), np.min(kappas), 1])
-    ax.set_xlabel(r'$log_{10}(t)$')
-    ax.set_ylabel('Edge curvatures')
+    ax.set_xlabel(r"$log_{10}(t)$")
+    ax.set_ylabel("Edge curvatures")
 
     _savefig(fig, folder, filename, ext=ext)
     return fig, ax
@@ -73,8 +72,8 @@ def plot_edge_curvature_variance(
         fig = None
 
     ax.plot(np.log10(times), np.std(kappas, axis=1))
-    ax.set_xlabel(r'$log_{10}$(t)')
-    ax.set_ylabel('Edge curvature variance')
+    ax.set_xlabel(r"$log_{10}$(t)")
+    ax.set_ylabel("Edge curvature variance")
     ax.set_xlim([np.log10(times[0]), np.log10(times[-1])])
 
     _savefig(fig, folder, filename, ext=ext)
@@ -149,7 +148,7 @@ def plot_graph(
     vmax=None,
 ):
     """plot the curvature on the graph"""
-    pos = list(nx.get_node_attributes(graph, "pos").values())    
+    pos = list(nx.get_node_attributes(graph, "pos").values())
     if pos == []:
         pos = nx.spring_layout(graph)
 
@@ -162,7 +161,7 @@ def plot_graph(
             vmax = np.max(edge_color)
     else:
         cmap, vmin, vmax = None, None, None
-        
+
     nx.draw_networkx_nodes(
         graph,
         pos=pos,
@@ -191,8 +190,8 @@ def plot_graph(
         plt.colorbar(edges)
 
     plt.axis("off")
-    
-    
+
+
 def plot_communities(
     graph,
     kappas,
@@ -202,41 +201,41 @@ def plot_communities(
     edge_color="0.5",
     edge_width=2,
     figsize=(15, 10),
-    ext =".png",
+    ext=".png",
 ):
-    
+
     from pygenstability.plotting import plot_single_community
-    
+
     """now plot the community structures at each time in a folder"""
     if not os.path.isdir(folder):
         os.mkdir(folder)
 
     mpl_backend = matplotlib.get_backend()
     matplotlib.use("Agg")
-    
+
     pos = list(nx.get_node_attributes(graph, "pos").values())
     if pos == []:
         pos = nx.spring_layout(graph)
         for i in graph:
-            graph.nodes[i]['pos'] = pos[i]
-            
+            graph.nodes[i]["pos"] = pos[i]
+
     if ground_truth is not None:
         pos = community_layout(graph, ground_truth)
         for i in graph:
-            graph.nodes[i]['pos'] = pos[i]
-    
+            graph.nodes[i]["pos"] = pos[i]
+
     for time_id in tqdm(range(len(all_results["times"]))):
         plt.figure(figsize=figsize)
-        
+
         if ground_truth is not None:
             for i in set(ground_truth.values()):
-                ids = [j for j,k in enumerate(ground_truth.values()) if k==i]
-                points = np.array(list(pos.values()))[ids,:]
+                ids = [j for j, k in enumerate(ground_truth.values()) if k == i]
+                points = np.array(list(pos.values()))[ids, :]
                 hull = ConvexHull(points)
-        
-                points = points[hull.vertices,:]
-                plt.fill(points[:,0],points[:,1], alpha=0.3)
-        
+
+                points = points[hull.vertices, :]
+                plt.fill(points[:, 0], points[:, 1], alpha=0.3)
+
         plot_single_community(
             graph, all_results, time_id, edge_color="1", edge_width=3, node_size=200
         )
@@ -247,9 +246,9 @@ def plot_communities(
             os.path.join(folder, "time_" + str(time_id) + ext), bbox_inches="tight"
         )
         plt.close()
-    matplotlib.use(mpl_backend)    
-    
-    
+    matplotlib.use(mpl_backend)
+
+
 def community_layout(g, partition):
     """
     Compute the layout for a modular graph.
@@ -271,9 +270,9 @@ def community_layout(g, partition):
 
     """
 
-    pos_communities = _position_communities(g, partition, scale=3.)
+    pos_communities = _position_communities(g, partition, scale=3.0)
 
-    pos_nodes = _position_nodes(g, partition, scale=1.)
+    pos_nodes = _position_nodes(g, partition, scale=1.0)
 
     # combine positions
     pos = dict()

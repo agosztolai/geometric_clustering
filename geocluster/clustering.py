@@ -6,7 +6,6 @@ from functools import partial
 
 try:
     from pygenstability import pygenstability as pgs
-    from pygenstability.constructors import constructor_signed_modularity
 except ImportError:
     print("Pygenstability module not found, clustering will not work")
 
@@ -15,7 +14,7 @@ def cluster_signed_modularity(
     graph,
     times,
     kappas,
-    thr=0,
+    kappa0=None,
     n_louvain=10,
     with_MI=True,
     n_louvain_MI=10,
@@ -41,22 +40,23 @@ def cluster_signed_modularity(
     """
     time_dict = {time: i for i, time in enumerate(times)}
     csgraph = nx.adjacency_matrix(graph, weight="weight")
-    
-    def modularity_constructor(_graph, time, thr):
+
+    def modularity_constructor(_graph, time, kappa0):
         """signed modularity contructor with curvature."""
         row = np.array([e[0] for e in graph.edges])
         cols = np.array([e[1] for e in graph.edges])
         graph_kappa = sp.csr_matrix(
-            (kappas[time_dict[time]]-thr, (row, cols)), shape=_graph.shape
+            (kappas[time_dict[time]], (row, cols)), shape=_graph.shape
         )
-        graph_kappa += graph_kappa.T
-        
-        quality_matrix, null_model = constructor_signed_modularity(graph_kappa, time)[:2]
-        null_model = np.zeros_like(null_model) #ignore nullmodel
-        
-        return quality_matrix, null_model
+        if kappa0 is None:
+            kappa0 = np.mean(graph_kappa.data)
 
-    constructor = partial(modularity_constructor, thr=thr)
+        quality_matrix = graph_kappa + graph_kappa.T
+        null_model = kappa0 * np.ones(len(graph.nodes))
+
+        return quality_matrix, np.array([null_model, null_model])
+
+    constructor = partial(modularity_constructor, kappa0=kappa0)
 
     return pgs.run(
         csgraph,

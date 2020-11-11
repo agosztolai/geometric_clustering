@@ -20,20 +20,14 @@ logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
 def _construct_laplacian(graph, use_spectral_gap=True):
     """Laplacian matrix"""
-#    adjacency = nx.adjacency_matrix(graph).toarray()
-#    adjacency = np.exp(-adjacency)
-#    Lap = laplacian(adjacency)
-#    degrees = adjacency.sum(1).flatten()
-#    Lap = sc.sparse.csr_matrix(Lap)
-#    Lap = Lap.dot(sc.sparse.diags(1.0 / degrees))
-    degrees = np.array([graph.degree(i, weight='weight') for i in graph.nodes])
+    degrees = np.array([graph.degree(i, weight="weight") for i in graph.nodes])
     laplacian = nx.laplacian_matrix(graph).dot(sc.sparse.diags(1.0 / degrees))
 
     if use_spectral_gap and len(graph) > 3:
         spectral_gap = abs(sc.sparse.linalg.eigs(laplacian, which="SM", k=2)[0][1])
         L.debug("Spectral gap = 10^{:.1f}".format(np.log10(spectral_gap)))
         laplacian /= spectral_gap
-        
+
     return laplacian
 
 
@@ -101,14 +95,14 @@ def compute_curvatures(
         sinkhorn_regularisation (float): Sinkhorn regularisation value, when 0, no sinkhorn is applied
         weighted_curvature (bool): if True, the curvature is multiplied by the original edge weight
     """
-    
-    #Check for self-loops
+
+    # Check for self-loops
     if nx.number_of_selfloops(graph) > 0:
         raise Exception("A graph with self-loops will not work!")
-        
-    #Check for connectedness
+
+    # Check for connectedness
     degrees = [graph.degree(n) for n in graph.nodes]
-    assert ~(np.array(degrees)==0).any(), 'Graph is not connected!'
+    assert ~(np.array(degrees) == 0).any(), "Graph is not connected!"
 
     L.debug("Construct Laplacian")
     laplacian = _construct_laplacian(graph, use_spectral_gap)
@@ -208,5 +202,5 @@ def compute_OR_curvature(
             graph.edges,
             chunksize=max(1, int(len(graph.edges) / n_workers)),
         )
-    
+
     return kappas

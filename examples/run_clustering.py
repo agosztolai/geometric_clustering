@@ -2,7 +2,7 @@
 import os
 import pickle
 import sys
- 
+
 import networkx as nx
 
 from geocluster import cluster_signed_modularity, load_curvature
@@ -16,5 +16,5 @@ os.chdir(graph_name)
 
 times, kappas = load_curvature()
 
-cluster_results = cluster_signed_modularity(graph, times, kappas, thr=0.75)
+cluster_results = cluster_signed_modularity(graph, times, kappas, kappa0=0.01)
 pickle.dump(cluster_results, open("cluster_results.pkl", "wb"))
