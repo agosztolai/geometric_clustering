@@ -16,5 +16,14 @@ os.chdir(graph_name)
 
 times, kappas = load_curvature()
 
-cluster_results = cluster_signed_modularity(graph, times, kappas, kappa0=0.01)
+cluster_results = cluster_signed_modularity(
+    graph,
+    times,
+    kappas,
+    kappa0=None,
+    n_louvain=500,
+    n_louvain_VI=50,
+    n_workers=12,
+    with_postprocessing=False,
+)
 pickle.dump(cluster_results, open("cluster_results.pkl", "wb"))

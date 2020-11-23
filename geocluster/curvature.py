@@ -34,7 +34,7 @@ def _construct_laplacian(graph, use_spectral_gap=True):
 def _compute_distance_geodesic(G):
     """Geodesic distance matrix"""
     A = check_symmetric(nx.adjacency_matrix(G, weight="weight"))
-    return scg.floyd_warshall(A, directed=True, unweighted=True)
+    return scg.floyd_warshall(A, directed=True, unweighted=False)
 
 
 def _heat_kernel(measure, laplacian, timestep):
@@ -46,7 +46,7 @@ def _edge_curvature(
     edge,
     measures,
     geodesic_distances,
-    measure_cutoff=0.0,
+    measure_cutoff=1e-6,
     sinkhorn_regularisation=0,
     weighted_curvature=False,
 ):
@@ -80,7 +80,7 @@ def compute_curvatures(
     times,
     n_workers=1,
     use_spectral_gap=True,
-    measure_cutoff=0.0,
+    measure_cutoff=1e-6,
     sinkhorn_regularisation=0,
     weighted_curvature=False,
 ):
@@ -92,7 +92,7 @@ def compute_curvatures(
         n_workers (int): number of workers for multiprocessing
         use_spectral_gap (bool): to normalise time by the spectral gap of laplacian
         measure_cutoff (float): cutoff of the measures, in [0, 1], with no cutoff at 0
-        sinkhorn_regularisation (float): Sinkhorn regularisation value, when 0, no sinkhorn is applied
+        sinkhorn_regularisation (float): Sinkhorn regularisation, when 0, no sinkhorn is applied
         weighted_curvature (bool): if True, the curvature is multiplied by the original edge weight
     """
 

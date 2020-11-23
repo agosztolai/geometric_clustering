@@ -16,8 +16,8 @@ def cluster_signed_modularity(
     kappas,
     kappa0=None,
     n_louvain=10,
-    with_MI=True,
-    n_louvain_MI=10,
+    with_VI=True,
+    n_louvain_VI=10,
     with_postprocessing=True,
     with_ttprime=True,
     n_workers=1,
@@ -27,12 +27,12 @@ def cluster_signed_modularity(
 
     Args:
         graph (networkx): graph to cluster
-        global_time (float): scaling for the modularity to fix the
-            global scale at thish modularity will work, similar to time
-            in linearized markov stability.
+        times (list): markov times to consider
+        kappas (list): list of corresponding Kappa matrices
+        kappa0 (float): shift of kappa via the null model
         n_louvain (int): number of Louvain evaluations
-        with_MI (bool): compute the mutual information between Louvain runs
-        n_louvain_MI (int): number of randomly chosen Louvain run to estimate MI
+        with_VI (bool): compute the variatio of information between Louvain runs
+        n_louvain_VI (int): number of randomly chosen Louvain run to estimate VI
         with_postprocessing (bool): apply the final postprocessing step
         with_ttprime (bool): compute the ttprime matrix
         n_workers (int): number of workers for multiprocessing
@@ -45,14 +45,17 @@ def cluster_signed_modularity(
         """signed modularity contructor with curvature."""
         row = np.array([e[0] for e in graph.edges])
         cols = np.array([e[1] for e in graph.edges])
-        graph_kappa = sp.csr_matrix(
-            (kappas[time_dict[time]], (row, cols)), shape=_graph.shape
-        )
-        if kappa0 is None:
-            kappa0 = np.mean(graph_kappa.data)
 
+        if kappa0 is None:
+            # default is to ensure that at smallest time all edges are < 0 to have n_nodes clusters
+            kappa0 = np.max(kappas[0]) * 1.01
+
+        _kappas = np.array(kappas[time_dict[time]], dtype=np.float128)
+        _kappas = (_kappas - kappa0) / (2 * np.sum(_kappas[_kappas > 0]))
+
+        graph_kappa = sp.csr_matrix((_kappas, (row, cols)), shape=_graph.shape)
         quality_matrix = graph_kappa + graph_kappa.T
-        null_model = kappa0 * np.ones(len(graph.nodes))
+        null_model = np.zeros(len(graph.nodes))
 
         return quality_matrix, np.array([null_model, null_model])
 
@@ -63,8 +66,8 @@ def cluster_signed_modularity(
         constructor=constructor,
         times=times,
         n_louvain=n_louvain,
-        with_MI=with_MI,
-        n_louvain_MI=n_louvain_MI,
+        with_VI=with_VI,
+        n_louvain_VI=n_louvain_VI,
         with_postprocessing=with_postprocessing,
         with_ttprime=with_ttprime,
         n_workers=n_workers,
