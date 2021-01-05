@@ -15,13 +15,15 @@ graph = nx.convert_node_labels_to_integers(graph)
 os.chdir(graph_name)
 
 times, kappas = load_curvature()
+times = times[:-8]
+kappas = kappas[:-8]
 
 cluster_results = cluster_signed_modularity(
     graph,
     times,
     kappas,
-    kappa0=None,
-    n_louvain=500,
+    kappa0=0,
+    n_louvain=100,
     n_louvain_VI=50,
     n_workers=12,
     with_postprocessing=False,

@@ -117,6 +117,7 @@ def compute_curvatures(
     display_all_positive = False
     L.debug("Compute all curvatures")
     with multiprocessing.Pool(n_workers) as pool:
+        chunksize = max(1, int(len(graph.edges) / n_workers))
         for time_index in tqdm(range(len(times))):
             L.debug("---------------------------------")
             L.debug("Step %s / %s", str(time_index), str(len(times)))
@@ -133,7 +134,7 @@ def compute_curvatures(
                     - times_with_zero[time_index],
                 ),
                 measures,
-                chunksize=max(1, int(len(graph) / n_workers)),
+                chunksize=chunksize,
             )
 
             L.debug("Computing curvatures")
@@ -147,7 +148,7 @@ def compute_curvatures(
                     weighted_curvature=weighted_curvature,
                 ),
                 graph.edges,
-                chunksize=max(1, int(len(graph.edges) / n_workers)),
+                chunksize=chunksize,
             )
 
             if all(kappas[time_index] > 0) and display_all_positive:
