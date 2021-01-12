@@ -50,7 +50,7 @@ python compute_original_OR.py <graph>
 
 ### Compute clustering
 
-To run the clustering using curvature, 
+To run clustering using geometric modularity (modularity on curvature weighted graph without null model), run 
 ```
 python run_clustering.py <graph>
 ```
