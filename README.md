@@ -26,7 +26,7 @@ Please cite our paper if you use this code in your own work. To reproduce our re
 
 ## Getting started
 
-To run the code is very simple. The folder `example` contains some example scripts.
+To run the code is very simple. The folder `/examples` contains some example scripts.
 
 ### Data requirements
 
