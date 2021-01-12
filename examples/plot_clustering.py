@@ -25,9 +25,9 @@ cluster_results = pickle.load(open("cluster_results.pkl", "rb"))
 
 del cluster_results['stability']  # to not plot stability
 plt.figure(figsize=(5, 3))
-plot_scan(cluster_results, figure_name="figures/clustering_scan.svg", use_plotly=False)
+plot_scan(cluster_results, figure_name="figures/clustering_scan.jpg", use_plotly=False)
 plt.show()
 
 #plot_scan(cluster_results, figure_name="figures/clustering_scan.svg", use_plotly=True)
 
-plot_communities(graph, kappas, cluster_results,ext = ".svg")
+plot_communities(graph, kappas, cluster_results,ext = ".jpg")

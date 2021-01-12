@@ -17,9 +17,9 @@ os.chdir(graph_name)
 times, kappas = load_curvature()
 
 # Save results for later analysis
-plotting.plot_edge_curvatures(times, kappas)
-plotting.plot_edge_curvature_variance(times, kappas)
+plotting.plot_edge_curvatures(times, kappas, ext=".jpg")
+plotting.plot_edge_curvature_variance(times, kappas, ext=".jpg")
 plt.show()
 plotting.plot_graph_snapshots(
-    graph, times, kappas, folder="curvature_images", ext=".svg", figsize=(12, 7)
+    graph, times, kappas, folder="curvature_images", ext=".jpg", figsize=(12, 7)
 )
