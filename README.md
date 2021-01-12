@@ -1,6 +1,6 @@
-# Multiscale Ollivier-Ricci curvature and clustering
+# Dynamical Ollivier-Ricci curvature and clustering
 
-This python package computes the edge multiscale Ollivier-Ricci curvature using diffusion on graphs, and uses it cluster the graph.
+This package computes the dynamic Ollivier-Ricci based on Markov diffusion processes for edges of a graph, and uses it cluster the graph.
 
 ## Installation
 
@@ -12,18 +12,25 @@ pip install .
 
 ## Cite
 
-Please cite our paper if you use this code in your own work:
+Please cite our paper if you use this code in your own work. To reproduce our results, run the jupyter notebooks in the folder `/paper_results`.
 
 ```
-A. Gosztolai, A. Arnaudon “Multiscale Ollivier-Ricci curvature for the clustering of sparse networks”, In preparation, 2020
-
+@inproceedings{gosztolaiArnaudon,
+  author    = {Adam Gosztolai and
+               Alexis Arnaudon},
+  title     = {Unfolding the multiscale structure of networks with dynamical Ollivier-Ricci curvature},
+  bookTitle = {arXiv},
+  year      = {2021}
+}
 ```
-## Run examples
 
-To use this code, the folder `example` contains some example scripts.
+## Getting started
 
-### Create a graph
-First, one need to have a graph, which can be taken from the examples in the folder `graph`, or provided by the user. 
+To run the code is very simple. The folder `example` contains some example scripts.
+
+### Data requirements
+
+Our code can be applied to any graph provided as a networkx object. This can be taken from the examples in the folder `/graph`, or provided by the user. You can generate a host of standard graphs using our [graph library package](https://github.com/agosztolai/graph_library)!
 
 ### Compute curvature
 If taken from the folder `graph`, the multiscale curvature can be computed by running
@@ -36,7 +43,7 @@ To plot the results, use
 python plot_curvature.py <graph>
 ```
 
-To only run the original Ollivier-Ricci curvature, use
+To only run the [classical Ollivier-Ricci curvature](https://www.sciencedirect.com/science/article/pii/S002212360800493X), use
 ```
 python compute_original_OR.py <graph>
 ```
