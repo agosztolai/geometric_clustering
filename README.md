@@ -2,17 +2,9 @@
 
 This package computes the dynamic Ollivier-Ricci based on Markov diffusion processes for edges of a graph, and uses it cluster the graph.
 
-## Installation
-
-To install this package, clone this repository, and run
-
-```
-pip install . 
-```
-
 ## Cite
 
-Please cite our paper if you use this code in your own work. To reproduce our results, run the jupyter notebooks in the folder `/paper_results`.
+Please cite our paper if you use this code in your own work. To reproduce the results of our paper, run the jupyter notebooks in the folder `/paper_results`.
 
 ```
 @inproceedings{gosztolaiArnaudon,
@@ -25,6 +17,14 @@ Please cite our paper if you use this code in your own work. To reproduce our re
 ```
 
 ## Getting started
+
+### Installation
+
+To install this package, clone this repository, and run
+
+```
+pip install . 
+```
 
 To run the code is very simple. The folder `/examples` contains some example scripts.
 
@@ -49,6 +49,8 @@ python compute_original_OR.py <graph>
 ```
 
 ### Compute clustering
+
+The clustering function requires our [PyGenStability package](https://github.com/ImperialCollegeLondon/PyGenStability), which is a Python wrapper for the generalised Louvain algorith. 
 
 To run clustering using geometric modularity (modularity on curvature weighted graph without null model), run 
 ```
