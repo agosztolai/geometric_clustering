@@ -15,3 +15,4 @@ test/\.ipynb_checkpoints/
 bin/
 lib/
 geocluster/*.DS_Store
+paper_results/.ipynb_checkpoints/

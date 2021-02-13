@@ -1,8 +1,9 @@
 """Clustering module."""
+from functools import partial
+
+import networkx as nx
 import numpy as np
 import scipy.sparse as sp
-import networkx as nx
-from functools import partial
 
 try:
     from pygenstability import pygenstability as pgs
@@ -42,7 +43,7 @@ def cluster_signed_modularity(
     csgraph = nx.adjacency_matrix(graph, weight="weight")
 
     def modularity_constructor(_graph, time, kappa0):
-        """signed modularity contructor with curvature."""
+        """Signed modularity contructor with curvature."""
         row = np.array([e[0] for e in graph.edges])
         cols = np.array([e[1] for e in graph.edges])
 

@@ -1,4 +1,4 @@
-"""plotting functions"""
+"""Plotting functions."""
 import os
 from pathlib import Path
 
@@ -7,7 +7,6 @@ import matplotlib.colors as col
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
-from scipy import stats
 from scipy.spatial import ConvexHull
 from tqdm import tqdm
 
@@ -30,7 +29,7 @@ def plot_edge_curvatures(
     ax=None,
     figsize=(5, 4),
 ):
-    """plot edge curvature"""
+    """Plot edge curvature."""
     if ax is None:
         fig = plt.figure(figsize=figsize)
         ax = plt.gca()
@@ -92,8 +91,7 @@ def plot_graph_snapshots(
     ext=".svg",
     figsize=(5, 4),
 ):
-    """plot the curvature on the graph for each time"""
-
+    """Plot the curvature on the graph for each time."""
     if not os.path.isdir(folder):
         os.mkdir(folder)
 
@@ -101,7 +99,10 @@ def plot_graph_snapshots(
     for i, kappa in tqdm(enumerate(kappas), total=len(kappas), disable=disable):
         plt.figure(figsize=figsize)
         plot_graph(
-            graph, edge_color=kappa, node_size=node_size, edge_width=edge_width,
+            graph,
+            edge_color=kappa,
+            node_size=node_size,
+            edge_width=edge_width,
         )
         plt.title(r"$log_{10}(t)=$" + str(np.around(np.log10(times[i]), 2)))
 
@@ -110,7 +111,7 @@ def plot_graph_snapshots(
 
 
 def _get_colormap(edge_color, colormap="standard"):
-    """Get custom colormaps"""
+    """Get custom colormaps."""
     if colormap == "adaptive":
         edge_color_min = np.min(edge_color)  # abs(min(np.min(edge_color), 0))
         edge_color_max = np.max(edge_color)  # max(np.max(edge_color), 0)
@@ -147,7 +148,7 @@ def plot_graph(
     vmin=None,
     vmax=None,
 ):
-    """plot the curvature on the graph"""
+    """Plot the curvature on the graph."""
     pos = list(nx.get_node_attributes(graph, "pos").values())
     if pos == []:
         pos = nx.spring_layout(graph)
@@ -203,10 +204,9 @@ def plot_communities(
     figsize=(15, 10),
     ext=".png",
 ):
-
+    """Plot the community structures at each time in a folder."""
     from pygenstability.plotting import plot_single_community
 
-    """now plot the community structures at each time in a folder"""
     if not os.path.isdir(folder):
         os.mkdir(folder)
 
@@ -237,39 +237,21 @@ def plot_communities(
                 plt.fill(points[:, 0], points[:, 1], alpha=0.3)
 
         plot_single_community(
-            graph, all_results, time_id, edge_color="1", edge_width=3, node_size=50
+            graph, all_results, time_id, edge_color=edge_color, edge_width=3, node_size=50
         )
         plot_graph(
-            graph, edge_color=kappas[time_id], node_size=0, edge_width=edge_width,
+            graph,
+            edge_color=kappas[time_id],
+            node_size=0,
+            edge_width=edge_width,
         )
-        plt.savefig(
-            os.path.join(folder, "time_" + str(time_id) + ext), bbox_inches="tight"
-        )
+        plt.savefig(os.path.join(folder, "time_" + str(time_id) + ext), bbox_inches="tight")
         plt.close()
     matplotlib.use(mpl_backend)
 
 
 def community_layout(g, partition):
-    """
-    Compute the layout for a modular graph.
-
-
-    Arguments:
-    ----------
-    g -- networkx.Graph or networkx.DiGraph instance
-        graph to plot
-
-    partition -- dict mapping int node -> int community
-        graph partitions
-
-
-    Returns:
-    --------
-    pos -- dict mapping int node -> (float x, float y)
-        node positions
-
-    """
-
+    """Compute the layout for a modular graph."""
     pos_communities = _position_communities(g, partition, scale=3.0)
 
     pos_nodes = _position_nodes(g, partition, scale=1.0)
@@ -283,7 +265,7 @@ def community_layout(g, partition):
 
 
 def _position_communities(g, partition, **kwargs):
-
+    """Position communities."""
     # create a weighted graph, in which each node corresponds to a community,
     # and each edge weight to the number of edges between communities
     between_community_edges = _find_between_community_edges(g, partition)
@@ -306,11 +288,11 @@ def _position_communities(g, partition, **kwargs):
 
 
 def _find_between_community_edges(g, partition):
-
+    """Find community between edges."""
     edges = dict()
 
     for (ni, nj) in g.edges():
-        
+
         ci = partition[ni]
         cj = partition[nj]
 
@@ -324,10 +306,7 @@ def _find_between_community_edges(g, partition):
 
 
 def _position_nodes(g, partition, **kwargs):
-    """
-    Positions nodes within communities.
-    """
-
+    """Positions nodes within communities."""
     communities = dict()
     for node, community in partition.items():
         try:
@@ -336,129 +315,9 @@ def _position_nodes(g, partition, **kwargs):
             communities[community] = [node]
 
     pos = dict()
-    for ci, nodes in communities.items():
+    for nodes in communities.values():
         subgraph = g.subgraph(nodes)
         pos_subgraph = nx.spring_layout(subgraph, **kwargs)
         pos.update(pos_subgraph)
 
     return pos
-
-
-# unused/deprecated functions below
-
-
-def plot_scales_distribution(
-    times, edge_scales, method="hist", filename="hist_scales.png", figsize=(10, 5),
-):
-    """plot scales on edges with histogram, or gaussian kernel, or both"""
-    plt.figure(figsize=figsize)
-
-    if method in ("hist", "both"):
-        plt.hist(np.log10(edge_scales), bins=40, density=True)
-
-    if method in ("gaussian", "both"):
-        pdf = stats.gaussian_kde(np.log10(edge_scales))
-        plt.plot(np.log10(times), pdf(np.log10(times)), color="navy", linestyle="-")
-        plt.scatter(
-            np.log10(edge_scales),
-            np.zeros_like(edge_scales),
-            marker="x",
-            color="k",
-            alpha=0.1,
-        )
-
-    plt.xlabel("Zero crossings / edge scales")
-    plt.gca().set_xlim(np.log10(times[0]), np.log10(times[-1]))
-    plt.savefig(filename)
-
-
-def plot_scales_graph(graph, edge_scales, filename="graph_scales.png", figsize=(10, 5)):
-    """plot scales on edges, from curvatures"""
-    pos = list(nx.get_node_attributes(graph, "pos").values())
-    cmap = plt.get_cmap("plasma")
-
-    plt.figure(figsize=figsize)
-    nx.draw_networkx_nodes(graph, pos=pos, node_size=0)
-    nx.draw_networkx_edges(
-        graph,
-        pos=pos,
-        edge_color=np.log10(edge_scales),
-        width=2,
-        edge_cmap=cmap,
-        alpha=0.5,
-    )
-
-    edges = plt.cm.ScalarMappable(
-        norm=plt.cm.colors.Normalize(
-            np.log10(min(edge_scales)), np.log10(max(edge_scales))
-        ),
-        cmap=cmap,
-    )
-
-    plt.colorbar(edges, label="Edge scale")
-
-    plt.savefig(filename)
-
-
-def plot_coarse_grain(
-    graphs,
-    edge_color=None,
-    folder="coarse_grain",
-    filename="image",
-    ext=".png",
-    node_size=5,
-    edge_width=2,
-    node_labels=False,
-    disable=False,
-    figsize=(5, 4),
-):
-    """plot coarse grained graphs"""
-
-    if not os.path.isdir(folder):
-        os.mkdir(folder)
-
-    for i, graph in tqdm(enumerate(graphs), total=len(graphs), disable=disable):
-        plt.figure(figsize=figsize)
-
-        plot_graph(
-            graphs[0],
-            "k",
-            node_colors="k",
-            node_size=node_size,
-            node_labels=node_labels,
-            edge_width=edge_width,
-            figsize=figsize,
-            show_colorbar=False,
-        )
-        total_weight = sum([graph.nodes[u]["weight"] for u in graph])
-        node_size_weight = (
-            node_size
-            * np.array([graph.nodes[u]["weight"] for u in graph])
-            / total_weight
-            * 100
-        )
-        plot_graph(
-            graph,
-            "C1",
-            node_colors="C1",
-            node_size=node_size_weight,
-            node_labels=node_labels,
-            edge_width=edge_width,
-            figsize=figsize,
-            show_colorbar=False,
-        )
-
-        plt.savefig(folder + "/" + filename + "_%03d" % i + ext, bbox_inches="tight")
-        plt.close()
-
-
-def plot_embeddings(embeddings, folder="embedding", filename="image", ext=".png"):
-    """plot the embedding results on scatter plot"""
-
-    if not os.path.isdir(folder):
-        os.mkdir(folder)
-
-    for i, embedding in enumerate(embeddings):
-        plt.figure()
-        plt.scatter(embedding[0], embedding[1])
-        plt.savefig(folder + "/" + filename + "_%03d" % i + ext, bbox_inches="tight")
