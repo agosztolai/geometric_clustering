@@ -199,7 +199,7 @@ def plot_communities(
     all_results,
     ground_truth=None,
     folder="communities",
-    edge_color="0.5",
+    edge_color="1.0",
     edge_width=2,
     figsize=(15, 10),
     ext=".png",
@@ -237,7 +237,7 @@ def plot_communities(
                 plt.fill(points[:, 0], points[:, 1], alpha=0.3)
 
         plot_single_community(
-            graph, all_results, time_id, edge_color=edge_color, edge_width=3, node_size=50
+            graph, all_results, time_id, edge_color=edge_color, edge_width=1, node_size=50
         )
         plot_graph(
             graph,
@@ -292,7 +292,6 @@ def _find_between_community_edges(g, partition):
     edges = dict()
 
     for (ni, nj) in g.edges():
-
         ci = partition[ni]
         cj = partition[nj]
 

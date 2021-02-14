@@ -7,19 +7,17 @@ import networkx as nx
 
 from geocluster import load_curvature, plotting
 
-# get the graph from terminal input
-graph_name = sys.argv[-1]
-graph = nx.read_gpickle(os.path.join("graphs", "graph_" + graph_name + ".gpickle"))
 
-os.chdir(graph_name)
+if __name__ == "__main__":
+    graph_name = sys.argv[-1]
+    graph = nx.read_gpickle(os.path.join("graphs", "graph_" + graph_name + ".gpickle"))
 
-# Compute the OR curvatures
-times, kappas = load_curvature()
+    times, kappas = load_curvature(filename=f"{graph_name}/curvature.pkl")
 
-# Save results for later analysis
-plotting.plot_edge_curvatures(times, kappas, ext=".jpg")
-plotting.plot_edge_curvature_variance(times, kappas, ext=".jpg")
-plt.show()
-plotting.plot_graph_snapshots(
-    graph, times, kappas, folder="curvature_images", ext=".jpg", figsize=(12, 7)
-)
+    plotting.plot_edge_curvatures(times, kappas, folder=graph_name, ext=".pdf")
+    plotting.plot_edge_curvature_variance(times, kappas, folder=graph_name, ext=".pdf")
+    plt.show()
+
+    plotting.plot_graph_snapshots(
+        graph, times, kappas, folder=f"{graph_name}/curvature_images", ext=".pdf", figsize=(12, 7)
+    )

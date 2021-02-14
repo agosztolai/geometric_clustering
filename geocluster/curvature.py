@@ -81,8 +81,9 @@ def compute_curvatures(
     measure_cutoff=1e-6,
     sinkhorn_regularisation=0,
     weighted_curvature=False,
+    filename="curvature.pkl",
 ):
-    """Edge curvature matrix.
+    """Computes the curvatures of edges.
 
     Args:
         graph (networkx graph): graph to consider
@@ -92,6 +93,7 @@ def compute_curvatures(
         measure_cutoff (float): cutoff of the measures, in [0, 1], with no cutoff at 0
         sinkhorn_regularisation (float): Sinkhorn regularisation, when 0, no sinkhorn is applied
         weighted_curvature (bool): if True, the curvature is multiplied by the original edge weight
+        filename (str): pickle filename to save curvatures at each time step
     """
     # Check for self-loops
     if nx.number_of_selfloops(graph) > 0:
@@ -149,7 +151,7 @@ def compute_curvatures(
                 L.info("All edges have positive curvatures, so you may stop the computations.")
                 display_all_positive = False
 
-            save_curvatures(times[:time_index], kappas[:time_index])
+            save_curvatures(times[:time_index], kappas[:time_index], filename=filename)
 
     return kappas
 

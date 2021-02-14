@@ -1,14 +1,47 @@
 """Clustering module."""
-from functools import partial
-
 import networkx as nx
 import numpy as np
 import scipy.sparse as sp
+from pygenstability import run
+from pygenstability.constructors import Constructor
 
-try:
-    from pygenstability import pygenstability as pgs
-except ImportError:
-    print("Pygenstability module not found, clustering will not work")
+
+class constructor(Constructor):
+    """Constructor for geometric modularity."""
+
+    def __init__(self, *args, **kwargs):
+        """"""
+        super().__init__(*args, **kwargs)
+        self.kappas = None
+        self.kappa0 = None
+        self.time_dict = None
+        self.row = None
+        self.col = None
+
+    def prepare(self, **kwargs):
+        """Prepare the constructor with non-time dependent computations."""
+        self.kappas = kwargs["kappas"]
+        self.kappa0 = kwargs["kappa0"]
+        self.time_dict = kwargs["time_dict"]
+        self.row = kwargs["row"]
+        self.col = kwargs["col"]
+
+    def get_data(self, time):
+        """Return quality and null model at given time as well as global shift (or None)."""
+        if self.kappa0 is None:
+            # default is to ensure that at smallest time all edges are < 0 to have n_nodes clusters
+            self.kappa0 = np.max(self.kappas[0]) * 1.01
+
+        _kappas = np.array(self.kappas[self.time_dict[time]], dtype=np.float128)
+        _kappas = (_kappas - self.kappa0) / (2 * np.sum(_kappas[_kappas > 0]))
+
+        graph_kappa = sp.csr_matrix((_kappas, (self.row, self.col)), shape=self.graph.shape)
+        self.partial_quality_matrix = graph_kappa + graph_kappa.T
+
+        null_model = np.zeros(self.graph.shape[0])
+        self.partial_null_model = np.array([null_model, null_model])
+
+        return self.partial_quality_matrix, self.partial_null_model, None
 
 
 def cluster_signed_modularity(
@@ -39,32 +72,16 @@ def cluster_signed_modularity(
         n_workers (int): number of workers for multiprocessing
         tqdm_disable (bool): disable progress bars
     """
-    time_dict = {time: i for i, time in enumerate(times)}
-    csgraph = nx.adjacency_matrix(graph, weight="weight")
-
-    def modularity_constructor(_graph, time, kappa0):
-        """Signed modularity contructor with curvature."""
-        row = np.array([e[0] for e in graph.edges])
-        cols = np.array([e[1] for e in graph.edges])
-
-        if kappa0 is None:
-            # default is to ensure that at smallest time all edges are < 0 to have n_nodes clusters
-            kappa0 = np.max(kappas[0]) * 1.01
-
-        _kappas = np.array(kappas[time_dict[time]], dtype=np.float128)
-        _kappas = (_kappas - kappa0) / (2 * np.sum(_kappas[_kappas > 0]))
-
-        graph_kappa = sp.csr_matrix((_kappas, (row, cols)), shape=_graph.shape)
-        quality_matrix = graph_kappa + graph_kappa.T
-        null_model = np.zeros(len(graph.nodes))
-
-        return quality_matrix, np.array([null_model, null_model])
-
-    constructor = partial(modularity_constructor, kappa0=kappa0)
-
-    return pgs.run(
-        csgraph,
-        constructor=constructor,
+    return run(
+        graph=None,
+        constructor=constructor(
+            nx.adjacency_matrix(graph, weight="weight"),
+            kappa0=kappa0,
+            kappas=kappas,
+            time_dict={time: i for i, time in enumerate(times)},
+            row=np.array([e[0] for e in graph.edges]),
+            col=np.array([e[1] for e in graph.edges]),
+        ),
         times=times,
         n_louvain=n_louvain,
         with_VI=with_VI,

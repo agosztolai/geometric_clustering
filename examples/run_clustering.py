@@ -7,25 +7,24 @@ import networkx as nx
 
 from geocluster import cluster_signed_modularity, load_curvature
 
-graph_name = sys.argv[-1]
+if __name__ == "__main__":
+    graph_name = sys.argv[-1]
 
-graph = nx.read_gpickle(os.path.join("graphs", "graph_" + graph_name + ".gpickle"))
-graph = nx.convert_node_labels_to_integers(graph)
+    graph = nx.read_gpickle(os.path.join("graphs", "graph_" + graph_name + ".gpickle"))
+    graph = nx.convert_node_labels_to_integers(graph)
 
-os.chdir(graph_name)
+    times, kappas = load_curvature(filename=f"{graph_name}/curvature.pkl")
+    times = times[:-8]
+    kappas = kappas[:-8]
 
-times, kappas = load_curvature()
-times = times[:-8]
-kappas = kappas[:-8]
-
-cluster_results = cluster_signed_modularity(
-    graph,
-    times,
-    kappas,
-    kappa0=0,
-    n_louvain=100,
-    n_louvain_VI=50,
-    n_workers=12,
-    with_postprocessing=False,
-)
-pickle.dump(cluster_results, open("cluster_results.pkl", "wb"))
+    cluster_results = cluster_signed_modularity(
+        graph,
+        times,
+        kappas,
+        kappa0=None,
+        n_louvain=50,
+        n_louvain_VI=50,
+        n_workers=4,
+        with_postprocessing=True,
+    )
+    pickle.dump(cluster_results, open(f"{graph_name}/cluster_results.pkl", "wb"))
