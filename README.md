@@ -50,7 +50,7 @@ python compute_original_OR.py <graph>
 
 ### Compute clustering
 
-The clustering function requires our [PyGenStability package](https://github.com/ImperialCollegeLondon/PyGenStability), which is a Python wrapper for the generalised Louvain algorith. 
+The clustering function requires our [PyGenStability package](https://github.com/ImperialCollegeLondon/PyGenStability), which is a Python wrapper for the generalised Louvain algorithm. 
 
 To run clustering using geometric modularity (modularity on curvature weighted graph without null model), run 
 ```
