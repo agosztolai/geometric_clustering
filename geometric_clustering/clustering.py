@@ -11,12 +11,14 @@ class constructor(Constructor):
 
     def __init__(self, *args, **kwargs):
         """"""
-        super().__init__(*args, **kwargs)
+
         self.kappas = None
         self.kappa0 = None
         self.time_dict = None
         self.row = None
         self.col = None
+
+        super().__init__(*args, **kwargs)
 
     def prepare(self, **kwargs):
         """Prepare the constructor with non-time dependent computations."""
