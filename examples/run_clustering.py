@@ -5,7 +5,7 @@ import sys
 
 import networkx as nx
 
-from geocluster import cluster_signed_modularity, load_curvature
+from geometric_clustering import cluster_signed_modularity, load_curvature
 
 if __name__ == "__main__":
     graph_name = sys.argv[-1]

@@ -6,8 +6,8 @@ import sys
 import networkx as nx
 import matplotlib.pyplot as plt
 
-from geocluster import load_curvature
-from geocluster.plotting import plot_communities
+from geometric_clustering import load_curvature
+from geometric_clustering.plotting import plot_communities
 from pygenstability.plotting import plot_scan
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ import sys
 import networkx as nx
 import numpy as np
 
-from geocluster import compute_curvatures
+from geometric_clustering import compute_curvatures
 
 if __name__ == "__main__":
     graph_name = sys.argv[-1]

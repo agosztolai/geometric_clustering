@@ -5,7 +5,7 @@ import sys
 import matplotlib.pyplot as plt
 import networkx as nx
 
-from geocluster import load_curvature, plotting
+from geometric_clustering import load_curvature, plotting
 
 
 if __name__ == "__main__":
