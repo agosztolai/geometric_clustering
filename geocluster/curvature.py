@@ -1,4 +1,4 @@
-"""Functions for computing the curvature"""
+"""Functions for computing the curvature."""
 import logging
 import multiprocessing
 import os
@@ -9,7 +9,6 @@ import numpy as np
 import ot
 import scipy as sc
 import scipy.sparse.csgraph as scg
-from sklearn.utils import check_symmetric
 from tqdm import tqdm
 
 from .io import save_curvatures
@@ -19,7 +18,7 @@ logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
 
 def _construct_laplacian(graph, use_spectral_gap=True):
-    """Laplacian matrix"""
+    """Laplacian matrix."""
     degrees = np.array([graph.degree(i, weight="weight") for i in graph.nodes])
     laplacian = nx.laplacian_matrix(graph).dot(sc.sparse.diags(1.0 / degrees))
 
@@ -32,13 +31,14 @@ def _construct_laplacian(graph, use_spectral_gap=True):
 
 
 def _compute_distance_geodesic(G):
-    """Geodesic distance matrix"""
-    A = check_symmetric(nx.adjacency_matrix(G, weight="weight"))
-    return scg.floyd_warshall(A, directed=True, unweighted=False)
+    """Geodesic distance matrix."""
+    return scg.floyd_warshall(
+        nx.adjacency_matrix(G, weight="weight"), directed=True, unweighted=False
+    )
 
 
 def _heat_kernel(measure, laplacian, timestep):
-    """compute matrix exponential on a measure"""
+    """Compute matrix exponential on a measure."""
     return sc.sparse.linalg.expm_multiply(-timestep * laplacian, measure)
 
 
@@ -50,7 +50,7 @@ def _edge_curvature(
     sinkhorn_regularisation=0,
     weighted_curvature=False,
 ):
-    """Compute curvature for an edge"""
+    """Compute curvature for an edge."""
     node_x, node_y = edge
     m_x, m_y = measures[node_x], measures[node_y]
 
@@ -64,9 +64,7 @@ def _edge_curvature(
     distances_xy = geodesic_distances[np.ix_(Nx, Ny)]
 
     if sinkhorn_regularisation > 0:
-        wasserstein_distance = ot.sinkhorn2(
-            m_x, m_y, distances_xy, sinkhorn_regularisation
-        )[0]
+        wasserstein_distance = ot.sinkhorn2(m_x, m_y, distances_xy, sinkhorn_regularisation)[0]
     else:
         wasserstein_distance = ot.emd2(m_x, m_y, distances_xy)
 
@@ -83,8 +81,9 @@ def compute_curvatures(
     measure_cutoff=1e-6,
     sinkhorn_regularisation=0,
     weighted_curvature=False,
+    filename="curvature.pkl",
 ):
-    """Edge curvature matrix.
+    """Computes the curvatures of edges.
 
     Args:
         graph (networkx graph): graph to consider
@@ -94,8 +93,8 @@ def compute_curvatures(
         measure_cutoff (float): cutoff of the measures, in [0, 1], with no cutoff at 0
         sinkhorn_regularisation (float): Sinkhorn regularisation, when 0, no sinkhorn is applied
         weighted_curvature (bool): if True, the curvature is multiplied by the original edge weight
+        filename (str): pickle filename to save curvatures at each time step
     """
-
     # Check for self-loops
     if nx.number_of_selfloops(graph) > 0:
         raise Exception("A graph with self-loops will not work!")
@@ -121,17 +120,14 @@ def compute_curvatures(
         for time_index in tqdm(range(len(times))):
             L.debug("---------------------------------")
             L.debug("Step %s / %s", str(time_index), str(len(times)))
-            L.debug(
-                "Computing diffusion time 10^{:.1f}".format(np.log10(times[time_index]))
-            )
+            L.debug("Computing diffusion time 10^{:.1f}".format(np.log10(times[time_index])))
 
             L.debug("Computing measures")
             measures = pool.map(
                 partial(
                     _heat_kernel,
                     laplacian=laplacian,
-                    timestep=times_with_zero[time_index + 1]
-                    - times_with_zero[time_index],
+                    timestep=times_with_zero[time_index + 1] - times_with_zero[time_index],
                 ),
                 measures,
                 chunksize=chunksize,
@@ -152,12 +148,10 @@ def compute_curvatures(
             )
 
             if all(kappas[time_index] > 0) and display_all_positive:
-                L.info(
-                    "All edges have positive curvatures, so you may stop the computations."
-                )
+                L.info("All edges have positive curvatures, so you may stop the computations.")
                 display_all_positive = False
 
-            save_curvatures(times[:time_index], kappas[:time_index])
+            save_curvatures(times[:time_index], kappas[:time_index], filename=filename)
 
     return kappas
 

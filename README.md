@@ -4,7 +4,7 @@ This package computes the dynamic Ollivier-Ricci based on Markov diffusion proce
 
 ## Cite
 
-Please cite our paper if you use this code in your own work. To reproduce the results of our paper, run the jupyter notebooks in the folder `/paper_results`.
+Please cite our paper if you use this code in your own work. To reproduce the results of our paper, run the jupyter notebooks in the folder `examples/paper_results`.
 
 ```
 @inproceedings{gosztolaiArnaudon,
