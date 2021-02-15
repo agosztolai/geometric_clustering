@@ -10,7 +10,7 @@ setup(
         "matplotlib>=3.3.3",
         "tqdm>=4.56.0",
         "POT>=0.7.0",
-        "pygenstability>=0.0.1",
+        "pygenstability>=0.0.2",
     ],
     packages=find_packages(),
 )
