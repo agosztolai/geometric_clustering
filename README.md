@@ -7,11 +7,12 @@ This package computes the dynamic Ollivier-Ricci based on Markov diffusion proce
 Please cite our paper if you use this code in your own work. To reproduce the results of our paper, run the jupyter notebooks in the folder `examples/paper_results`.
 
 ```
-@inproceedings{gosztolaiArnaudon,
+@article{gosztolaiArnaudon,
   author    = {Adam Gosztolai and
                Alexis Arnaudon},
   title     = {Unfolding the multiscale structure of networks with dynamical Ollivier-Ricci curvature},
-  bookTitle = {arXiv},
+  journal = {Preprint at Researchsquare https://www.researchsquare.com/article/rs-222407/v1}
+  doi = {10.21203/rs.3.rs-222407/v1}
   year      = {2021}
 }
 ```
