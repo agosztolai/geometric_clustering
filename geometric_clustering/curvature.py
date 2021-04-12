@@ -14,7 +14,7 @@ from tqdm import tqdm
 from .io import save_curvatures
 
 L = logging.getLogger(__name__)
-logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
+logging.basicConfig(level=os.environ.get("LOGLEVEL", "DEBUG"))
 
 
 def _construct_laplacian(graph, use_spectral_gap=True):
@@ -64,13 +64,65 @@ def _edge_curvature(
     distances_xy = geodesic_distances[np.ix_(Nx, Ny)]
 
     if sinkhorn_regularisation > 0:
-        wasserstein_distance = ot.sinkhorn2(m_x, m_y, distances_xy, sinkhorn_regularisation)[0]
+        wasserstein_distance = ot.bregman.sinkhorn2(m_x, m_y, distances_xy, sinkhorn_regularisation)[0]
     else:
         wasserstein_distance = ot.emd2(m_x, m_y, distances_xy)
 
     if weighted_curvature:
         return geodesic_distances[node_x, node_y] - wasserstein_distance
     return 1.0 - wasserstein_distance / geodesic_distances[node_x, node_y]
+
+
+def _edge_curvature_gpu(G, measures, geodesic_distances, sinkhorn_regularisation):   
+    import ot.gpu
+    from .sinkhorn_gpu import sinkhorn_knopp, get_gpu_memory
+    
+    total_gpu_mem = get_gpu_memory()
+    
+    n = len(G.nodes)
+    m = len(G.edges)
+    total_mem = measures.nbytes*m*m/n + geodesic_distances.nbytes
+    
+    n_chunks = 2*int(np.ceil(total_mem / total_gpu_mem))
+    size_chunks = int(np.floor(m/n_chunks))
+    
+    #load stuff to GPU
+    measures = ot.gpu.to_gpu(measures) 
+    geodesic_distances = ot.gpu.to_gpu(geodesic_distances.astype(float))
+    sinkhorn_regularisation = ot.gpu.to_gpu(sinkhorn_regularisation)
+        
+    # # =============================================================================
+    # #version 1 (loop over edges)
+    # for ch in range(n_chunks):
+        
+    #     i = [e[0] for i, e in enumerate(G.edges) if i >= ch*size_chunks and i < (ch+1)*size_chunks] 
+    #     j = [e[1] for i, e in enumerate(G.edges) if i >= ch*size_chunks and i < (ch+1)*size_chunks]
+
+    #     W = sinkhorn_knopp(measures[:,i], 
+    #                    measures[:,j], 
+    #                    geodesic_distances, 
+    #                    sinkhorn_regularisation)
+        
+    # return 1. - W/ot.gpu.to_np(geodesic_distances[i][j])
+
+    # =============================================================================
+    #version 2 (loop over nodes and return K between all neighbours)
+    K = []
+    x = np.unique([x[0] for x in G.edges])
+    step = 0
+    for i in x:
+        print(step)
+        step+=1
+
+        ind = [y[1] for y in G.edges if y[0] == i]  
+
+        W = sinkhorn_knopp(measures[:,i], 
+                        measures[:,ind], 
+                        geodesic_distances, 
+                        sinkhorn_regularisation)
+        K = np.append(K, 1. - W/ot.gpu.to_np(geodesic_distances[i][ind]))
+        
+    return K
 
 
 def compute_curvatures(
@@ -80,6 +132,7 @@ def compute_curvatures(
     use_spectral_gap=True,
     measure_cutoff=1e-6,
     sinkhorn_regularisation=0,
+    use_gpu=False,
     weighted_curvature=False,
     filename="curvature.pkl",
 ):
@@ -111,13 +164,20 @@ def compute_curvatures(
 
     times_with_zero = np.insert(times, 0, 0.0)
 
-    kappas = np.ones([len(times), len(graph.edges())])
+    kappas = np.zeros([len(times), len(graph.edges())])
     measures = list(np.eye(len(graph)))
     display_all_positive = False
     L.debug("Compute all curvatures")
     with multiprocessing.Pool(n_workers) as pool:
         chunksize = max(1, int(len(graph.edges) / n_workers))
         for time_index in tqdm(range(len(times))):
+
+            save_curvatures(times[:time_index], kappas[:time_index], filename=filename)
+            
+            if all(kappas[time_index] > 0) and display_all_positive:
+                L.info("All edges have positive curvatures, so you may stop the computations.")
+                display_all_positive = False
+                
             L.debug("---------------------------------")
             L.debug("Step %s / %s", str(time_index), str(len(times)))
             L.debug("Computing diffusion time 10^{:.1f}".format(np.log10(times[time_index])))
@@ -132,8 +192,25 @@ def compute_curvatures(
                 measures,
                 chunksize=chunksize,
             )
-
+            
+            import time
             L.debug("Computing curvatures")
+            if use_gpu and sinkhorn_regularisation>0:
+                try:
+                    now = time.time()
+                    measures = np.array(measures)
+                    _edge_curvature_gpu(graph, 
+                                        measures, 
+                                        geodesic_distances, 
+                                        sinkhorn_regularisation)
+                    
+                    print(time.time()-now)
+                    continue
+                except:
+                    L.warn('There is no GPU or Cupy is not installed properly. Continuing on CPU.')
+                    use_gpu=False
+                   
+            now = time.time()
             kappas[time_index] = pool.map(
                 partial(
                     _edge_curvature,
@@ -146,12 +223,7 @@ def compute_curvatures(
                 graph.edges,
                 chunksize=chunksize,
             )
-
-            if all(kappas[time_index] > 0) and display_all_positive:
-                L.info("All edges have positive curvatures, so you may stop the computations.")
-                display_all_positive = False
-
-            save_curvatures(times[:time_index], kappas[:time_index], filename=filename)
+            print(time.time()-now)
 
     return kappas
 
