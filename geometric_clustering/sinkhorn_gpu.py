@@ -8,8 +8,13 @@ Bregman projections for regularized OT with GPU
 #
 # License: MIT License
 
-import cupy as cp  
-import cupy as np # np used for matrix computation
+try: 
+    import cupy as cp  
+    import cupy as np # np used for matrix computation
+except:
+    import numpy as cp  
+    import numpy as np # np used for matrix computation
+    print('Cupy is not installed, GPU functions will not work.')
 
 import subprocess as sp
 

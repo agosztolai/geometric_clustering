@@ -14,7 +14,7 @@ from tqdm import tqdm
 from .io import save_curvatures
 
 L = logging.getLogger(__name__)
-logging.basicConfig(level=os.environ.get("LOGLEVEL", "DEBUG"))
+logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
 
 def _construct_laplacian(graph, use_spectral_gap=True):
