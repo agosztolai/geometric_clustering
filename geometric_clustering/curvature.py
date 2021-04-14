@@ -129,7 +129,7 @@ def compute_curvatures(
     graph,
     times,
     n_workers=1,
-    use_spectral_gap=True,
+    use_spectral_gap=False,
     measure_cutoff=1e-6,
     sinkhorn_regularisation=0,
     use_gpu=False,
