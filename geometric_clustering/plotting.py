@@ -9,6 +9,7 @@ import networkx as nx
 import numpy as np
 from scipy.spatial import ConvexHull
 from tqdm import tqdm
+from geocluster import scales
 
 
 def _savefig(fig, folder, filename, ext):
@@ -26,6 +27,7 @@ def plot_edge_curvatures(
     folder="figures",
     filename="curvature",
     ext=".svg",
+    color=None,
     ax=None,
     figsize=(5, 4),
 ):
@@ -35,6 +37,7 @@ def plot_edge_curvatures(
         ax = plt.gca()
     else:
         fig = None
+<<<<<<< Updated upstream:geometric_clustering/plotting.py
 
     for kappa in kappas.T:
         if all(kappa > 0):
@@ -42,6 +45,26 @@ def plot_edge_curvatures(
         else:
             color = "C1"
         ax.plot(np.log10(times), kappa, c=color, lw=0.5)
+=======
+    
+    if color=='zerocrossing':
+        edge_scales = scales.compute_scales(times, kappas)
+        cmap = matplotlib.cm.terrain
+        norm = col.Normalize(vmin=min(edge_scales),vmax=max(edge_scales))
+        
+    for i, kappa in enumerate(kappas.T):
+        c='k'
+        if color=='positivenegative':
+            if all(kappa > 0):
+                c = "C0"
+            else:
+                c = "C1"
+                
+        if color=='zerocrossing':
+            c=cmap(norm(edge_scales[i]))
+            
+        ax.plot(times, kappa, c=c, lw=0.5)
+>>>>>>> Stashed changes:geocluster/plotting.py
 
     if ylog:
         ax.set_xscale("symlog")

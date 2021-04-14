@@ -1,6 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
+<<<<<<< Updated upstream
     name="geometric_clustering",
     version="1.0",
     install_requires=[
@@ -14,3 +15,17 @@ setup(
     ],
     packages=find_packages(),
 )
+=======
+        name = 'geocluster',
+        version = '1.0',
+        install_requires=['numpy', 
+                          'scipy', 
+                          'networkx', 
+                          'matplotlib', 
+                          'pyyaml',
+                          'tqdm',
+                          'sklearn',
+                          'POT'],
+        packages = find_packages(),                       
+      )
+>>>>>>> Stashed changes
