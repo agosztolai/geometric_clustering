@@ -24,7 +24,7 @@ if __name__ == "__main__":
         kappa0=None,
         n_louvain=50,
         n_louvain_VI=50,
-        n_workers=4,
+        n_workers=1,
         with_postprocessing=True,
     )
     pickle.dump(cluster_results, open(f"{graph_name}/cluster_results.pkl", "wb"))
