@@ -18,4 +18,12 @@ if __name__ == "__main__":
     n_t = 50
     times = np.logspace(t_min, t_max, n_t)
 
-    kappas = compute_curvatures(graph, times, n_workers=10, filename=f"{graph_name}/curvature.pkl")
+    kappas = compute_curvatures(
+        graph,
+        times,
+        n_workers=1,
+        filename=f"{graph_name}/curvature.pkl",
+        use_gpu=False,
+        sinkhorn_regularisation=0.1,
+        measure_cutoff=0,
+    )
