@@ -21,12 +21,10 @@ def _construct_laplacian(graph, use_spectral_gap=True):
     """Laplacian matrix."""
     degrees = np.array([graph.degree(i, weight="weight") for i in graph.nodes])
     laplacian = nx.laplacian_matrix(graph).dot(sc.sparse.diags(1.0 / degrees))
-
     if use_spectral_gap and len(graph) > 3:
-        spectral_gap = abs(sc.sparse.linalg.eigs(laplacian, which="SM", k=2)[0][1])
+        spectral_gap = sorted(abs(sc.sparse.linalg.eigs(laplacian, which="SM", k=2)[0]))[1]
         L.debug("Spectral gap = 10^{:.1f}".format(np.log10(spectral_gap)))
         laplacian /= spectral_gap
-
     return laplacian
 
 
