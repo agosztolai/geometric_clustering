@@ -75,21 +75,20 @@ def _edge_curvature(
 
 def _edge_curvature_gpu(G, measures, geodesic_distances, sinkhorn_regularisation):   
     import ot.gpu
-    from .sinkhorn_gpu import sinkhorn_knopp, get_gpu_memory
+    # from .sinkhorn_gpu import sinkhorn_knopp, get_gpu_memory
     
-    total_gpu_mem = get_gpu_memory()
+    # total_gpu_mem = get_gpu_memory()
     
-    n = len(G.nodes)
-    m = len(G.edges)
-    total_mem = measures.nbytes*m*m/n + geodesic_distances.nbytes
+    # n = len(G.nodes)
+    # m = len(G.edges)
+    # total_mem = measures.nbytes*m*m/n + geodesic_distances.nbytes
     
-    n_chunks = 2*int(np.ceil(total_mem / total_gpu_mem))
-    size_chunks = int(np.floor(m/n_chunks))
+    # n_chunks = 2*int(np.ceil(total_mem / total_gpu_mem))
+    # size_chunks = int(np.floor(m/n_chunks))
     
     #load stuff to GPU
     measures = ot.gpu.to_gpu(measures) 
     geodesic_distances = ot.gpu.to_gpu(geodesic_distances.astype(float))
-    sinkhorn_regularisation = ot.gpu.to_gpu(sinkhorn_regularisation)
         
     # # =============================================================================
     # #version 1 (loop over edges)
@@ -109,18 +108,18 @@ def _edge_curvature_gpu(G, measures, geodesic_distances, sinkhorn_regularisation
     #version 2 (loop over nodes and return K between all neighbours)
     K = []
     x = np.unique([x[0] for x in G.edges])
-    step = 0
-    for i in x:
-        print(step)
-        step+=1
+    for i in tqdm(x):
 
         ind = [y[1] for y in G.edges if y[0] == i]  
 
-        W = sinkhorn_knopp(measures[:,i], 
+        W = ot.gpu.sinkhorn(measures[:,i], 
                         measures[:,ind], 
                         geodesic_distances, 
-                        sinkhorn_regularisation)
-        K = np.append(K, 1. - W/ot.gpu.to_np(geodesic_distances[i][ind]))
+                        sinkhorn_regularisation,
+                        to_numpy=False, 
+                        log=False)
+        print('ok')
+        K = np.append(K, 1. - W/geodesic_distances[i][ind])
         
     return K
 
@@ -193,37 +192,31 @@ def compute_curvatures(
                 chunksize=chunksize,
             )
             
-            import time
             L.debug("Computing curvatures")
-            if use_gpu and sinkhorn_regularisation>0:
+            if use_gpu:
                 try:
-                    now = time.time()
                     measures = np.array(measures)
-                    _edge_curvature_gpu(graph, 
+                    kappas[time_index] = _edge_curvature_gpu(graph, 
                                         measures, 
                                         geodesic_distances, 
                                         sinkhorn_regularisation)
-                    
-                    print(time.time()-now)
-                    continue
                 except:
                     L.warn('There is no GPU or Cupy is not installed properly. Continuing on CPU.')
                     use_gpu=False
-                   
-            now = time.time()
-            kappas[time_index] = pool.map(
-                partial(
-                    _edge_curvature,
-                    measures=measures,
-                    geodesic_distances=geodesic_distances,
-                    measure_cutoff=measure_cutoff,
-                    sinkhorn_regularisation=sinkhorn_regularisation,
-                    weighted_curvature=weighted_curvature,
-                ),
-                graph.edges,
-                chunksize=chunksize,
-            )
-            print(time.time()-now)
+                    
+            if not use_gpu:
+                kappas[time_index] = pool.map(
+                    partial(
+                        _edge_curvature,
+                        measures=measures,
+                        geodesic_distances=geodesic_distances,
+                        measure_cutoff=measure_cutoff,
+                        sinkhorn_regularisation=sinkhorn_regularisation,
+                        weighted_curvature=weighted_curvature,
+                        ),
+                    graph.edges,
+                    chunksize=chunksize,
+                )
 
     return kappas
 
