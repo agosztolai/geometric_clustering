@@ -37,11 +37,7 @@ def plot_edge_curvatures(
         fig = None
 
     for kappa in kappas.T:
-        if all(kappa > 0):
-            color = "C0"
-        else:
-            color = "C1"
-        ax.plot(np.log10(times), kappa, c=color, lw=0.5)
+        ax.plot(np.log10(times), kappa, c='k', lw=0.5, alpha=0.1)
 
     if ylog:
         ax.set_xscale("symlog")
