@@ -10,7 +10,7 @@ class constructor(Constructor):
     """Constructor for geometric modularity."""
 
     def __init__(self, *args, **kwargs):
-        """"""
+        """ """
 
         self.kappas = None
         self.kappa0 = None
