@@ -1,3 +1,5 @@
+https://zenodo.org/badge/DOI/10.5281/zenodo.5031276.svg
+
 # Dynamical Ollivier-Ricci curvature and clustering
 
 This package performs multiscale clustering on undirected graphs based on the multiscale geometric modularity method. This relies on computing the dynamic Ollivier-Ricci curvature based on Markov diffusion processes for edges of a graph at a sequence of scales and clusters the edge curvature distributions using signed Louvain modularity. 
