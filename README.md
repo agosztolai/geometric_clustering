@@ -1,4 +1,4 @@
-https://zenodo.org/badge/latestdoi/177008099
+[![DOI](https://zenodo.org/badge/177008099.svg)](https://zenodo.org/badge/latestdoi/177008099)
 
 # Dynamical Ollivier-Ricci curvature and clustering
 
