@@ -9,14 +9,18 @@ This package performs multiscale clustering on undirected graphs based on the mu
 Please cite our paper if you use this code in your own work. To reproduce the results of our paper, run the jupyter notebooks in the folder `examples/paper_results`.
 
 ```
-@article{gosztolaiArnaudon,
-  author    = {Adam Gosztolai and
-               Alexis Arnaudon},
-  title     = {Unfolding the multiscale structure of networks with dynamical Ollivier-Ricci curvature},
-  journal = {Preprint at Researchsquare https://www.researchsquare.com/article/rs-222407/v1}
-  doi = {10.21203/rs.3.rs-222407/v1}
-  year      = {2021}
+@article{Gosztolai2021,
+author = {Gosztolai, Adam and Arnaudon, Alexis},
+doi = {10.1038/s41467-021-24884-1},
+issn = {2041-1723},
+journal = {Nat. Commun.},
+number = {1},
+pages = {4561},
+title = {{Unfolding the multiscale structure of networks with dynamical Ollivier-Ricci curvature}},
+volume = {12},
+year = {2021}
 }
+
 ```
 
 ## Getting started
