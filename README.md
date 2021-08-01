@@ -9,7 +9,7 @@ This package performs multiscale clustering on undirected graphs based on the mu
 Please cite our paper if you use this code in your own work. To reproduce the results of our paper, run the jupyter notebooks in the folder `examples/paper_results`.
 
 ```
-@article{Gosztolai2021,
+@article{GosztolaiArnaudon2021,
 author = {Gosztolai, Adam and Arnaudon, Alexis},
 doi = {10.1038/s41467-021-24884-1},
 issn = {2041-1723},
