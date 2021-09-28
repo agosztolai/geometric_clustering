@@ -2,13 +2,14 @@ import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-from geocluster import curvature as cv
+from geometric_clustering import curvature as cv
 import scipy.sparse as sp
 from tqdm import tqdm
 
 
 if __name__ == "__main__":
-    gs = [500, 5000, 50000]
+    #gs = [500, 5000, 50000]
+    gs = [2000]
     for g_ in gs:
         print(g_)
         plt.figure(figsize=(7,3))
