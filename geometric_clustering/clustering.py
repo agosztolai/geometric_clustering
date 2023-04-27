@@ -43,7 +43,9 @@ class constructor(Constructor):
         null_model = np.zeros(self.graph.shape[0])
         self.partial_null_model = np.array([null_model, null_model])
 
-        return self.partial_quality_matrix, self.partial_null_model, None
+        return {'quality': self.partial_quality_matrix, 
+                'null_model': self.partial_null_model, 
+                'shift': 0.}
 
 
 def cluster_signed_modularity(
@@ -74,6 +76,7 @@ def cluster_signed_modularity(
         n_workers (int): number of workers for multiprocessing
         tqdm_disable (bool): disable progress bars
     """
+        
     return run(
         graph=None,
         constructor=constructor(
@@ -84,12 +87,14 @@ def cluster_signed_modularity(
             row=np.array([e[0] for e in graph.edges]),
             col=np.array([e[1] for e in graph.edges]),
         ),
-        times=times,
-        n_louvain=n_louvain,
-        with_VI=with_VI,
-        n_louvain_VI=n_louvain_VI,
+        log_scale=True,
+        scales=times,
+        n_tries=n_louvain,
+        with_NVI=with_VI,
+        n_NVI=n_louvain_VI,
         with_postprocessing=with_postprocessing,
         with_ttprime=with_ttprime,
         n_workers=n_workers,
         tqdm_disable=tqdm_disable,
+        with_optimal_scales=False
     )

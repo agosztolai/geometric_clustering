@@ -205,7 +205,7 @@ def plot_communities(
     ext=".png",
 ):
     """Plot the community structures at each time in a folder."""
-    from pygenstability.plotting import plot_single_community
+    from pygenstability.plotting import plot_single_partition
 
     if not os.path.isdir(folder):
         os.mkdir(folder)
@@ -224,7 +224,7 @@ def plot_communities(
         for i in graph:
             graph.nodes[i]["pos"] = pos[i]
 
-    for time_id in tqdm(range(len(all_results["times"]))):
+    for time_id in tqdm(range(len(all_results["scales"]))):
         plt.figure(figsize=figsize)
 
         if ground_truth is not None:
@@ -236,7 +236,7 @@ def plot_communities(
                 points = points[hull.vertices, :]
                 plt.fill(points[:, 0], points[:, 1], alpha=0.3)
 
-        plot_single_community(
+        plot_single_partition(
             graph, all_results, time_id, edge_color=edge_color, edge_width=1, node_size=50
         )
         plot_graph(
